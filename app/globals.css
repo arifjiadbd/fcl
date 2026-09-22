@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+:root {
+  --background: #020617;
+  --foreground: #f8fafc;
+
+  --fcl-card: #0f172a;
+  --fcl-card-light: #111c32;
+
+  --fcl-blue: #6366f1;
+  --fcl-cyan: #06b6d4;
+  --fcl-green: #10b981;
+  --fcl-gold: #f59e0b;
+
+  --fcl-border: #1e293b;
+  --fcl-muted: #94a3b8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
