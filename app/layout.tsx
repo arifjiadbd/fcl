@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Facebook Cricket League (FCL) | Official Digital Platform",
   description: "Official digital platform of Facebook Cricket League (FCL). Real-time cricket stats, player profiles, match formats, and all-time records.",
+  icons: {
+    icon: "/icon.png",
+  },
   openGraph: {
     title: "Facebook Cricket League (FCL)",
     description: "One Game. One Community. The Game Lives Beyond The Field.",
