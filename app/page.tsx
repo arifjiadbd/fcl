@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Rock_3D } from "next/font/google";
+import Link from "next/link";
 
 export default function Home() {
   const [rulesLang, setRulesLang] = useState<"en" | "bn">("en");
   const [openRule, setOpenRule] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Live Excel API State
   const [playersData, setPlayersData] = useState<any[]>([]);
@@ -36,90 +37,135 @@ export default function Home() {
 
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-[#1e293b] bg-[#020617]/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
 
-          {/* Brand */}
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#1877F2]/50 bg-[#111936] shadow-lg shadow-[#1877F2]/10">
-              <span className="text-xl">🏏</span>
+          {/* Brand & Logo */}
+          <Link href="/" className="flex items-center gap-3">
+            <div className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center overflow-hidden rounded-xl border border-[#1877F2]/40 bg-[#111936] shadow-lg shadow-[#1877F2]/10">
+              <img
+                src="/fcl-logo.png"
+                alt="FCL Logo"
+                className="h-full w-full object-contain p-1"
+                onError={(e) => {
+                  // Fallback icon if logo image not yet in public folder
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<span class="text-xl">🏏</span>';
+                }}
+              />
             </div>
 
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight">
-                  Facebook{" "}
-                  <span className="text-[#1877F2]">
-                    Cricket League
-                  </span>
+                <h1 className="text-base sm:text-xl font-bold tracking-tight text-white">
+                  Facebook <span className="text-[#1877F2]">Cricket League</span>
                 </h1>
 
-                <span className="rounded-md border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-2 py-1 text-[10px] font-bold text-[#f59e0b]">
+                <span className="rounded-md border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-[#f59e0b]">
                   FCL
                 </span>
               </div>
 
-              <p className="mt-0.5 text-xs text-[#94a3b8]">
+              <p className="text-[10px] sm:text-xs text-[#94a3b8]">
                 Official FCL Digital Platform
               </p>
             </div>
-          </div>
+          </Link>
 
-          {/* Navigation */}
-          <nav className="hidden items-center gap-7 lg:flex">
-            <a
-              href="#home"
-              className="text-sm font-semibold text-white transition hover:text-[#1877F2]"
-            >
+          {/* Desktop Navigation */}
+          <nav className="hidden items-center gap-6 lg:flex">
+            <Link href="#home" className="text-sm font-semibold text-white transition hover:text-[#1877F2]">
               Home
-            </a>
-
-            <a
-              href="#about"
-              className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]"
-            >
+            </Link>
+            <Link href="#about" className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]">
               About FCL
-            </a>
-
-            <a
-              href="#how-to-play"
-              className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]"
-            >
+            </Link>
+            <Link href="#how-to-play" className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]">
               How to Play
-            </a>
-
-            <a
-              href="/players"
-              className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]"
-            >
+            </Link>
+            <Link href="/players" className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]">
               Players
-            </a>
-
-            <a
-              href="#matches"
-              className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]"
-            >
+            </Link>
+            <Link href="#matches" className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]">
               Matches
-            </a>
-
-            <a
-              href="/records"
-              className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]"
-            >
+            </Link>
+            <Link href="/records" className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]">
               Records
-            </a>
+            </Link>
           </nav>
 
-          {/* FCL Status */}
-          <div className="hidden items-center gap-2 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-2 sm:flex">
-            <span className="h-2 w-2 rounded-full bg-[#1877F2] shadow-lg shadow-[#1877F2]"></span>
-            <span className="text-xs font-semibold text-[#1877F2]">
-              FCL
-            </span>
+          {/* Desktop Status & Mobile Menu Button */}
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-1.5 sm:flex">
+              <span className="h-2 w-2 rounded-full bg-[#1877F2] shadow-lg shadow-[#1877F2]" />
+              <span className="text-xs font-semibold text-[#1877F2]">Live</span>
+            </div>
+
+            {/* Mobile Hamburger Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#1e293b] bg-[#0b1220] text-white transition hover:border-[#1877F2]/50 lg:hidden"
+              aria-label="Toggle Menu"
+            >
+              {mobileMenuOpen ? (
+                <span className="text-xl font-bold">✕</span>
+              ) : (
+                <span className="text-xl">☰</span>
+              )}
+            </button>
           </div>
 
         </div>
-      </header>
 
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="border-t border-[#1e293b] bg-[#030712] px-6 py-5 lg:hidden animate-in fade-in slide-in-from-top-2 duration-200">
+            <nav className="flex flex-col gap-4">
+              <Link
+                href="#home"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:bg-[#1877F2]/10 hover:text-[#1877F2]"
+              >
+                🏠 Home
+              </Link>
+              <Link
+                href="#about"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-[#94a3b8] transition hover:bg-[#1877F2]/10 hover:text-[#1877F2]"
+              >
+                ℹ️ About FCL
+              </Link>
+              <Link
+                href="#how-to-play"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-[#94a3b8] transition hover:bg-[#1877F2]/10 hover:text-[#1877F2]"
+              >
+                🎮 How to Play
+              </Link>
+              <Link
+                href="/players"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-[#60a5fa] transition hover:bg-[#1877F2]/10"
+              >
+                👥 Players Directory
+              </Link>
+              <Link
+                href="#matches"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-[#94a3b8] transition hover:bg-[#1877F2]/10 hover:text-[#1877F2]"
+              >
+                ⚔️ Matches
+              </Link>
+              <Link
+                href="/records"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-[#fbbf24] transition hover:bg-[#f59e0b]/10"
+              >
+                🏆 Records & Leaderboard
+              </Link>
+            </nav>
+          </div>
+        )}
+      </header>
 
       {/* Hero Section */}
       <section
@@ -514,7 +560,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#22c55e]/50">
+            <div className="group rounded-2xl border border-[#1e293b] bg-[#020617] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#22c55e]/50">
               <div className="flex items-center justify-between">
                 <span className="text-3xl font-black text-[#22c55e]/20">05</span>
                 <span className="text-xl">🏆</span>
@@ -1162,9 +1208,17 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 rounded-xl border border-[#1e293b] bg-[#0b1220] px-4 py-2 text-xs font-semibold text-[#64748b]">
-              <span>Active Database: {playersData.length || "211"} Players</span>
-              <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e]" />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 rounded-xl border border-[#1e293b] bg-[#0b1220] px-4 py-2 text-xs font-semibold text-[#64748b]">
+                <span>Active Database: {playersData.length || "211"} Players</span>
+                <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e]" />
+              </div>
+              <Link
+                href="/players"
+                className="rounded-xl border border-[#1877F2]/30 bg-[#1877F2]/10 px-4 py-2 text-xs font-bold text-[#60a5fa] transition hover:bg-[#1877F2] hover:text-white"
+              >
+                View All Players →
+              </Link>
             </div>
           </div>
 
@@ -1495,9 +1549,17 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 rounded-xl border border-[#1e293b] bg-[#0b1220] px-4 py-2 text-xs font-semibold text-[#64748b]">
-              <span>Official Records Archive</span>
-              <span className="text-[#f59e0b]">★</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 rounded-xl border border-[#1e293b] bg-[#0b1220] px-4 py-2 text-xs font-semibold text-[#64748b]">
+                <span>Official Records Archive</span>
+                <span className="text-[#f59e0b]">★</span>
+              </div>
+              <Link
+                href="/records"
+                className="rounded-xl border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-4 py-2 text-xs font-bold text-[#fbbf24] transition hover:bg-[#f59e0b] hover:text-black"
+              >
+                View Hall of Fame →
+              </Link>
             </div>
           </div>
 
