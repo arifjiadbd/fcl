@@ -4,11 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 export default function Home() {
-  const [rulesLang, setRulesLang] = useState<"en" | "bn">("en");
-  const [openRule, setOpenRule] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  // Live Excel API State
   const [playersData, setPlayersData] = useState<any[]>([]);
 
   useEffect(() => {
@@ -17,6 +13,8 @@ export default function Home() {
       .then((data) => {
         if (Array.isArray(data)) {
           setPlayersData(data);
+        } else if (data.players && Array.isArray(data.players)) {
+          setPlayersData(data.players);
         }
       })
       .catch((err) => console.error("Error fetching live Excel data:", err));
@@ -25,7 +23,7 @@ export default function Home() {
   // Auto Calculations directly from Excel Data
   const topRunScorer = [...playersData].sort((a, b) => b.runs - a.runs)[0];
   const topWicketTaker = [...playersData].sort((a, b) => b.wickets - a.wickets)[0];
-  const mostChampionshipPlayer = [...playersData].sort((a, b) => b.champion - a.champion)[0];
+  const mostChampionshipPlayer = [...playersData].sort((a, b) => (b.champion || 0) - (a.champion || 0))[0];
   const mostMatchesPlayer = [...playersData].sort((a, b) => b.matches - a.matches)[0];
   const mostSixesPlayer = [...playersData].sort((a, b) => b.sixes - a.sixes)[0];
 
@@ -33,12 +31,10 @@ export default function Home() {
   const totalCommunityWickets = playersData.reduce((acc, curr) => acc + (curr.wickets || 0), 0);
 
   return (
-    <main className="min-h-screen bg-[#020617] text-white">
-
+    <main className="min-h-screen bg-[#020617] text-white selection:bg-[#1877F2]/30 selection:text-white">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-[#1e293b] bg-[#020617]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-
           {/* Brand & Logo */}
           <Link href="/" className="flex items-center gap-3">
             <div className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center overflow-hidden rounded-xl border border-[#1877F2]/40 bg-[#111936] shadow-lg shadow-[#1877F2]/10">
@@ -47,8 +43,7 @@ export default function Home() {
                 alt="FCL Logo"
                 className="h-full w-full object-contain p-1"
                 onError={(e) => {
-                  // Fallback icon if logo image not yet in public folder
-                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.style.display = "none";
                   e.currentTarget.parentElement!.innerHTML = '<span class="text-xl">🏏</span>';
                 }}
               />
@@ -59,28 +54,24 @@ export default function Home() {
                 <h1 className="text-base sm:text-xl font-bold tracking-tight text-white">
                   Facebook <span className="text-[#1877F2]">Cricket League</span>
                 </h1>
-
                 <span className="rounded-md border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-[#f59e0b]">
                   FCL
                 </span>
               </div>
-
-              <p className="text-[10px] sm:text-xs text-[#94a3b8]">
-                Official FCL Digital Platform
-              </p>
+              <p className="text-[10px] sm:text-xs text-[#94a3b8]">Official FCL Digital Platform</p>
             </div>
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden items-center gap-6 lg:flex">
-            <Link href="#home" className="text-sm font-semibold text-white transition hover:text-[#1877F2]">
+            <Link href="/" className="text-sm font-semibold text-white transition hover:text-[#1877F2]">
               Home
             </Link>
             <Link href="#about" className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]">
               About FCL
             </Link>
-            <Link href="#how-to-play" className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]">
-              How to Play
+            <Link href="/rules" className="text-sm font-medium text-[#38bdf8] transition hover:text-white">
+              Rules & Formats
             </Link>
             <Link href="/players" className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]">
               Players
@@ -88,7 +79,7 @@ export default function Home() {
             <Link href="#matches" className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]">
               Matches
             </Link>
-            <Link href="/records" className="text-sm font-medium text-[#94a3b8] transition hover:text-[#1877F2]">
+            <Link href="/records" className="text-sm font-medium text-[#fbbf24] transition hover:text-white">
               Records
             </Link>
           </nav>
@@ -100,20 +91,14 @@ export default function Home() {
               <span className="text-xs font-semibold text-[#1877F2]">Live</span>
             </div>
 
-            {/* Mobile Hamburger Button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#1e293b] bg-[#0b1220] text-white transition hover:border-[#1877F2]/50 lg:hidden"
               aria-label="Toggle Menu"
             >
-              {mobileMenuOpen ? (
-                <span className="text-xl font-bold">✕</span>
-              ) : (
-                <span className="text-xl">☰</span>
-              )}
+              {mobileMenuOpen ? <span className="text-xl font-bold">✕</span> : <span className="text-xl">☰</span>}
             </button>
           </div>
-
         </div>
 
         {/* Mobile Dropdown Menu */}
@@ -121,7 +106,7 @@ export default function Home() {
           <div className="border-t border-[#1e293b] bg-[#030712] px-6 py-5 lg:hidden animate-in fade-in slide-in-from-top-2 duration-200">
             <nav className="flex flex-col gap-4">
               <Link
-                href="#home"
+                href="/"
                 onClick={() => setMobileMenuOpen(false)}
                 className="rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:bg-[#1877F2]/10 hover:text-[#1877F2]"
               >
@@ -135,11 +120,11 @@ export default function Home() {
                 ℹ️ About FCL
               </Link>
               <Link
-                href="#how-to-play"
+                href="/rules"
                 onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-[#94a3b8] transition hover:bg-[#1877F2]/10 hover:text-[#1877F2]"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-[#38bdf8] transition hover:bg-[#1877F2]/10"
               >
-                🎮 How to Play
+                📜 Rules & Match Formats
               </Link>
               <Link
                 href="/players"
@@ -167,7 +152,7 @@ export default function Home() {
         )}
       </header>
 
-      {/* Hero Section */}
+      {/* Hero Section (With Full Animations & Floating Scorecards) */}
       <section
         id="home"
         className="relative min-h-[calc(100vh-76px)] overflow-hidden border-b border-[#172033] bg-[#02050b]"
@@ -179,7 +164,6 @@ export default function Home() {
 
         <div className="relative mx-auto min-h-[calc(100vh-76px)] max-w-[1500px] px-6">
           <div className="grid min-h-[calc(100vh-76px)] items-center lg:grid-cols-[0.82fr_1.18fr]">
-
             {/* Left Typography */}
             <div className="relative z-30 py-20 text-center lg:text-left">
               <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-4 py-2 backdrop-blur-xl">
@@ -194,9 +178,7 @@ export default function Home() {
               </p>
 
               <h2 className="mt-5 text-5xl font-black leading-[0.91] tracking-[-0.05em] text-white sm:text-6xl md:text-7xl lg:text-[78px]">
-                <span className="block">
-                  THE GAME LIVES
-                </span>
+                <span className="block">THE GAME LIVES</span>
                 <span className="block bg-gradient-to-r from-[#60a5fa] via-[#1877F2] to-[#8b5cf6] bg-clip-text text-transparent">
                   BEYOND THE FIELD.
                 </span>
@@ -209,34 +191,29 @@ export default function Home() {
               </h2>
 
               <p className="mx-auto mt-7 max-w-[540px] text-sm leading-7 text-[#94a3b8] md:text-base lg:mx-0">
-                From different districts of Bangladesh to different corners of
-                the world, we play, compete and connect through FCL.
-                Distance may separate us, but the game brings us together.
+                From different districts of Bangladesh to different corners of the world, we play, compete and connect
+                through FCL. Distance may separate us, but the game brings us together.
               </p>
 
               <div className="mt-9 flex flex-col gap-3 sm:flex-row lg:justify-start">
-                <a
-                  href="#matches"
+                <Link
+                  href="/players"
                   className="group relative overflow-hidden rounded-xl bg-[#1877F2] px-7 py-3.5 text-sm font-bold text-white shadow-[0_12px_40px_rgba(24,119,242,0.25)] transition duration-300 hover:-translate-y-1 hover:bg-[#0d6fe8]"
                 >
-                  <span className="relative z-10">
-                    Explore FCL →
-                  </span>
+                  <span className="relative z-10">Explore Players & Cards →</span>
                   <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition duration-700 group-hover:translate-x-full" />
-                </a>
+                </Link>
 
-                <a
-                  href="#about"
+                <Link
+                  href="/rules"
                   className="rounded-xl border border-[#334155] bg-white/[0.03] px-7 py-3.5 text-sm font-bold text-[#cbd5e1] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-[#1877F2]/50 hover:bg-[#1877F2]/10 hover:text-white"
                 >
-                  How FCL Works
-                </a>
+                  Rules & Match Formats
+                </Link>
               </div>
 
               <div className="mt-9 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#475569]">
-                  Connected from
-                </span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#475569]">Connected from</span>
                 <span className="rounded-full border border-[#1e293b] bg-[#0b1220]/80 px-3 py-1.5 text-[10px] text-[#cbd5e1]">
                   🇧🇩 Bangladesh
                 </span>
@@ -253,27 +230,21 @@ export default function Home() {
               <div className="mt-9 flex max-w-[460px] divide-x divide-[#1e293b] rounded-2xl border border-[#1e293b] bg-[#0b1220]/70 px-2 py-4 backdrop-blur-xl">
                 <div className="w-1/3 px-4">
                   <p className="text-xl font-black text-white">{playersData.length || "211+"}</p>
-                  <p className="mt-1 text-[8px] font-bold uppercase tracking-widest text-[#64748b]">
-                    Players
-                  </p>
+                  <p className="mt-1 text-[8px] font-bold uppercase tracking-widest text-[#64748b]">Players</p>
                 </div>
                 <div className="w-1/3 px-4">
-                  <p className="text-xl font-black text-white">—</p>
-                  <p className="mt-1 text-[8px] font-bold uppercase tracking-widest text-[#64748b]">
-                    Matches
-                  </p>
+                  <p className="text-xl font-black text-[#22c55e]">24+</p>
+                  <p className="mt-1 text-[8px] font-bold uppercase tracking-widest text-[#64748b]">Tournaments</p>
                 </div>
                 <div className="w-1/3 px-4">
-                  <p className="text-xl font-black text-white">—</p>
-                  <p className="mt-1 text-[8px] font-bold uppercase tracking-widest text-[#64748b]">
-                    Seasons
-                  </p>
+                  <p className="text-xl font-black text-[#f59e0b]">2013-26</p>
+                  <p className="mt-1 text-[8px] font-bold uppercase tracking-widest text-[#64748b]">Active Era</p>
                 </div>
               </div>
             </div>
 
-            {/* Right Cinematic Room */}
-            <div className="relative h-[680px] w-full">
+            {/* Right Cinematic Room With Floating Cards */}
+            <div className="relative h-[680px] w-full hidden sm:block">
               <div className="absolute inset-y-[30px] right-[-40px] w-[760px] overflow-hidden rounded-[3rem] border border-white/[0.08] bg-[#080d17] shadow-[0_40px_120px_rgba(0,0,0,0.7)]">
                 <img
                   src="/fcl-room.png"
@@ -288,21 +259,15 @@ export default function Home() {
               <div className="absolute left-[4%] top-[21%] z-30 animate-[fclFloat_4s_ease-in-out_infinite] rounded-2xl border border-[#22c55e]/30 bg-[#06131c]/95 px-5 py-4 shadow-[0_15px_45px_rgba(34,197,94,0.12)] backdrop-blur-xl">
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e]" />
-                  <span className="text-[8px] font-black uppercase tracking-widest text-[#4ade80]">
-                    FCL LIVE
-                  </span>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-[#4ade80]">FCL LIVE</span>
                 </div>
                 <div className="mt-3 flex items-end gap-3">
                   <p className="text-3xl font-black text-white">
                     14<span className="text-[#ef4444]">/2</span>
                   </p>
-                  <p className="mb-1 text-[8px] font-bold text-[#64748b]">
-                    1.0 OV
-                  </p>
+                  <p className="mb-1 text-[8px] font-bold text-[#64748b]">1.0 OV</p>
                 </div>
-                <p className="mt-1 text-[8px] text-[#64748b]">
-                  Team Phoenix
-                </p>
+                <p className="mt-1 text-[8px] text-[#64748b]">Team Phoenix</p>
               </div>
 
               <div className="absolute right-[1%] top-[34%] z-40 animate-[fclFloat_5s_ease-in-out_infinite_reverse] rounded-2xl border border-[#1877F2]/30 bg-[#07101f]/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
@@ -311,12 +276,8 @@ export default function Home() {
                     4
                   </div>
                   <div>
-                    <p className="text-base font-black text-[#4ade80]">
-                      +4 RUN
-                    </p>
-                    <p className="text-[7px] text-[#64748b]">
-                      Bat ≠ Ball
-                    </p>
+                    <p className="text-base font-black text-[#4ade80]">+4 RUN</p>
+                    <p className="text-[7px] text-[#64748b]">Bat ≠ Ball</p>
                   </div>
                 </div>
               </div>
@@ -327,12 +288,8 @@ export default function Home() {
                     6
                   </div>
                   <div>
-                    <p className="text-base font-black text-[#f87171]">
-                      OUT
-                    </p>
-                    <p className="text-[7px] text-[#64748b]">
-                      Bat = Ball
-                    </p>
+                    <p className="text-base font-black text-[#f87171]">OUT</p>
+                    <p className="text-[7px] text-[#64748b]">Bat = Ball</p>
                   </div>
                 </div>
               </div>
@@ -340,12 +297,8 @@ export default function Home() {
               <div className="absolute bottom-[10%] right-[9%] z-50 w-[220px] rounded-2xl border border-[#334155] bg-[#020617]/95 p-4 shadow-2xl backdrop-blur-xl">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[8px] font-bold uppercase tracking-widest text-[#64748b]">
-                      FCL MATCH
-                    </p>
-                    <p className="mt-1 text-xs font-black text-white">
-                      #104
-                    </p>
+                    <p className="text-[8px] font-bold uppercase tracking-widest text-[#64748b]">FCL MATCH</p>
+                    <p className="mt-1 text-xs font-black text-white">#104</p>
                   </div>
                   <span className="rounded-full bg-[#22c55e]/10 px-2 py-1 text-[7px] font-bold text-[#4ade80]">
                     LIVE
@@ -353,9 +306,7 @@ export default function Home() {
                 </div>
 
                 <div className="mt-4">
-                  <p className="mb-2 text-[7px] font-bold uppercase tracking-widest text-[#64748b]">
-                    Bat Sequence
-                  </p>
+                  <p className="mb-2 text-[7px] font-bold uppercase tracking-widest text-[#64748b]">Bat Sequence</p>
                   <div className="grid grid-cols-6 gap-1">
                     {["6", "4", "3", "2", "1", "6"].map((num, index) => (
                       <div
@@ -369,19 +320,13 @@ export default function Home() {
                 </div>
 
                 <div className="mt-4 flex items-center justify-between border-t border-[#1e293b] pt-3">
-                  <span className="text-[8px] text-[#64748b]">
-                    CURRENT SCORE
-                  </span>
-                  <span className="text-sm font-black text-white">
-                    14 / 2
-                  </span>
+                  <span className="text-[8px] text-[#64748b]">CURRENT SCORE</span>
+                  <span className="text-sm font-black text-white">14 / 2</span>
                 </div>
               </div>
 
               <div className="absolute bottom-[4%] left-[12%] z-40 rounded-2xl border border-[#334155] bg-[#07101f]/90 px-4 py-3 shadow-2xl backdrop-blur-xl">
-                <p className="text-[7px] font-bold uppercase tracking-widest text-[#64748b]">
-                  FCL COMMUNITY
-                </p>
+                <p className="text-[7px] font-bold uppercase tracking-widest text-[#64748b]">FCL COMMUNITY</p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-sm">🇧🇩</span>
                   <span className="text-[10px] font-bold text-white">Bangladesh</span>
@@ -391,7 +336,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
 
@@ -430,18 +374,13 @@ export default function Home() {
       </section>
 
       {/* ABOUT FCL */}
-      <section
-        id="about"
-        className="relative overflow-hidden border-b border-[#172033] bg-[#030712] py-24"
-      >
+      <section id="about" className="relative overflow-hidden border-b border-[#172033] bg-[#030712] py-24">
         <div className="absolute left-[-180px] top-20 h-[400px] w-[400px] rounded-full bg-[#1877F2]/10 blur-[120px]" />
         <div className="absolute right-[-180px] bottom-10 h-[400px] w-[400px] rounded-full bg-[#7c3aed]/10 blur-[120px]" />
 
         <div className="relative mx-auto max-w-[1200px] px-6">
           <div className="mx-auto max-w-2xl text-center">
-            <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#60a5fa]">
-              About FCL
-            </span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#60a5fa]">About FCL</span>
             <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-white md:text-5xl">
               Cricket Beyond{" "}
               <span className="bg-gradient-to-r from-[#60a5fa] via-[#1877F2] to-[#8b5cf6] bg-clip-text text-transparent">
@@ -449,8 +388,8 @@ export default function Home() {
               </span>
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-[#94a3b8] md:text-base">
-              Facebook Cricket League is a virtual cricket community where
-              players compete through numbers, strategy and teamwork.
+              Facebook Cricket League is a virtual cricket community where players compete through numbers, strategy
+              and teamwork.
             </p>
           </div>
 
@@ -461,8 +400,7 @@ export default function Home() {
               </div>
               <h3 className="mt-6 text-lg font-bold text-white">Virtual Cricket</h3>
               <p className="mt-3 text-sm leading-6 text-[#94a3b8]">
-                A unique cricket format played through numbers, decisions
-                and strategy instead of a physical field.
+                A unique cricket format played through numbers, decisions and strategy instead of a physical field.
               </p>
             </div>
 
@@ -472,8 +410,7 @@ export default function Home() {
               </div>
               <h3 className="mt-6 text-lg font-bold text-white">One Community</h3>
               <p className="mt-3 text-sm leading-6 text-[#94a3b8]">
-                Players connect from different districts of Bangladesh and
-                from different corners of the world.
+                Players connect from different districts of Bangladesh and from different corners of the world.
               </p>
             </div>
 
@@ -483,712 +420,30 @@ export default function Home() {
               </div>
               <h3 className="mt-6 text-lg font-bold text-white">Unity Through FCL</h3>
               <p className="mt-3 text-sm leading-6 text-[#94a3b8]">
-                Competition, friendship and fun — bringing people together
-                through one shared game.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* HOW TO PLAY */}
-      <section
-        id="how-to-play"
-        className="relative overflow-hidden border-b border-[#172033] bg-[#030712] py-24"
-      >
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="mb-12 max-w-2xl">
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#1877F2]">
-              Learn The Game
-            </p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">
-              How to Play FCL
-            </h2>
-            <p className="mt-4 text-sm leading-7 text-[#94a3b8] sm:text-base">
-              FCL is a virtual cricket game played through Facebook Messenger,
-              comments or group posts. Two players compete with an umpire
-              managing the match.
-            </p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-5">
-            <div className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#1877F2]/50">
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-black text-[#1877F2]/20">01</span>
-                <span className="text-xl">🪙</span>
-              </div>
-              <h3 className="mt-5 font-bold text-white">Toss</h3>
-              <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                The umpire asks a cricket-related question. The player who
-                answers correctly wins the toss.
-              </p>
-            </div>
-
-            <div className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#8b5cf6]/50">
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-black text-[#8b5cf6]/20">02</span>
-                <span className="text-xl">🔢</span>
-              </div>
-              <h3 className="mt-5 font-bold text-white">Choose Numbers</h3>
-              <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                Players choose six batting or bowling numbers from 1, 2, 3,
-                4 and 6. Number 5 is not allowed.
-              </p>
-            </div>
-
-            <div className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#06b6d4]/50">
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-black text-[#06b6d4]/20">03</span>
-                <span className="text-xl">⚔️</span>
-              </div>
-              <h3 className="mt-5 font-bold text-white">Compare</h3>
-              <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                The umpire compares the batting number with the bowling
-                number for every ball.
-              </p>
-            </div>
-
-            <div className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#f59e0b]/50">
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-black text-[#f59e0b]/20">04</span>
-                <span className="text-xl">🏏</span>
-              </div>
-              <h3 className="mt-5 font-bold text-white">Runs or OUT</h3>
-              <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                If the numbers match, the batter is OUT. If they differ,
-                the batting number becomes the runs.
-              </p>
-            </div>
-
-            <div className="group rounded-2xl border border-[#1e293b] bg-[#020617] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#22c55e]/50">
-              <div className="flex items-center justify-between">
-                <span className="text-3xl font-black text-[#22c55e]/20">05</span>
-                <span className="text-xl">🏆</span>
-              </div>
-              <h3 className="mt-5 font-bold text-white">Official Result</h3>
-              <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                The umpire calculates the innings and announces the official
-                match result.
+                Competition, friendship and fun — bringing people together through one shared game.
               </p>
             </div>
           </div>
 
-          <div className="mt-10 overflow-hidden rounded-3xl border border-[#1e293b] bg-[#080e1a]">
-            <div className="grid lg:grid-cols-[1fr_auto_1fr]">
-              <div className="p-7 sm:p-9">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#1877F2]">Example</p>
-                <h3 className="mt-2 text-2xl font-black text-white">One Ball. One Decision.</h3>
-                <p className="mt-3 max-w-md text-sm leading-6 text-[#94a3b8]">
-                  Every delivery is decided by comparing the batting and bowling numbers.
-                </p>
-                <div className="mt-7 space-y-3 font-mono text-sm">
-                  <div className="rounded-xl border border-[#1e293b] bg-[#0b1220] px-4 py-3">
-                    <span className="mr-4 text-[#1877F2]">BAT</span>
-                    <span className="text-white">6&nbsp;&nbsp;4&nbsp;&nbsp;3&nbsp;&nbsp;2&nbsp;&nbsp;1&nbsp;&nbsp;6</span>
-                  </div>
-                  <div className="rounded-xl border border-[#1e293b] bg-[#0b1220] px-4 py-3">
-                    <span className="mr-4 text-[#8b5cf6]">BALL</span>
-                    <span className="text-white">6&nbsp;&nbsp;2&nbsp;&nbsp;4&nbsp;&nbsp;2&nbsp;&nbsp;3&nbsp;&nbsp;4</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="hidden w-px bg-[#1e293b] lg:block" />
-
-              <div className="flex flex-col justify-center border-t border-[#1e293b] p-7 sm:p-9 lg:border-t-0">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#64748b]">Ball-by-Ball Result</p>
-                <div className="mt-5 flex flex-wrap gap-2 font-mono text-sm">
-                  <span className="rounded-lg bg-red-500/10 px-3 py-2 font-bold text-red-400">OUT</span>
-                  <span className="rounded-lg bg-[#1877F2]/10 px-3 py-2 font-bold text-[#1877F2]">+4</span>
-                  <span className="rounded-lg bg-[#1877F2]/10 px-3 py-2 font-bold text-[#1877F2]">+3</span>
-                  <span className="rounded-lg bg-red-500/10 px-3 py-2 font-bold text-red-400">OUT</span>
-                  <span className="rounded-lg bg-[#1877F2]/10 px-3 py-2 font-bold text-[#1877F2]">+1</span>
-                  <span className="rounded-lg bg-[#1877F2]/10 px-3 py-2 font-bold text-[#1877F2]">+6</span>
-                </div>
-                <div className="mt-7 flex items-end gap-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-[#64748b]">Final Score</p>
-                    <p className="mt-1 text-4xl font-black text-white">14/2</p>
-                  </div>
-                  <div className="pb-1 text-sm font-semibold text-[#94a3b8]">1.0 OV</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-2xl border border-[#1877F2]/20 bg-[#1877F2]/5 px-5 py-4">
-            <p className="text-xs leading-5 text-[#94a3b8]">
-              <span className="font-bold text-white">Remember:</span>{" "}
-              FCL is a virtual cricket system played through Facebook
-              Messenger, comments and group posts — it is not field cricket
-              and not a mobile video game.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* RULES CENTER */}
-      <section
-        id="rules"
-        className="relative overflow-hidden border-b border-[#172033] bg-[#02050b] py-24"
-      >
-        <div className="absolute left-[10%] top-20 h-[350px] w-[350px] rounded-full bg-[#1877F2]/10 blur-[130px]" />
-        <div className="absolute right-[5%] bottom-10 h-[400px] w-[400px] rounded-full bg-[#7c3aed]/10 blur-[140px]" />
-
-        <div className="relative mx-auto max-w-[1200px] px-6">
-          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          {/* Clean Rule Banner Redirect */}
+          <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl border border-[#1877F2]/30 bg-gradient-to-r from-[#0b1220] via-[#0d1830] to-[#0b1220] p-6 sm:p-8">
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#60a5fa]">
-                FCL Rules Center
-              </span>
-              <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-white md:text-5xl">
-                Learn the{" "}
-                <span className="bg-gradient-to-r from-[#60a5fa] via-[#1877F2] to-[#8b5cf6] bg-clip-text text-transparent">
-                  Game.
-                </span>
-              </h2>
-              <p className="mt-4 max-w-xl text-sm leading-7 text-[#94a3b8]">
-                Everything you need to understand the basic rules, official
-                formats and special systems of FCL.
-              </p>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#38bdf8]">Rulebook & Formats</span>
+              <h4 className="text-xl font-bold text-white mt-1">Want to learn how to play FCL?</h4>
+              <p className="text-xs text-[#94a3b8] mt-1">Check out T20, ODI, Test match systems and Power Play rules.</p>
             </div>
-
-            <div className="inline-flex w-fit rounded-full border border-[#1e293b] bg-[#0b1220] p-1">
-              <button
-                onClick={() => setRulesLang("en")}
-                className={`rounded-full px-5 py-2 text-xs font-bold transition ${
-                  rulesLang === "en"
-                    ? "bg-[#1877F2] text-white shadow-lg shadow-[#1877F2]/20"
-                    : "text-[#64748b] hover:text-white"
-                }`}
-              >
-                🇬🇧 English
-              </button>
-              <button
-                onClick={() => setRulesLang("bn")}
-                className={`rounded-full px-5 py-2 text-xs font-bold transition ${
-                  rulesLang === "bn"
-                    ? "bg-[#1877F2] text-white shadow-lg shadow-[#1877F2]/20"
-                    : "text-[#64748b] hover:text-white"
-                }`}
-              >
-                🇧🇩 বাংলা
-              </button>
-            </div>
-          </div>
-
-          {/* BASIC RULES */}
-          <div className="mt-14 rounded-[2rem] border border-[#1e293b] bg-[#080f1c]/90 p-6 md:p-8">
-            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-              <div>
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">🏏</span>
-                  <h3 className="text-2xl font-black text-white">
-                    {rulesLang === "en" ? "Basic Rules" : "মৌলিক নিয়ম"}
-                  </h3>
-                </div>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#94a3b8]">
-                  {rulesLang === "en"
-                    ? "The foundation of FCL. Learn how Bat and Ball numbers create runs and wickets."
-                    : "FCL খেলার মূল ভিত্তি। Bat ও Ball-এর সংখ্যার মাধ্যমে কীভাবে Run ও Wicket হয় তা জানুন।"}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-[#1e293b] bg-[#020617] px-5 py-4">
-                <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#64748b]">
-                  {rulesLang === "en" ? "Allowed Numbers" : "ব্যবহারযোগ্য সংখ্যা"}
-                </p>
-                <div className="mt-3 flex items-center gap-2">
-                  {[1, 2, 3, 4, 6].map((number) => (
-                    <span
-                      key={number}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#1877F2]/30 bg-[#1877F2]/10 text-sm font-black text-[#60a5fa]"
-                    >
-                      {number}
-                    </span>
-                  ))}
-                  <span className="ml-1 flex h-9 w-9 items-center justify-center rounded-xl border border-red-500/30 bg-red-500/10 text-sm font-black text-red-400 line-through">
-                    5
-                  </span>
-                </div>
-                <p className="mt-2 text-[10px] font-semibold text-red-400">
-                  {rulesLang === "en" ? "5 is NOT allowed" : "৫ ব্যবহার করা যাবে না"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              {[
-                {
-                  no: "01",
-                  title: rulesLang === "en" ? "Players" : "খেলোয়াড়",
-                  text: rulesLang === "en" ? "2 players + 1 umpire" : "২ জন খেলোয়াড় + ১ জন আম্পায়ার",
-                },
-                {
-                  no: "02",
-                  title: rulesLang === "en" ? "Toss" : "টস",
-                  text: rulesLang === "en" ? "Winner chooses Bat or Ball" : "বিজয়ী Bat বা Ball নির্বাচন করে",
-                },
-                {
-                  no: "03",
-                  title: rulesLang === "en" ? "Numbers" : "নম্বর",
-                  text: rulesLang === "en" ? "Choose numbers from 1,2,3,4,6" : "১,২,৩,৪,৬ থেকে নম্বর নির্বাচন",
-                },
-                {
-                  no: "04",
-                  title: rulesLang === "en" ? "Match" : "মিল",
-                  text: rulesLang === "en" ? "Same number = OUT" : "একই নম্বর = OUT",
-                },
-                {
-                  no: "05",
-                  title: rulesLang === "en" ? "Run" : "রান",
-                  text: rulesLang === "en" ? "Different number = Bat number becomes Runs" : "ভিন্ন নম্বর = Bat-এর নম্বর Run",
-                },
-              ].map((item) => (
-                <div
-                  key={item.no}
-                  className="rounded-2xl border border-[#1e293b] bg-[#0b1220] p-5"
-                >
-                  <span className="text-[10px] font-black tracking-[0.2em] text-[#1877F2]">
-                    {item.no}
-                  </span>
-                  <h4 className="mt-3 text-sm font-bold text-white">
-                    {item.title}
-                  </h4>
-                  <p className="mt-2 text-xs leading-5 text-[#64748b]">
-                    {item.text}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-2xl border border-[#1877F2]/20 bg-[#1877F2]/5 p-5">
-              <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-[0.25em] text-[#60a5fa]">
-                    {rulesLang === "en" ? "Example" : "উদাহরণ"}
-                  </p>
-                  <div className="mt-3 space-y-2 font-mono text-sm">
-                    <p className="text-white">
-                      <span className="mr-3 text-[#64748b]">BAT</span>
-                      6 4 3 2 1 6
-                    </p>
-                    <p className="text-white">
-                      <span className="mr-3 text-[#64748b]">BALL</span>
-                      6 2 4 2 3 4
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-[#1e293b] bg-[#020617] px-5 py-4 text-center">
-                  <p className="text-xs font-bold text-red-400">
-                    OUT • +4 • +3 • OUT • +1 • +6
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-white">
-                    14<span className="text-[#64748b]">/</span>2
-                  </p>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">
-                    1.0 OV
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* OFFICIAL FORMATS */}
-          <div className="mt-6">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#f59e0b]">
-                  Official
-                </p>
-                <h3 className="mt-2 text-2xl font-black text-white">
-                  {rulesLang === "en" ? "Official Match Formats" : "অফিসিয়াল ম্যাচ ফরম্যাট"}
-                </h3>
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-              {[
-                { name: "T20", overs: "4", wickets: "6" },
-                { name: "T20+", overs: "5", wickets: "7" },
-                { name: "ODI", overs: "6", wickets: "8" },
-                { name: "ODI+", overs: "8", wickets: "10" },
-                { name: "ODI Dhamaka", overs: "10", wickets: "11" },
-              ].map((format, index) => (
-                <div
-                  key={format.name}
-                  className={`group rounded-2xl border p-5 transition duration-300 hover:-translate-y-1 ${
-                    index === 4
-                      ? "border-[#f59e0b]/30 bg-[#f59e0b]/5"
-                      : "border-[#1e293b] bg-[#0b1220]"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black tracking-widest text-[#64748b]">
-                      0{index + 1}
-                    </span>
-                    <span className="text-lg">🏆</span>
-                  </div>
-
-                  <h4 className="mt-5 text-lg font-black text-white">
-                    {format.name}
-                  </h4>
-
-                  <div className="mt-5 flex gap-2">
-                    <div className="flex-1 rounded-xl border border-[#1e293b] bg-[#020617] p-3">
-                      <p className="text-[9px] uppercase tracking-widest text-[#64748b]">Overs</p>
-                      <p className="mt-1 text-xl font-black text-[#60a5fa]">{format.overs}</p>
-                    </div>
-
-                    <div className="flex-1 rounded-xl border border-[#1e293b] bg-[#020617] p-3">
-                      <p className="text-[9px] uppercase tracking-widest text-[#64748b]">Wkts</p>
-                      <p className="mt-1 text-xl font-black text-[#f59e0b]">{format.wickets}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* UNOFFICIAL FORMATS */}
-          <div className="mx-auto mt-10 max-w-7xl px-6">
-            <div className="mb-5">
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#64748b]">
-                Learning Formats
-              </p>
-              <h3 className="mt-2 text-2xl font-black text-white">
-                {rulesLang === "en" ? "Unofficial Match Formats" : "আনঅফিসিয়াল ম্যাচ ফরম্যাট"}
-              </h3>
-              <p className="mt-2 max-w-2xl text-xs leading-6 text-[#64748b]">
-                {rulesLang === "en"
-                  ? "These formats are used to explain and understand different FCL playing systems."
-                  : "FCL-এর বিভিন্ন খেলার নিয়ম বোঝানোর জন্য এই ফরম্যাটগুলো ব্যবহার করা হয়।"}
-              </p>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                { name: "Single Match", bn: "সিঙ্গেল ম্যাচ", overs: "2", wickets: "3" },
-                { name: "Team Match", bn: "টিম ম্যাচ", overs: "3", wickets: "5" },
-                { name: "Single Test", bn: "সিঙ্গেল টেস্ট", overs: "8", wickets: "3 / innings" },
-                { name: "Team Test", bn: "টিম টেস্ট", overs: "12", wickets: "4 / innings" },
-              ].map((format) => (
-                <div
-                  key={format.name}
-                  className="rounded-2xl border border-[#1e293b] bg-[#0b1220] p-5 transition duration-300 hover:-translate-y-1 hover:border-[#475569]"
-                >
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">
-                    Unofficial
-                  </span>
-                  <h4 className="mt-4 text-lg font-black text-white">
-                    {rulesLang === "en" ? format.name : format.bn}
-                  </h4>
-                  <div className="mt-5 grid grid-cols-2 gap-2">
-                    <div className="rounded-xl border border-[#1e293b] bg-[#020617] p-3">
-                      <p className="text-[9px] uppercase tracking-widest text-[#64748b]">Overs</p>
-                      <p className="mt-1 text-xl font-black text-[#60a5fa]">{format.overs}</p>
-                    </div>
-                    <div className="rounded-xl border border-[#1e293b] bg-[#020617] p-3">
-                      <p className="text-[9px] uppercase tracking-widest text-[#64748b]">Wkts</p>
-                      <p className="mt-1 text-xl font-black text-[#f59e0b]">{format.wickets}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {/* FCL MATCH FORMATS */}
-      <section
-        id="formats"
-        className="relative overflow-hidden border-b border-[#172033] bg-[#030712] py-20"
-      >
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="mb-10">
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#1877F2]">Match Formats</p>
-            <div className="mt-3 flex flex-col justify-between gap-3 md:flex-row md:items-end">
-              <div>
-                <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl">
-                  FCL Match Formats
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-[#94a3b8]">
-                  Different formats make FCL more flexible for different types of matches and tournaments.
-                </p>
-              </div>
-              <div className="text-xs font-semibold text-[#64748b]">
-                Official & Learning Formats
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-4 flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-[#22c55e]" />
-              <h3 className="text-sm font-bold uppercase tracking-wider text-white">Official Formats</h3>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <div className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#1877F2]/50">
-                <div className="flex items-start justify-between">
-                  <h4 className="text-xl font-black text-white">T20</h4>
-                  <span className="rounded-lg bg-[#1877F2]/10 px-2 py-1 text-[10px] font-bold text-[#1877F2]">01</span>
-                </div>
-                <div className="mt-5 flex items-end justify-between">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-[#64748b]">Overs</p>
-                    <p className="mt-1 text-2xl font-black text-white">4</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-[#64748b]">Wickets</p>
-                    <p className="mt-1 text-2xl font-black text-white">6</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#8b5cf6]/50">
-                <div className="flex items-start justify-between">
-                  <h4 className="text-xl font-black text-white">T20+</h4>
-                  <span className="rounded-lg bg-[#8b5cf6]/10 px-2 py-1 text-[10px] font-bold text-[#8b5cf6]">02</span>
-                </div>
-                <div className="mt-5 flex items-end justify-between">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-[#64748b]">Overs</p>
-                    <p className="mt-1 text-2xl font-black text-white">5</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-[#64748b]">Wickets</p>
-                    <p className="mt-1 text-2xl font-black text-white">7</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#06b6d4]/50">
-                <div className="flex items-start justify-between">
-                  <h4 className="text-xl font-black text-white">ODI</h4>
-                  <span className="rounded-lg bg-[#06b6d4]/10 px-2 py-1 text-[10px] font-bold text-[#06b6d4]">03</span>
-                </div>
-                <div className="mt-5 flex items-end justify-between">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-[#64748b]">Overs</p>
-                    <p className="mt-1 text-2xl font-black text-white">6</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-[#64748b]">Wickets</p>
-                    <p className="mt-1 text-2xl font-black text-white">8</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#f59e0b]/50">
-                <div className="flex items-start justify-between">
-                  <h4 className="text-xl font-black text-white">ODI+</h4>
-                  <span className="rounded-lg bg-[#f59e0b]/10 px-2 py-1 text-[10px] font-bold text-[#f59e0b]">04</span>
-                </div>
-                <div className="mt-5 flex items-end justify-between">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-[#64748b]">Overs</p>
-                    <p className="mt-1 text-2xl font-black text-white">8</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-[#64748b]">Wickets</p>
-                    <p className="mt-1 text-2xl font-black text-white">10</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="group rounded-2xl border border-[#f59e0b]/30 bg-gradient-to-br from-[#0b1220] to-[#15110a] p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[#f59e0b]/60">
-                <div className="flex items-start justify-between">
-                  <h4 className="text-xl font-black text-white">ODI Dhamaka</h4>
-                  <span className="rounded-lg bg-[#f59e0b]/10 px-2 py-1 text-[10px] font-bold text-[#f59e0b]">05</span>
-                </div>
-                <div className="mt-5 flex items-end justify-between">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-[#64748b]">Overs</p>
-                    <p className="mt-1 text-2xl font-black text-[#f59e0b]">10</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-[#64748b]">Wickets</p>
-                    <p className="mt-1 text-2xl font-black text-white">11</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-10">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-[#64748b]" />
-              <h3 className="text-sm font-bold uppercase tracking-wider text-white">Learning / Unofficial Formats</h3>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-2xl border border-[#1e293b] bg-[#080e1a] p-5">
-                <h4 className="font-bold text-white">Single Match</h4>
-                <p className="mt-2 text-xs text-[#64748b]">2 Overs · 3 Wickets</p>
-              </div>
-              <div className="rounded-2xl border border-[#1e293b] bg-[#080e1a] p-5">
-                <h4 className="font-bold text-white">Team Match</h4>
-                <p className="mt-2 text-xs text-[#64748b]">3 Overs · 5 Wickets</p>
-              </div>
-              <div className="rounded-2xl border border-[#1e293b] bg-[#080e1a] p-5">
-                <h4 className="font-bold text-white">Single Test</h4>
-                <p className="mt-2 text-xs text-[#64748b]">8 Overs · 3 Wickets / Innings</p>
-              </div>
-              <div className="rounded-2xl border border-[#1e293b] bg-[#080e1a] p-5">
-                <h4 className="font-bold text-white">Team Test</h4>
-                <p className="mt-2 text-xs text-[#64748b]">12 Overs · 4 Wickets / Innings</p>
-              </div>
-            </div>
+            <Link
+              href="/rules"
+              className="shrink-0 rounded-xl bg-[#1877F2] px-6 py-3 text-xs font-bold text-white shadow-lg shadow-[#1877F2]/25 transition hover:bg-[#0d6fe8]"
+            >
+              Official Rules Guide →
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* RULE DETAILS */}
-      <div className="mx-auto mt-10 max-w-7xl space-y-3 px-6">
-        <div className="overflow-hidden rounded-2xl border border-[#1e293b] bg-[#0b1220] transition-all duration-300 hover:border-[#1877F2]/40">
-          <button
-            onClick={() => setOpenRule(openRule === "team" ? null : "team")}
-            className="flex w-full items-center justify-between px-5 py-4 text-left"
-          >
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1877F2]/10 text-lg">👥</div>
-              <div>
-                <h4 className="font-bold text-white">{rulesLang === "en" ? "Team Match" : "টিম ম্যাচ"}</h4>
-                <p className="mt-1 text-xs text-[#64748b]">
-                  {rulesLang === "en" ? "Teams, captains, batting and bowling lineups" : "দল, অধিনায়ক, ব্যাটিং ও বোলিং লাইনআপ"}
-                </p>
-              </div>
-            </div>
-            <span className={`text-lg text-[#94a3b8] transition-transform duration-300 ${openRule === "team" ? "rotate-180" : ""}`}>↓</span>
-          </button>
-          {openRule === "team" && (
-            <div className="border-t border-[#1e293b] px-5 py-5">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-xl border border-[#1e293b] bg-[#080e1a] p-4">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#1877F2]">01</p>
-                  <h5 className="mt-2 font-bold text-white">{rulesLang === "en" ? "Teams & Captain" : "দল ও অধিনায়ক"}</h5>
-                  <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                    {rulesLang === "en" ? "Each team has more than one player and a captain." : "প্রতিটি দলে একাধিক খেলোয়াড় এবং একজন অধিনায়ক থাকে।"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-[#1e293b] bg-[#080e1a] p-4">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#8b5cf6]">02</p>
-                  <h5 className="mt-2 font-bold text-white">{rulesLang === "en" ? "Batting Lineup" : "ব্যাটিং লাইনআপ"}</h5>
-                  <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                    {rulesLang === "en" ? "The captain provides the batting lineup before the match." : "ম্যাচের আগে অধিনায়ক ব্যাটিং লাইনআপ প্রদান করেন।"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-[#1e293b] bg-[#080e1a] p-4">
-                  <p className="text-xs font-bold uppercase tracking-wider text-[#06b6d4]">03</p>
-                  <h5 className="mt-2 font-bold text-white">{rulesLang === "en" ? "Bowling Lineup" : "বোলিং লাইনআপ"}</h5>
-                  <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                    {rulesLang === "en" ? "The captain provides the bowling lineup for the match." : "ম্যাচের জন্য অধিনায়ক বোলিং লাইনআপ প্রদান করেন।"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="overflow-hidden rounded-2xl border border-[#1e293b] bg-[#0b1220] transition-all duration-300 hover:border-[#8b5cf6]/40">
-          <button
-            onClick={() => setOpenRule(openRule === "power" ? null : "power")}
-            className="flex w-full items-center justify-between px-5 py-4 text-left"
-          >
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-lg">⚡</div>
-              <div>
-                <h4 className="font-bold text-white">{rulesLang === "en" ? "Power Play" : "পাওয়ার প্লে"}</h4>
-                <p className="mt-1 text-xs text-[#64748b]">
-                  {rulesLang === "en" ? "NPP & SPP power play rules" : "NPP ও SPP পাওয়ার প্লে নিয়ম"}
-                </p>
-              </div>
-            </div>
-            <span className={`text-lg text-[#94a3b8] transition-transform duration-300 ${openRule === "power" ? "rotate-180" : ""}`}>↓</span>
-          </button>
-          {openRule === "power" && (
-            <div className="border-t border-[#1e293b] px-5 py-5">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-xl border border-[#1e293b] bg-[#080e1a] p-5">
-                  <span className="rounded-lg bg-[#1877F2]/10 px-2 py-1 text-[10px] font-bold text-[#1877F2]">NPP</span>
-                  <h5 className="mt-3 font-bold text-white">{rulesLang === "en" ? "Normal Power Play" : "নরমাল পাওয়ার প্লে"}</h5>
-                  <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                    {rulesLang === "en"
-                      ? "Batting PP allows the batter to use 4 or 6 as desired, while the bowler can give 4 or 6 no more than 3 times. Bowling PP works in the opposite way."
-                      : "ব্যাটিং PP-তে ব্যাটার ইচ্ছামতো ৪ বা ৬ ব্যবহার করতে পারে, আর বোলার সর্বোচ্চ ৩ বার ৪ বা ৬ দিতে পারে। Bowling PP-তে নিয়মটি বিপরীত।"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-[#1e293b] bg-[#080e1a] p-5">
-                  <span className="rounded-lg bg-[#f59e0b]/10 px-2 py-1 text-[10px] font-bold text-[#f59e0b]">SPP</span>
-                  <h5 className="mt-3 font-bold text-white">{rulesLang === "en" ? "Super Power Play" : "সুপার পাওয়ার প্লে"}</h5>
-                  <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                    {rulesLang === "en"
-                      ? "BOWL_SPP counts half runs, while BAT_SPP doubles runs. NPP restrictions do not apply."
-                      : "BOWL_SPP-তে রান অর্ধেক হিসেবে গণনা হয় এবং BAT_SPP-তে রান দ্বিগুণ হয়। NPP-এর সীমাবদ্ধতা প্রযোজ্য নয়।"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="overflow-hidden rounded-2xl border border-[#1e293b] bg-[#0b1220] transition-all duration-300 hover:border-[#f59e0b]/40">
-          <button
-            onClick={() => setOpenRule(openRule === "test" ? null : "test")}
-            className="flex w-full items-center justify-between px-5 py-4 text-left"
-          >
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f59e0b]/10 text-lg">🏏</div>
-              <div>
-                <h4 className="font-bold text-white">{rulesLang === "en" ? "Test Rules" : "টেস্ট নিয়ম"}</h4>
-                <p className="mt-1 text-xs text-[#64748b]">
-                  {rulesLang === "en" ? "Follow-On, Declaration, 0 Rule & Draw" : "Follow-On, Declaration, 0 Rule ও Draw"}
-                </p>
-              </div>
-            </div>
-            <span className={`text-lg text-[#94a3b8] transition-transform duration-300 ${openRule === "test" ? "rotate-180" : ""}`}>↓</span>
-          </button>
-          {openRule === "test" && (
-            <div className="border-t border-[#1e293b] px-5 py-5">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-xl border border-[#1e293b] bg-[#080e1a] p-4">
-                  <h5 className="font-bold text-white">0 Rule</h5>
-                  <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                    {rulesLang === "en" ? "Special rules apply to zero-number situations in Test matches." : "টেস্ট ম্যাচে zero number-এর ক্ষেত্রে বিশেষ নিয়ম প্রযোজ্য।"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-[#1e293b] bg-[#080e1a] p-4">
-                  <h5 className="font-bold text-white">Follow-On</h5>
-                  <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                    {rulesLang === "en" ? "A 30+ run lead may result in a Follow-On." : "৩০ বা তার বেশি রানের লিড হলে Follow-On হতে পারে।"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-[#1e293b] bg-[#080e1a] p-4">
-                  <h5 className="font-bold text-white">Declaration</h5>
-                  <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                    {rulesLang === "en" ? "An innings may be declared according to the applicable Test rules." : "প্রযোজ্য টেস্ট নিয়ম অনুযায়ী ইনিংস ঘোষণা করা যেতে পারে।"}
-                  </p>
-                </div>
-                <div className="rounded-xl border border-[#1e293b] bg-[#080e1a] p-4">
-                  <h5 className="font-bold text-white">Draw</h5>
-                  <p className="mt-2 text-xs leading-5 text-[#94a3b8]">
-                    {rulesLang === "en" ? "If the match is not completed within the applicable time, it may be a draw." : "প্রযোজ্য সময়ের মধ্যে ম্যাচ শেষ না হলে তা Draw হতে পারে।"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Players Section (Directly from Excel) */}
-      <section
-        id="players"
-        className="relative overflow-hidden border-t border-[#172033] bg-[#020617] px-6 py-24"
-      >
+      {/* Featured Players Section (Live from Excel) */}
+      <section id="players" className="relative overflow-hidden border-t border-[#172033] bg-[#020617] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-[#1877F2]/5 blur-3xl" />
 
@@ -1200,9 +455,7 @@ export default function Home() {
                   FCL Legends & Top Performers
                 </p>
               </div>
-              <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">
-                Featured Players
-              </h3>
+              <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">Featured Players</h3>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[#94a3b8]">
                 Discover FCL's all-time top performers and legends dynamically loaded directly from Excel data.
               </p>
@@ -1238,9 +491,7 @@ export default function Home() {
                   🏏
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-white">
-                    {topRunScorer?.name || "Jahin Shahriar"}
-                  </h4>
+                  <h4 className="text-lg font-black text-white">{topRunScorer?.name || "Jahin Shahriar"}</h4>
                   <p className="mt-0.5 text-xs font-semibold text-[#60a5fa]">
                     Nick: {topRunScorer?.nickName || "Jahin"} · {topRunScorer?.role || "All-Rounder"}
                   </p>
@@ -1252,9 +503,7 @@ export default function Home() {
 
               <div className="mt-7 grid grid-cols-3 gap-2">
                 <div className="rounded-xl border border-[#172033] bg-[#020617] p-3 text-center">
-                  <p className="text-lg font-black text-white">
-                    {topRunScorer?.runs?.toLocaleString() || "3,317"}
-                  </p>
+                  <p className="text-lg font-black text-white">{topRunScorer?.runs?.toLocaleString() || "3,317"}</p>
                   <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Total Runs</p>
                 </div>
                 <div className="rounded-xl border border-[#172033] bg-[#020617] p-3 text-center">
@@ -1283,9 +532,7 @@ export default function Home() {
                   🎯
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-white">
-                    {topWicketTaker?.name || "Zaheed Hasan"}
-                  </h4>
+                  <h4 className="text-lg font-black text-white">{topWicketTaker?.name || "Zaheed Hasan"}</h4>
                   <p className="mt-0.5 text-xs font-semibold text-[#fbbf24]">
                     Nick: {topWicketTaker?.nickName || "Zaheed"} · {topWicketTaker?.role || "Bowling All-Rounder"}
                   </p>
@@ -1312,7 +559,7 @@ export default function Home() {
             </div>
 
             {/* PLAYER 3: RECORD CHAMPION */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#22c55e]/50 hover:shadow-2xl hover:shadow-[#22c55e]/10">
+            <div className="group relative overflow-hidden rounded-3xl border border-[#22c55e]/30 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#22c55e]/60 hover:shadow-2xl hover:shadow-[#22c55e]/10">
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#22c55e] to-transparent opacity-60" />
               <div className="flex items-center justify-between">
                 <span className="rounded-lg border border-[#22c55e]/20 bg-[#22c55e]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#4ade80]">
@@ -1326,9 +573,7 @@ export default function Home() {
                   ⭐
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-white">
-                    {mostChampionshipPlayer?.name || "Arif Ziad"}
-                  </h4>
+                  <h4 className="text-lg font-black text-white">{mostChampionshipPlayer?.name || "Arif Ziad"}</h4>
                   <p className="mt-0.5 text-xs font-semibold text-[#4ade80]">
                     Nick: {mostChampionshipPlayer?.nickName || "Arif"} · {mostChampionshipPlayer?.role || "VIP All-Rounder"}
                   </p>
@@ -1360,10 +605,7 @@ export default function Home() {
       </section>
 
       {/* Matches Section */}
-      <section
-        id="matches"
-        className="relative overflow-hidden border-t border-[#172033] bg-[#030a1a] px-6 py-24"
-      >
+      <section id="matches" className="relative overflow-hidden border-t border-[#172033] bg-[#030a1a] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <div className="pointer-events-none absolute right-0 top-0 h-80 w-80 rounded-full bg-[#1877F2]/5 blur-3xl" />
 
@@ -1373,22 +615,14 @@ export default function Home() {
                 <span className="h-2 w-2 rounded-full bg-[#1877F2] shadow-lg shadow-[#1877F2]/50" />
                 <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#1877F2]">FCL Cricket</p>
               </div>
-              <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">
-                Matches & Tournaments
-              </h3>
+              <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">Matches & Tournaments</h3>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[#94a3b8]">
                 Follow FCL matches, tournaments, series and historical cricket competitions.
               </p>
             </div>
-
-            <a
-              href="#matches"
-              className="w-fit rounded-xl border border-[#1e293b] bg-[#0b1220] px-5 py-3 text-sm font-bold text-[#cbd5e1] transition duration-300 hover:border-[#1877F2]/50 hover:bg-[#111a2d] hover:text-white"
-            >
-              View All Matches →
-            </a>
           </div>
 
+          {/* Match Center Box */}
           <div className="relative overflow-hidden rounded-3xl border border-[#1877F2]/20 bg-[#0b1220] shadow-2xl shadow-[#1877F2]/5">
             <div className="h-px w-full bg-gradient-to-r from-transparent via-[#1877F2] to-transparent opacity-70" />
 
@@ -1399,9 +633,7 @@ export default function Home() {
                 </span>
                 <span className="text-xs font-medium text-[#64748b]">FCL Match</span>
               </div>
-              <span className="text-xs font-semibold text-[#475569]">
-                Match No. — Coming Soon
-              </span>
+              <span className="text-xs font-semibold text-[#475569]">Upcoming Season Fixtures</span>
             </div>
 
             <div className="grid items-center gap-8 px-6 py-10 md:grid-cols-[1fr_auto_1fr]">
@@ -1421,9 +653,7 @@ export default function Home() {
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-[#1e293b] bg-[#020617] shadow-inner">
                   <span className="text-sm font-black text-[#64748b]">VS</span>
                 </div>
-                <p className="mt-3 text-[9px] font-black uppercase tracking-[0.25em] text-[#475569]">
-                  Upcoming
-                </p>
+                <p className="mt-3 text-[9px] font-black uppercase tracking-[0.25em] text-[#475569]">Upcoming</p>
               </div>
 
               <div className="text-center md:text-left">
@@ -1439,97 +669,15 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="border-t border-[#172033] bg-[#080e1a] px-6 py-4">
-              <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-[10px] font-bold uppercase tracking-wider text-[#475569] sm:justify-between">
-                <span>FCL Virtual Cricket</span>
-                <span>Match Details Coming Soon</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 grid gap-5 md:grid-cols-2">
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#f59e0b]/50 hover:shadow-2xl hover:shadow-[#f59e0b]/5">
-              <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f59e0b] to-transparent opacity-60" />
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#f59e0b]/30 bg-[#1b1720] text-2xl">
-                    🏆
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#f59e0b]">Featured Tournament</p>
-                    <h4 className="mt-2 text-xl font-black text-white">FCL Championship</h4>
-                  </div>
-                </div>
-                <span className="rounded-lg border border-[#f59e0b]/20 bg-[#f59e0b]/10 px-2.5 py-1 text-[9px] font-black text-[#fbbf24]">
-                  2026
-                </span>
-              </div>
-
-              <p className="mt-5 text-sm leading-6 text-[#94a3b8]">
-                Official FCL tournament information, fixtures, results, teams and championship history.
-              </p>
-
-              <div className="mt-6 grid grid-cols-3 gap-2">
-                <div className="rounded-xl border border-[#172033] bg-[#020617] p-3 text-center">
-                  <p className="text-lg font-black text-white">—</p>
-                  <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Teams</p>
-                </div>
-                <div className="rounded-xl border border-[#172033] bg-[#020617] p-3 text-center">
-                  <p className="text-lg font-black text-white">—</p>
-                  <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Matches</p>
-                </div>
-                <div className="rounded-xl border border-[#172033] bg-[#020617] p-3 text-center">
-                  <p className="text-lg font-black text-[#fbbf24]">2026</p>
-                  <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Season</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#1877F2]/50 hover:shadow-2xl hover:shadow-[#1877F2]/5">
-              <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#1877F2] to-transparent opacity-60" />
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#1877F2]/30 bg-[#111936] text-2xl">
-                    🏏
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#60a5fa]">FCL Series</p>
-                    <h4 className="mt-2 text-xl font-black text-white">Upcoming Series</h4>
-                  </div>
-                </div>
-                <span className="rounded-lg border border-[#1e293b] bg-[#020617] px-2.5 py-1 text-[9px] font-black text-[#64748b]">
-                  SOON
-                </span>
-              </div>
-
-              <p className="mt-5 text-sm leading-6 text-[#94a3b8]">
-                Explore upcoming FCL series, match schedules, team lineups and series results.
-              </p>
-
-              <div className="mt-6 grid grid-cols-3 gap-2">
-                <div className="rounded-xl border border-[#172033] bg-[#020617] p-3 text-center">
-                  <p className="text-lg font-black text-white">—</p>
-                  <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Teams</p>
-                </div>
-                <div className="rounded-xl border border-[#172033] bg-[#020617] p-3 text-center">
-                  <p className="text-lg font-black text-white">—</p>
-                  <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Matches</p>
-                </div>
-                <div className="rounded-xl border border-[#172033] bg-[#020617] p-3 text-center">
-                  <p className="text-lg font-black text-[#60a5fa]">Soon</p>
-                  <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Status</p>
-                </div>
-              </div>
+            <div className="border-t border-[#172033] bg-[#080e1a] px-6 py-4 text-center text-[10px] font-bold uppercase tracking-wider text-[#475569]">
+              FCL Virtual Cricket • Match Fixtures Scheduled Soon
             </div>
           </div>
         </div>
       </section>
 
-      {/* Records Section (Directly from Excel) */}
-      <section
-        id="records"
-        className="relative overflow-hidden border-t border-[#172033] bg-[#020617] px-6 py-24"
-      >
+      {/* Records & Leaderboard Section (Full 4 Pillars + History) */}
+      <section id="records" className="relative overflow-hidden border-t border-[#172033] bg-[#020617] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <div className="pointer-events-none absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-[#f59e0b]/5 blur-[120px]" />
 
@@ -1541,9 +689,7 @@ export default function Home() {
                   FCL Statistics & Hall of Fame
                 </p>
               </div>
-              <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">
-                FCL Record Corner
-              </h3>
+              <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">FCL Record Corner</h3>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[#94a3b8]">
                 Remarkable all-time milestones, individual achievements and tournament records dynamically synced from Excel data.
               </p>
@@ -1580,9 +726,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Run King</p>
-                  <h4 className="text-lg font-black text-white">
-                    {topRunScorer?.name || "Jahin Shahriar"}
-                  </h4>
+                  <h4 className="text-lg font-black text-white">{topRunScorer?.name || "Jahin Shahriar"}</h4>
                 </div>
               </div>
 
@@ -1613,16 +757,12 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Wicket King</p>
-                  <h4 className="text-lg font-black text-white">
-                    {topWicketTaker?.name || "Zaheed Hasan"}
-                  </h4>
+                  <h4 className="text-lg font-black text-white">{topWicketTaker?.name || "Zaheed Hasan"}</h4>
                 </div>
               </div>
 
               <div className="mt-7 rounded-2xl border border-[#172033] bg-[#020617] p-4 text-center">
-                <p className="text-3xl font-black text-[#fbbf24]">
-                  {topWicketTaker?.wickets || 332}
-                </p>
+                <p className="text-3xl font-black text-[#fbbf24]">{topWicketTaker?.wickets || 332}</p>
                 <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">
                   In {topWicketTaker?.matches || 167} Matches (Avg {topWicketTaker?.wkAvg || "1.99"})
                 </p>
@@ -1646,16 +786,12 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Iron Man</p>
-                  <h4 className="text-lg font-black text-white">
-                    {mostMatchesPlayer?.name || "Sadrul Anam"}
-                  </h4>
+                  <h4 className="text-lg font-black text-white">{mostMatchesPlayer?.name || "Sadrul Anam"}</h4>
                 </div>
               </div>
 
               <div className="mt-7 rounded-2xl border border-[#172033] bg-[#020617] p-4 text-center">
-                <p className="text-3xl font-black text-[#4ade80]">
-                  {mostMatchesPlayer?.matches || 171}
-                </p>
+                <p className="text-3xl font-black text-[#4ade80]">{mostMatchesPlayer?.matches || 171}</p>
                 <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">
                   Matches · {mostMatchesPlayer?.wickets || 261} Wickets
                 </p>
@@ -1679,16 +815,12 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Maximum Sixes</p>
-                  <h4 className="text-lg font-black text-white">
-                    {mostSixesPlayer?.name || "Shahriar Khokon"}
-                  </h4>
+                  <h4 className="text-lg font-black text-white">{mostSixesPlayer?.name || "Shahriar Khokon"}</h4>
                 </div>
               </div>
 
               <div className="mt-7 rounded-2xl border border-[#172033] bg-[#020617] p-4 text-center">
-                <p className="text-3xl font-black text-[#c084fc]">
-                  {mostSixesPlayer?.sixes || 176}
-                </p>
+                <p className="text-3xl font-black text-[#c084fc]">{mostSixesPlayer?.sixes || 176}</p>
                 <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">
                   Sixes · {mostSixesPlayer?.runs?.toLocaleString() || "2,745"} Runs
                 </p>
@@ -1731,9 +863,7 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#60a5fa]">Hat-Trick Master</p>
-                  <h4 className="mt-1 text-lg font-black text-white">
-                    Sakhawat Shanto (6x)
-                  </h4>
+                  <h4 className="mt-1 text-lg font-black text-white">Sakhawat Shanto (6x)</h4>
                 </div>
               </div>
               <p className="mt-5 text-sm leading-6 text-[#94a3b8]">
@@ -1777,19 +907,14 @@ export default function Home() {
       <footer className="border-t border-[#1e293b] bg-[#020617] px-6 py-8">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
           <div>
-            <p className="font-bold">
-              Facebook Cricket League
-            </p>
-            <p className="mt-1 text-xs text-[#64748b]">
-              Official FCL Digital Platform
-            </p>
+            <p className="font-bold">Facebook Cricket League</p>
+            <p className="mt-1 text-xs text-[#64748b]">Official FCL Digital Platform</p>
           </div>
           <p className="text-xs text-[#64748b]">
-            © 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.
+            © 2026 Facebook Cricket League | All rights reserved.
           </p>
         </div>
       </footer>
-
     </main>
   );
 }
