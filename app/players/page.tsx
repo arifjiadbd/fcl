@@ -276,6 +276,18 @@ export default function PlayersPage() {
             })}
           </div>
         )}
+        {/* Footer */}
+      <footer className="border-t border-[#1e293b] bg-[#020617] px-6 py-8 mt-12">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
+          <div>
+            <p className="font-bold text-white">Facebook Cricket League (FCL)</p>
+            <p className="mt-1 text-xs text-[#64748b]">Official Players Directory & Roster</p>
+          </div>
+          <p className="text-xs text-[#94a3b8]">
+            © 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.
+          </p>
+        </div>
+      </footer>
       </main>
 
       {/* ================================================== */}

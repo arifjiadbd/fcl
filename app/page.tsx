@@ -20,12 +20,15 @@ export default function Home() {
       .catch((err) => console.error("Error fetching live Excel data:", err));
   }, []);
 
-  // Auto Calculations directly from Excel Data
+  // সরাসরি এক্সেল থেকে স্বয়ংক্রিয়ভাবে রেকর্ড বের করা
   const topRunScorer = [...playersData].sort((a, b) => b.runs - a.runs)[0];
   const topWicketTaker = [...playersData].sort((a, b) => b.wickets - a.wickets)[0];
   const mostChampionshipPlayer = [...playersData].sort((a, b) => (b.champion || 0) - (a.champion || 0))[0];
   const mostMatchesPlayer = [...playersData].sort((a, b) => b.matches - a.matches)[0];
-  const mostSixesPlayer = [...playersData].sort((a, b) => b.sixes - a.sixes)[0];
+  const mostSixesPlayer = [...playersData].sort((a, b) => (b.sixes || 0) - (a.sixes || 0))[0];
+  
+  // 🔥 এক্সেল থেকে আসল সর্বোচ্চ হ্যাটট্রিক শিকারী (Zaheed Hasan)
+  const topHatTrickPlayer = [...playersData].sort((a, b) => (b.hatTricks || 0) - (a.hatTricks || 0))[0];
 
   const totalCommunityRuns = playersData.reduce((acc, curr) => acc + (curr.runs || 0), 0);
   const totalCommunityWickets = playersData.reduce((acc, curr) => acc + (curr.wickets || 0), 0);
@@ -35,7 +38,6 @@ export default function Home() {
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-[#1e293b] bg-[#020617]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-          {/* Brand & Logo */}
           <Link href="/" className="flex items-center gap-3">
             <div className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center overflow-hidden rounded-xl border border-[#1877F2]/40 bg-[#111936] shadow-lg shadow-[#1877F2]/10">
               <img
@@ -62,7 +64,6 @@ export default function Home() {
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
           <nav className="hidden items-center gap-6 lg:flex">
             <Link href="/" className="text-sm font-semibold text-white transition hover:text-[#1877F2]">
               Home
@@ -84,7 +85,6 @@ export default function Home() {
             </Link>
           </nav>
 
-          {/* Desktop Status & Mobile Menu Button */}
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-2 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-1.5 sm:flex">
               <span className="h-2 w-2 rounded-full bg-[#1877F2] shadow-lg shadow-[#1877F2]" />
@@ -101,50 +101,25 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
           <div className="border-t border-[#1e293b] bg-[#030712] px-6 py-5 lg:hidden animate-in fade-in slide-in-from-top-2 duration-200">
             <nav className="flex flex-col gap-4">
-              <Link
-                href="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:bg-[#1877F2]/10 hover:text-[#1877F2]"
-              >
+              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:bg-[#1877F2]/10">
                 🏠 Home
               </Link>
-              <Link
-                href="#about"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-[#94a3b8] transition hover:bg-[#1877F2]/10 hover:text-[#1877F2]"
-              >
+              <Link href="#about" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-[#94a3b8] transition hover:bg-[#1877F2]/10">
                 ℹ️ About FCL
               </Link>
-              <Link
-                href="/rules"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-[#38bdf8] transition hover:bg-[#1877F2]/10"
-              >
+              <Link href="/rules" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-[#38bdf8] transition hover:bg-[#1877F2]/10">
                 📜 Rules & Match Formats
               </Link>
-              <Link
-                href="/players"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-[#60a5fa] transition hover:bg-[#1877F2]/10"
-              >
+              <Link href="/players" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-[#60a5fa] transition hover:bg-[#1877F2]/10">
                 👥 Players Directory
               </Link>
-              <Link
-                href="#matches"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-[#94a3b8] transition hover:bg-[#1877F2]/10 hover:text-[#1877F2]"
-              >
+              <Link href="#matches" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-[#94a3b8] transition hover:bg-[#1877F2]/10">
                 ⚔️ Matches
               </Link>
-              <Link
-                href="/records"
-                onClick={() => setMobileMenuOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-[#fbbf24] transition hover:bg-[#f59e0b]/10"
-              >
+              <Link href="/records" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-[#fbbf24] transition hover:bg-[#f59e0b]/10">
                 🏆 Records & Leaderboard
               </Link>
             </nav>
@@ -152,11 +127,8 @@ export default function Home() {
         )}
       </header>
 
-      {/* Hero Section (With Full Animations & Floating Scorecards) */}
-      <section
-        id="home"
-        className="relative min-h-[calc(100vh-76px)] overflow-hidden border-b border-[#172033] bg-[#02050b]"
-      >
+      {/* Hero Section */}
+      <section id="home" className="relative min-h-[calc(100vh-76px)] overflow-hidden border-b border-[#172033] bg-[#02050b]">
         <div className="absolute inset-0 bg-[#02050b]" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_45%,rgba(37,99,235,0.16),transparent_34%)]" />
         <div className="absolute right-[-15%] top-[-20%] h-[650px] w-[650px] rounded-full bg-[#7c3aed]/10 blur-[130px]" />
@@ -164,7 +136,6 @@ export default function Home() {
 
         <div className="relative mx-auto min-h-[calc(100vh-76px)] max-w-[1500px] px-6">
           <div className="grid min-h-[calc(100vh-76px)] items-center lg:grid-cols-[0.82fr_1.18fr]">
-            {/* Left Typography */}
             <div className="relative z-30 py-20 text-center lg:text-left">
               <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-4 py-2 backdrop-blur-xl">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e] shadow-[0_0_14px_rgba(34,197,94,0.8)]" />
@@ -173,9 +144,7 @@ export default function Home() {
                 </span>
               </div>
 
-              <p className="text-xs font-bold uppercase tracking-[0.38em] text-[#64748b]">
-                Facebook Cricket League
-              </p>
+              <p className="text-xs font-bold uppercase tracking-[0.38em] text-[#64748b]">Facebook Cricket League</p>
 
               <h2 className="mt-5 text-5xl font-black leading-[0.91] tracking-[-0.05em] text-white sm:text-6xl md:text-7xl lg:text-[78px]">
                 <span className="block">THE GAME LIVES</span>
@@ -243,7 +212,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right Cinematic Room With Floating Cards */}
             <div className="relative h-[680px] w-full hidden sm:block">
               <div className="absolute inset-y-[30px] right-[-40px] w-[760px] overflow-hidden rounded-[3rem] border border-white/[0.08] bg-[#080d17] shadow-[0_40px_120px_rgba(0,0,0,0.7)]">
                 <img
@@ -339,7 +307,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Bottom Strip */}
         <div className="absolute bottom-0 left-0 right-0 border-t border-[#1e293b]/70 bg-[#020617]/75 backdrop-blur-xl">
           <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-[#1e293b] md:grid-cols-4">
             <div className="px-5 py-3 text-center">
@@ -425,7 +392,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Clean Rule Banner Redirect */}
           <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl border border-[#1877F2]/30 bg-gradient-to-r from-[#0b1220] via-[#0d1830] to-[#0b1220] p-6 sm:p-8">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#38bdf8]">Rulebook & Formats</span>
@@ -442,7 +408,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Players Section (Live from Excel) */}
+      {/* Featured Players Section */}
       <section id="players" className="relative overflow-hidden border-t border-[#172033] bg-[#020617] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-[#1877F2]/5 blur-3xl" />
@@ -476,7 +442,7 @@ export default function Home() {
           </div>
 
           <div className="relative grid gap-5 md:grid-cols-3">
-            {/* PLAYER 1: TOP RUN SCORER */}
+            {/* 1. TOP RUN SCORER */}
             <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#1877F2]/50 hover:shadow-2xl hover:shadow-[#1877F2]/10">
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#1877F2] to-transparent opacity-60" />
               <div className="flex items-center justify-between">
@@ -517,7 +483,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* PLAYER 2: TOP WICKET TAKER */}
+            {/* 2. TOP WICKET TAKER */}
             <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#f59e0b]/50 hover:shadow-2xl hover:shadow-[#f59e0b]/10">
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f59e0b] to-transparent opacity-60" />
               <div className="flex items-center justify-between">
@@ -558,7 +524,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* PLAYER 3: RECORD CHAMPION */}
+            {/* 3. RECORD CHAMPION */}
             <div className="group relative overflow-hidden rounded-3xl border border-[#22c55e]/30 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#22c55e]/60 hover:shadow-2xl hover:shadow-[#22c55e]/10">
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#22c55e] to-transparent opacity-60" />
               <div className="flex items-center justify-between">
@@ -622,7 +588,6 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Match Center Box */}
           <div className="relative overflow-hidden rounded-3xl border border-[#1877F2]/20 bg-[#0b1220] shadow-2xl shadow-[#1877F2]/5">
             <div className="h-px w-full bg-gradient-to-r from-transparent via-[#1877F2] to-transparent opacity-70" />
 
@@ -676,7 +641,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Records & Leaderboard Section (Full 4 Pillars + History) */}
+      {/* Records & Leaderboard Section */}
       <section id="records" className="relative overflow-hidden border-t border-[#172033] bg-[#020617] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <div className="pointer-events-none absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-[#f59e0b]/5 blur-[120px]" />
@@ -831,7 +796,7 @@ export default function Home() {
 
           {/* Extended History & Analytics Cards */}
           <div className="mt-8 grid gap-5 md:grid-cols-3">
-            {/* Championship */}
+            {/* Most Championships */}
             <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#f59e0b]/50 hover:shadow-2xl hover:shadow-[#f59e0b]/5">
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f59e0b] to-transparent opacity-60" />
               <div className="flex items-center gap-4">
@@ -854,8 +819,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Performance */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#1877F2]/50 hover:shadow-2xl hover:shadow-[#1877F2]/5">
+            {/* 🔥 DYNAMIC HAT-TRICK MASTER CARD (Zaheed Hasan) */}
+            <div className="group relative overflow-hidden rounded-3xl border border-[#1877F2]/30 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#1877F2]/50 hover:shadow-2xl hover:shadow-[#1877F2]/5">
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#1877F2] to-transparent opacity-60" />
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#1877F2]/30 bg-[#111936] text-2xl">
@@ -863,20 +828,24 @@ export default function Home() {
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#60a5fa]">Hat-Trick Master</p>
-                  <h4 className="mt-1 text-lg font-black text-white">Sakhawat Shanto (6x)</h4>
+                  <h4 className="mt-1 text-lg font-black text-white">
+                    {topHatTrickPlayer?.name || "Zaheed Hasan"} ({topHatTrickPlayer?.hatTricks || 7}x)
+                  </h4>
                 </div>
               </div>
               <p className="mt-5 text-sm leading-6 text-[#94a3b8]">
-                Shanto leads with 6 career hat-tricks, closely followed by Arif Ziad and Tofayel Ahmed with 5 hat-tricks each.
+                {topHatTrickPlayer?.name || "Zaheed Hasan"} leads the league with {topHatTrickPlayer?.hatTricks || 7} career hat-tricks, setting the all-time bowling record in FCL.
               </p>
               <div className="mt-6 flex items-center justify-between border-t border-[#172033] pt-4">
                 <span className="text-xs font-semibold text-[#64748b]">Bowling Record</span>
-                <span className="rounded-full bg-[#1877F2]/10 px-2.5 py-1 text-[10px] font-bold text-[#60a5fa]">6 Hat-Tricks</span>
+                <span className="rounded-full bg-[#1877F2]/10 px-2.5 py-1 text-[10px] font-bold text-[#60a5fa]">
+                  {topHatTrickPlayer?.hatTricks || 7} Hat-Tricks
+                </span>
               </div>
             </div>
 
             {/* Statistics */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#22c55e]/50 hover:shadow-2xl hover:shadow-[#22c55e]/5">
+            <div className="group relative overflow-hidden rounded-3xl border border-[#22c55e]/30 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#22c55e]/50 hover:shadow-2xl hover:shadow-[#22c55e]/5">
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#22c55e] to-transparent opacity-60" />
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#22c55e]/30 bg-[#102019] text-2xl">
@@ -907,11 +876,11 @@ export default function Home() {
       <footer className="border-t border-[#1e293b] bg-[#020617] px-6 py-8">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
           <div>
-            <p className="font-bold">Facebook Cricket League</p>
-            <p className="mt-1 text-xs text-[#64748b]">Official FCL Digital Platform</p>
+            <p className="font-bold text-white">Facebook Cricket League (FCL)</p>
+            <p className="mt-1 text-xs text-[#64748b]">The Game Lives Beyond The Field</p>
           </div>
-          <p className="text-xs text-[#64748b]">
-            © 2026 Facebook Cricket League | All rights reserved.
+          <p className="text-xs text-[#94a3b8]">
+            © 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.
           </p>
         </div>
       </footer>
