@@ -172,6 +172,7 @@ export default function Home() {
             </div>
           </Link>
 
+          {/* 🌟 Desktop Navigation Menu with Memories Included */}
           <nav className="hidden items-center gap-6 lg:flex">
             <Link href="/" className="text-sm font-semibold text-white transition hover:text-[#1877F2]">
               Home
@@ -191,6 +192,9 @@ export default function Home() {
             <Link href="/records" className="text-sm font-medium text-[#fbbf24] transition hover:text-white">
               Hall of Fame
             </Link>
+            <Link href="/memories" className="text-sm font-bold text-[#f472b6] transition hover:text-white flex items-center gap-1">
+              Memories 📖
+            </Link>
           </nav>
 
           <div className="flex items-center gap-3">
@@ -209,6 +213,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* 🌟 Mobile Navigation Menu with Memories Included */}
         {mobileMenuOpen && (
           <div className="border-t border-[#1e293b] bg-[#030712] px-6 py-5 lg:hidden animate-in fade-in slide-in-from-top-2 duration-200">
             <nav className="flex flex-col gap-4">
@@ -229,6 +234,9 @@ export default function Home() {
               </Link>
               <Link href="/records" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-[#fbbf24] transition hover:bg-[#f59e0b]/10">
                 🏆 Records & Hall of Fame
+              </Link>
+              <Link href="/memories" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-bold text-[#f472b6] transition hover:bg-[#f472b6]/10">
+                📖 FCL Memories & Nostalgia
               </Link>
             </nav>
           </div>
@@ -282,10 +290,10 @@ export default function Home() {
                 </Link>
 
                 <Link
-                  href="/rankings"
-                  className="rounded-xl border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-7 py-3.5 text-sm font-bold text-[#fbbf24] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:bg-[#f59e0b] hover:text-black"
+                  href="/memories"
+                  className="rounded-xl border border-[#f472b6]/40 bg-[#f472b6]/10 px-7 py-3.5 text-sm font-bold text-[#f472b6] backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:bg-[#f472b6] hover:text-white"
                 >
-                  👑 All-Time MVP & Rankings
+                  📖 FCL Memories & Nostalgia
                 </Link>
               </div>
 
