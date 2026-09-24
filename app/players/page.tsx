@@ -38,6 +38,32 @@ interface Player {
   photoUrl?: string;
 }
 
+export const calculateFclPoints = (p: Player): number => {
+  const runs = Number(p.runs) || 0;
+  const sixes = Number(p.sixes) || 0;
+  const fours = Number(p.fours) || 0;
+  const wickets = Number(p.wickets) || 0;
+  const matches = Number(p.matches) || 0;
+  const champion = Number(p.champion) || 0;
+  const runnersUp = Number(p.runnersUp) || 0;
+  const motCpot = (Number(p.mot) || 0) + (Number(p.cpot) || 0);
+  const highestRuns = Number(p.highestRunScorer) || 0;
+  const topWickets = Number(p.topWicketTaker) || 0;
+
+  return Math.round(
+    runs * 1 +
+    sixes * 2 +
+    fours * 1 +
+    wickets * 20 +
+    matches * 2 +
+    champion * 100 +
+    runnersUp * 40 +
+    motCpot * 60 +
+    highestRuns * 30 +
+    topWickets * 30
+  );
+};
+
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,6 +113,19 @@ export default function PlayersPage() {
     } finally {
       setDownloading(false);
     }
+  };
+
+  const getRank = (player: Player, type: "mvp" | "runs" | "wickets" | "sixes" | "champion") => {
+    const sorted = [...players].sort((a, b) => {
+      if (type === "mvp") return calculateFclPoints(b) - calculateFclPoints(a);
+      if (type === "runs") return b.runs - a.runs;
+      if (type === "wickets") return b.wickets - a.wickets;
+      if (type === "sixes") return (b.sixes || 0) - (a.sixes || 0);
+      if (type === "champion") return (b.champion || 0) - (a.champion || 0);
+      return 0;
+    });
+    const index = sorted.findIndex((p) => p.name === player.name);
+    return index !== -1 ? index + 1 : "—";
   };
 
   const filteredPlayers = players.filter((player) => {
@@ -303,7 +342,7 @@ export default function PlayersPage() {
             className="relative flex h-[94vh] sm:h-auto sm:max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-[#38bdf8]/40 bg-[#0f172a] shadow-2xl shadow-[#0284c7]/20"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* TOP HEADER CONTROLS (ALWAYS VISIBLE & STICKY) */}
+            {/* TOP HEADER CONTROLS */}
             <div className="shrink-0 flex items-center justify-between border-b border-[#1e293b] bg-[#0b1329] px-3.5 py-2.5">
               <div className="flex items-center gap-2">
                 <span className="flex h-2 w-2 rounded-full bg-[#22c55e] animate-pulse" />
@@ -416,7 +455,7 @@ export default function PlayersPage() {
                   </div>
                 </div>
 
-                {/* 🌟 ENHANCED DEBUT & TOURNAMENTS ROW (বড় ও ক্লিয়ার ফন্ট) */}
+                {/* Enhanced Debut & Tournaments Row */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 text-center">
                   <div className="rounded-xl border border-[#1e293b] bg-[#070b16] p-2.5 flex flex-col justify-center">
                     <p className="text-[10px] uppercase font-semibold text-[#64748b]">Debut Date</p>
@@ -444,34 +483,40 @@ export default function PlayersPage() {
                   </div>
                 </div>
 
-                {/* 🌟 ENHANCED ALL-TIME LEAGUE RANKINGS (বড় ও উজ্জ্বল র‍্যাংক সংখ্যা) */}
+                {/* 🌟 ALL-TIME LEAGUE RANKINGS + MVP POINTS BADGE */}
                 <div className="rounded-2xl border border-[#f59e0b]/40 bg-gradient-to-r from-[#171103] via-[#241804] to-[#171103] p-3 text-center shadow-lg">
-                  <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-[#f59e0b]">
-                    ⭐ ALL-TIME LEAGUE RANKINGS (AMONG {players.length} PLAYERS)
-                  </p>
+                  <div className="flex items-center justify-between border-b border-[#f59e0b]/20 pb-2">
+                    <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-[#f59e0b]">
+                      ⭐ ALL-TIME LEAGUE RANKINGS
+                    </p>
+                    <span className="rounded-lg bg-[#f59e0b]/20 px-2 py-0.5 text-[10px] font-black text-[#fbbf24]">
+                      👑 #{getRank(selectedPlayer, "mvp")} MVP ({calculateFclPoints(selectedPlayer).toLocaleString()} Pts)
+                    </span>
+                  </div>
+
                   <div className="mt-2.5 grid grid-cols-4 gap-2 text-center">
                     <div className="rounded-xl bg-black/50 p-2 border border-[#f59e0b]/25">
                       <p className="text-[10px] uppercase font-semibold text-[#94a3b8]">Runs Rank</p>
                       <p className="text-sm sm:text-base font-black text-[#22c55e] mt-1">
-                        #{[...players].sort((a, b) => b.runs - a.runs).findIndex((p) => p.name === selectedPlayer.name) + 1}
+                        #{getRank(selectedPlayer, "runs")}
                       </p>
                     </div>
                     <div className="rounded-xl bg-black/50 p-2 border border-[#f59e0b]/25">
                       <p className="text-[10px] uppercase font-semibold text-[#94a3b8]">Wickets Rank</p>
                       <p className="text-sm sm:text-base font-black text-[#f59e0b] mt-1">
-                        #{[...players].sort((a, b) => b.wickets - a.wickets).findIndex((p) => p.name === selectedPlayer.name) + 1}
+                        #{getRank(selectedPlayer, "wickets")}
                       </p>
                     </div>
                     <div className="rounded-xl bg-black/50 p-2 border border-[#f59e0b]/25">
                       <p className="text-[10px] uppercase font-semibold text-[#94a3b8]">6s Rank</p>
                       <p className="text-sm sm:text-base font-black text-[#c084fc] mt-1">
-                        #{[...players].sort((a, b) => (b.sixes || 0) - (a.sixes || 0)).findIndex((p) => p.name === selectedPlayer.name) + 1}
+                        #{getRank(selectedPlayer, "sixes")}
                       </p>
                     </div>
                     <div className="rounded-xl bg-black/50 p-2 border border-[#f59e0b]/25">
                       <p className="text-[10px] uppercase font-semibold text-[#94a3b8]">Trophy Rank</p>
                       <p className="text-sm sm:text-base font-black text-[#38bdf8] mt-1">
-                        #{[...players].sort((a, b) => (b.champion || 0) - (a.champion || 0)).findIndex((p) => p.name === selectedPlayer.name) + 1}
+                        #{getRank(selectedPlayer, "champion")}
                       </p>
                     </div>
                   </div>
@@ -551,9 +596,7 @@ export default function PlayersPage() {
                     </div>
                     <div className="flex justify-between border-b border-[#172033] pb-1.5">
                       <span className="text-[#94a3b8]">Highest Run Scorer:</span>
-                      <strong className="text-white font-extrabold">
-                        {selectedPlayer.highestRunScorer ?? 0}
-                      </strong>
+                      <strong className="text-white font-extrabold">{selectedPlayer.highestRunScorer ?? 0}</strong>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#94a3b8]">Top Wicket Taker:</span>
@@ -565,15 +608,14 @@ export default function PlayersPage() {
                 {/* Card Footer */}
                 <div className="flex items-center justify-between border-t border-[#1e293b] pt-2 text-[10px] sm:text-xs text-[#64748b]">
                   <span className="truncate">
-                    Last Played:{" "}
-                    <strong className="text-white">{selectedPlayer.lastPlayed || "—"}</strong>
+                    Last Played: <strong className="text-white">{selectedPlayer.lastPlayed || "—"}</strong>
                   </span>
                   <span className="shrink-0 font-semibold">FCL Official Card</span>
                 </div>
               </div>
             </div>
 
-            {/* BOTTOM STICKY ACTION BAR */}
+            {/* Bottom Controls */}
             <div className="shrink-0 flex gap-2 border-t border-[#1e293b] bg-[#0b1329] p-2.5 sm:p-3">
               <button
                 onClick={handleDownloadCard}
