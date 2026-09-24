@@ -1,11 +1,50 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { toPng } from "html-to-image";
+
+interface Player {
+  id?: number;
+  name: string;
+  nickName?: string;
+  role: string;
+  totalTournament?: number;
+  matches: number;
+  runs: number;
+  wickets: number;
+  innings?: number;
+  notOut?: number;
+  fours?: number;
+  sixes?: number;
+  hatTricks?: number;
+  mom?: number;
+  cpom?: number;
+  mot?: number;
+  cpot?: number;
+  champion?: number;
+  runnersUp?: number;
+  totalFinal?: number;
+  lastPlayed?: string;
+  highestRunScorer?: number;
+  topWicketTaker?: number;
+  debutYear?: string;
+  debutTournament?: string;
+  debutTeam?: string;
+  maxRuns?: number;
+  maxWickets?: number;
+  runAvg?: string;
+  wkAvg?: string;
+  photoUrl?: string;
+}
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [playersData, setPlayersData] = useState<any[]>([]);
+  const [playersData, setPlayersData] = useState<Player[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/fcl-data")
@@ -20,14 +59,37 @@ export default function Home() {
       .catch((err) => console.error("Error fetching live Excel data:", err));
   }, []);
 
+  // স্ট্যাট কার্ড ডাউনলোড লজিক
+  const handleDownloadCard = async () => {
+    if (!cardRef.current || !selectedPlayer) return;
+
+    try {
+      setDownloading(true);
+      const dataUrl = await toPng(cardRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+      });
+      const link = document.createElement("a");
+      const safeName = (selectedPlayer.nickName || selectedPlayer.name || "player")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "-");
+      link.download = `fcl-stat-card-${safeName}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Failed to export card image:", err);
+      alert("ছবি ডাউনলোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   // সরাসরি এক্সেল থেকে স্বয়ংক্রিয়ভাবে রেকর্ড বের করা
   const topRunScorer = [...playersData].sort((a, b) => b.runs - a.runs)[0];
   const topWicketTaker = [...playersData].sort((a, b) => b.wickets - a.wickets)[0];
   const mostChampionshipPlayer = [...playersData].sort((a, b) => (b.champion || 0) - (a.champion || 0))[0];
   const mostMatchesPlayer = [...playersData].sort((a, b) => b.matches - a.matches)[0];
   const mostSixesPlayer = [...playersData].sort((a, b) => (b.sixes || 0) - (a.sixes || 0))[0];
-  
-  // 🔥 এক্সেল থেকে আসল সর্বোচ্চ হ্যাটট্রিক শিকারী (Zaheed Hasan)
   const topHatTrickPlayer = [...playersData].sort((a, b) => (b.hatTricks || 0) - (a.hatTricks || 0))[0];
 
   const totalCommunityRuns = playersData.reduce((acc, curr) => acc + (curr.runs || 0), 0);
@@ -36,7 +98,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#020617] text-white selection:bg-[#1877F2]/30 selection:text-white">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-[#1e293b] bg-[#020617]/95 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-[#1e293b] bg-[#020617]/95 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <Link href="/" className="flex items-center gap-3">
             <div className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center overflow-hidden rounded-xl border border-[#1877F2]/40 bg-[#111936] shadow-lg shadow-[#1877F2]/10">
@@ -408,7 +470,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Players Section */}
+      {/* Featured Players Section (INTERACTIVE CLICKABLE CARDS) */}
       <section id="players" className="relative overflow-hidden border-t border-[#172033] bg-[#020617] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <div className="pointer-events-none absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-[#1877F2]/5 blur-3xl" />
@@ -423,7 +485,7 @@ export default function Home() {
               </div>
               <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">Featured Players</h3>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[#94a3b8]">
-                Discover FCL's all-time top performers and legends dynamically loaded directly from Excel data.
+                Discover FCL&apos;s all-time top performers and legends dynamically loaded directly from Excel data. Click any card to open and download their Official Card.
               </p>
             </div>
 
@@ -443,7 +505,10 @@ export default function Home() {
 
           <div className="relative grid gap-5 md:grid-cols-3">
             {/* 1. TOP RUN SCORER */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#1877F2]/50 hover:shadow-2xl hover:shadow-[#1877F2]/10">
+            <div
+              onClick={() => topRunScorer && setSelectedPlayer(topRunScorer)}
+              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#1877F2]/60 hover:shadow-2xl hover:shadow-[#1877F2]/15"
+            >
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#1877F2] to-transparent opacity-60" />
               <div className="flex items-center justify-between">
                 <span className="rounded-lg border border-[#1877F2]/20 bg-[#1877F2]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#60a5fa]">
@@ -453,11 +518,13 @@ export default function Home() {
               </div>
 
               <div className="mt-6 flex items-center gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#1877F2]/30 bg-[#111936] text-3xl shadow-lg shadow-[#1877F2]/5">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#1877F2]/30 bg-[#111936] text-3xl shadow-lg shadow-[#1877F2]/5 group-hover:scale-105 transition">
                   🏏
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-white">{topRunScorer?.name || "Jahin Shahriar"}</h4>
+                  <h4 className="text-lg font-black text-white group-hover:text-[#60a5fa] transition">
+                    {topRunScorer?.name || "Jahin Shahriar"}
+                  </h4>
                   <p className="mt-0.5 text-xs font-semibold text-[#60a5fa]">
                     Nick: {topRunScorer?.nickName || "Jahin"} · {topRunScorer?.role || "All-Rounder"}
                   </p>
@@ -481,10 +548,18 @@ export default function Home() {
                   <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Bat Avg.</p>
                 </div>
               </div>
+
+              <div className="mt-4 flex items-center justify-between border-t border-[#172033] pt-3 text-[10px] text-[#64748b]">
+                <span>Click to view official stat card</span>
+                <span className="text-[#1877F2] font-bold group-hover:underline">View Card →</span>
+              </div>
             </div>
 
             {/* 2. TOP WICKET TAKER */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#f59e0b]/50 hover:shadow-2xl hover:shadow-[#f59e0b]/10">
+            <div
+              onClick={() => topWicketTaker && setSelectedPlayer(topWicketTaker)}
+              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#f59e0b]/60 hover:shadow-2xl hover:shadow-[#f59e0b]/15"
+            >
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f59e0b] to-transparent opacity-60" />
               <div className="flex items-center justify-between">
                 <span className="rounded-lg border border-[#f59e0b]/20 bg-[#f59e0b]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#fbbf24]">
@@ -494,11 +569,13 @@ export default function Home() {
               </div>
 
               <div className="mt-6 flex items-center gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#f59e0b]/30 bg-[#1b1720] text-3xl shadow-lg shadow-[#f59e0b]/5">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#f59e0b]/30 bg-[#1b1720] text-3xl shadow-lg shadow-[#f59e0b]/5 group-hover:scale-105 transition">
                   🎯
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-white">{topWicketTaker?.name || "Zaheed Hasan"}</h4>
+                  <h4 className="text-lg font-black text-white group-hover:text-[#fbbf24] transition">
+                    {topWicketTaker?.name || "Zaheed Hasan"}
+                  </h4>
                   <p className="mt-0.5 text-xs font-semibold text-[#fbbf24]">
                     Nick: {topWicketTaker?.nickName || "Zaheed"} · {topWicketTaker?.role || "Bowling All-Rounder"}
                   </p>
@@ -522,10 +599,18 @@ export default function Home() {
                   <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Wk Avg.</p>
                 </div>
               </div>
+
+              <div className="mt-4 flex items-center justify-between border-t border-[#172033] pt-3 text-[10px] text-[#64748b]">
+                <span>Click to view official stat card</span>
+                <span className="text-[#f59e0b] font-bold group-hover:underline">View Card →</span>
+              </div>
             </div>
 
             {/* 3. RECORD CHAMPION */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#22c55e]/30 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#22c55e]/60 hover:shadow-2xl hover:shadow-[#22c55e]/10">
+            <div
+              onClick={() => mostChampionshipPlayer && setSelectedPlayer(mostChampionshipPlayer)}
+              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#22c55e]/30 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#22c55e]/60 hover:shadow-2xl hover:shadow-[#22c55e]/15"
+            >
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#22c55e] to-transparent opacity-60" />
               <div className="flex items-center justify-between">
                 <span className="rounded-lg border border-[#22c55e]/20 bg-[#22c55e]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#4ade80]">
@@ -535,11 +620,13 @@ export default function Home() {
               </div>
 
               <div className="mt-6 flex items-center gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#22c55e]/30 bg-[#102019] text-3xl shadow-lg shadow-[#22c55e]/5">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-[#22c55e]/30 bg-[#102019] text-3xl shadow-lg shadow-[#22c55e]/5 group-hover:scale-105 transition">
                   ⭐
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-white">{mostChampionshipPlayer?.name || "Arif Ziad"}</h4>
+                  <h4 className="text-lg font-black text-white group-hover:text-[#4ade80] transition">
+                    {mostChampionshipPlayer?.name || "Arif Ziad"}
+                  </h4>
                   <p className="mt-0.5 text-xs font-semibold text-[#4ade80]">
                     Nick: {mostChampionshipPlayer?.nickName || "Arif"} · {mostChampionshipPlayer?.role || "VIP All-Rounder"}
                   </p>
@@ -564,6 +651,11 @@ export default function Home() {
                   <p className="text-lg font-black text-[#4ade80]">{mostChampionshipPlayer?.runAvg || "16.14"}</p>
                   <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Bat Avg.</p>
                 </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between border-t border-[#172033] pt-3 text-[10px] text-[#64748b]">
+                <span>Click to view official stat card</span>
+                <span className="text-[#4ade80] font-bold group-hover:underline">View Card →</span>
               </div>
             </div>
           </div>
@@ -641,7 +733,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Records & Leaderboard Section */}
+      {/* Records & Leaderboard Section (ALL CLICKABLE CARDS) */}
       <section id="records" className="relative overflow-hidden border-t border-[#172033] bg-[#020617] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <div className="pointer-events-none absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-[#f59e0b]/5 blur-[120px]" />
@@ -656,7 +748,7 @@ export default function Home() {
               </div>
               <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">FCL Record Corner</h3>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-[#94a3b8]">
-                Remarkable all-time milestones, individual achievements and tournament records dynamically synced from Excel data.
+                Remarkable all-time milestones, individual achievements and tournament records. Click any milestone to open their Player Card.
               </p>
             </div>
 
@@ -676,7 +768,10 @@ export default function Home() {
 
           <div className="relative grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {/* Most Runs */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#1877F2]/50 hover:shadow-2xl hover:shadow-[#1877F2]/10">
+            <div
+              onClick={() => topRunScorer && setSelectedPlayer(topRunScorer)}
+              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#1877F2]/60 hover:shadow-2xl hover:shadow-[#1877F2]/15"
+            >
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#1877F2] to-transparent opacity-60" />
               <div className="flex items-center justify-between">
                 <span className="rounded-lg border border-[#1877F2]/20 bg-[#1877F2]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#60a5fa]">
@@ -686,12 +781,14 @@ export default function Home() {
               </div>
 
               <div className="mt-6 flex items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#1877F2]/30 bg-[#111936] text-2xl shadow-lg shadow-[#1877F2]/5">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#1877F2]/30 bg-[#111936] text-2xl shadow-lg shadow-[#1877F2]/5 group-hover:scale-105 transition">
                   👑
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Run King</p>
-                  <h4 className="text-lg font-black text-white">{topRunScorer?.name || "Jahin Shahriar"}</h4>
+                  <h4 className="text-lg font-black text-white group-hover:text-[#60a5fa] transition">
+                    {topRunScorer?.name || "Jahin Shahriar"}
+                  </h4>
                 </div>
               </div>
 
@@ -707,7 +804,10 @@ export default function Home() {
             </div>
 
             {/* Most Wickets */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#f59e0b]/50 hover:shadow-2xl hover:shadow-[#f59e0b]/10">
+            <div
+              onClick={() => topWicketTaker && setSelectedPlayer(topWicketTaker)}
+              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#f59e0b]/60 hover:shadow-2xl hover:shadow-[#f59e0b]/15"
+            >
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f59e0b] to-transparent opacity-60" />
               <div className="flex items-center justify-between">
                 <span className="rounded-lg border border-[#f59e0b]/20 bg-[#f59e0b]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#fbbf24]">
@@ -717,12 +817,14 @@ export default function Home() {
               </div>
 
               <div className="mt-6 flex items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#f59e0b]/30 bg-[#1b1720] text-2xl shadow-lg shadow-[#f59e0b]/5">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#f59e0b]/30 bg-[#1b1720] text-2xl shadow-lg shadow-[#f59e0b]/5 group-hover:scale-105 transition">
                   🎯
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Wicket King</p>
-                  <h4 className="text-lg font-black text-white">{topWicketTaker?.name || "Zaheed Hasan"}</h4>
+                  <h4 className="text-lg font-black text-white group-hover:text-[#fbbf24] transition">
+                    {topWicketTaker?.name || "Zaheed Hasan"}
+                  </h4>
                 </div>
               </div>
 
@@ -736,7 +838,10 @@ export default function Home() {
             </div>
 
             {/* Most Matches */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#22c55e]/50 hover:shadow-2xl hover:shadow-[#22c55e]/10">
+            <div
+              onClick={() => mostMatchesPlayer && setSelectedPlayer(mostMatchesPlayer)}
+              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#22c55e]/50 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#22c55e]/70 hover:shadow-2xl hover:shadow-[#22c55e]/15"
+            >
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#22c55e] to-transparent opacity-60" />
               <div className="flex items-center justify-between">
                 <span className="rounded-lg border border-[#22c55e]/20 bg-[#22c55e]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#4ade80]">
@@ -746,12 +851,14 @@ export default function Home() {
               </div>
 
               <div className="mt-6 flex items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#22c55e]/30 bg-[#102019] text-2xl shadow-lg shadow-[#22c55e]/5">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#22c55e]/30 bg-[#102019] text-2xl shadow-lg shadow-[#22c55e]/5 group-hover:scale-105 transition">
                   ⚡
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Iron Man</p>
-                  <h4 className="text-lg font-black text-white">{mostMatchesPlayer?.name || "Sadrul Anam"}</h4>
+                  <h4 className="text-lg font-black text-white group-hover:text-[#4ade80] transition">
+                    {mostMatchesPlayer?.name || "Sadrul Anam"}
+                  </h4>
                 </div>
               </div>
 
@@ -765,7 +872,10 @@ export default function Home() {
             </div>
 
             {/* Most Sixes */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#8b5cf6]/20 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#8b5cf6]/50 hover:shadow-2xl hover:shadow-[#8b5cf6]/10">
+            <div
+              onClick={() => mostSixesPlayer && setSelectedPlayer(mostSixesPlayer)}
+              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#8b5cf6]/20 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#8b5cf6]/60 hover:shadow-2xl hover:shadow-[#8b5cf6]/15"
+            >
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#8b5cf6] to-transparent opacity-60" />
               <div className="flex items-center justify-between">
                 <span className="rounded-lg border border-[#8b5cf6]/20 bg-[#8b5cf6]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#c084fc]">
@@ -775,12 +885,14 @@ export default function Home() {
               </div>
 
               <div className="mt-6 flex items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#8b5cf6]/30 bg-[#181326] text-2xl shadow-lg shadow-[#8b5cf6]/5">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#8b5cf6]/30 bg-[#181326] text-2xl shadow-lg shadow-[#8b5cf6]/5 group-hover:scale-105 transition">
                   💥
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Maximum Sixes</p>
-                  <h4 className="text-lg font-black text-white">{mostSixesPlayer?.name || "Shahriar Khokon"}</h4>
+                  <h4 className="text-lg font-black text-white group-hover:text-[#c084fc] transition">
+                    {mostSixesPlayer?.name || "Shahriar Khokon"}
+                  </h4>
                 </div>
               </div>
 
@@ -797,15 +909,18 @@ export default function Home() {
           {/* Extended History & Analytics Cards */}
           <div className="mt-8 grid gap-5 md:grid-cols-3">
             {/* Most Championships */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#f59e0b]/50 hover:shadow-2xl hover:shadow-[#f59e0b]/5">
+            <div
+              onClick={() => mostChampionshipPlayer && setSelectedPlayer(mostChampionshipPlayer)}
+              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#f59e0b]/60 hover:shadow-2xl hover:shadow-[#f59e0b]/15"
+            >
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f59e0b] to-transparent opacity-60" />
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#f59e0b]/30 bg-[#1b1720] text-2xl">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#f59e0b]/30 bg-[#1b1720] text-2xl group-hover:scale-105 transition">
                   🏆
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#f59e0b]">Most Championships</p>
-                  <h4 className="mt-1 text-lg font-black text-white">
+                  <h4 className="mt-1 text-lg font-black text-white group-hover:text-[#f59e0b] transition">
                     {mostChampionshipPlayer?.name || "Arif Ziad"} ({mostChampionshipPlayer?.champion || 6} Titles)
                   </h4>
                 </div>
@@ -819,16 +934,19 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 🔥 DYNAMIC HAT-TRICK MASTER CARD (Zaheed Hasan) */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#1877F2]/30 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#1877F2]/50 hover:shadow-2xl hover:shadow-[#1877F2]/5">
+            {/* DYNAMIC HAT-TRICK MASTER CARD (Zaheed Hasan) */}
+            <div
+              onClick={() => topHatTrickPlayer && setSelectedPlayer(topHatTrickPlayer)}
+              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#1877F2]/30 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#1877F2]/60 hover:shadow-2xl hover:shadow-[#1877F2]/15"
+            >
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#1877F2] to-transparent opacity-60" />
               <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#1877F2]/30 bg-[#111936] text-2xl">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#1877F2]/30 bg-[#111936] text-2xl group-hover:scale-105 transition">
                   🔥
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#60a5fa]">Hat-Trick Master</p>
-                  <h4 className="mt-1 text-lg font-black text-white">
+                  <h4 className="mt-1 text-lg font-black text-white group-hover:text-[#60a5fa] transition">
                     {topHatTrickPlayer?.name || "Zaheed Hasan"} ({topHatTrickPlayer?.hatTricks || 7}x)
                   </h4>
                 </div>
@@ -845,7 +963,7 @@ export default function Home() {
             </div>
 
             {/* Statistics */}
-            <div className="group relative overflow-hidden rounded-3xl border border-[#22c55e]/30 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#22c55e]/50 hover:shadow-2xl hover:shadow-[#22c55e]/5">
+            <div className="group relative overflow-hidden rounded-3xl border border-[#22c55e]/30 bg-[#0b1220] p-6 transition-all duration-300 hover:-translate-y-1.5 hover:border-[#22c55e]/60 hover:shadow-2xl hover:shadow-[#22c55e]/15">
               <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#22c55e] to-transparent opacity-60" />
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-[#22c55e]/30 bg-[#102019] text-2xl">
@@ -876,14 +994,309 @@ export default function Home() {
       <footer className="border-t border-[#1e293b] bg-[#020617] px-6 py-8">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
           <div>
-            <p className="font-bold text-white">Facebook Cricket League (FCL)</p>
-            <p className="mt-1 text-xs text-[#64748b]">The Game Lives Beyond The Field</p>
+            <p className="font-bold">Facebook Cricket League</p>
+            <p className="mt-1 text-xs text-[#64748b]">Official FCL Digital Platform</p>
           </div>
           <p className="text-xs text-[#94a3b8]">
             © 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.
           </p>
         </div>
       </footer>
+
+      {/* ================================================== */}
+      {/* FULLSCREEN STAT CARD MODAL (FOR HOME PAGE CLICK) */}
+      {/* ================================================== */}
+      {selectedPlayer && (
+        <div
+          onClick={() => setSelectedPlayer(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-2 sm:p-4 backdrop-blur-md"
+        >
+          <div
+            className="relative flex h-[94vh] sm:h-auto sm:max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-[#38bdf8]/40 bg-[#0f172a] shadow-2xl shadow-[#0284c7]/20"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* STICKY TOP HEADER CONTROLS */}
+            <div className="shrink-0 flex items-center justify-between border-b border-[#1e293b] bg-[#0b1329] px-3.5 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 rounded-full bg-[#22c55e] animate-pulse" />
+                <span className="text-xs font-bold text-[#38bdf8]">FCL Digital Stat Card</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDownloadCard}
+                  disabled={downloading}
+                  className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] px-3 py-1.5 text-xs font-bold text-white shadow hover:brightness-110 active:scale-95 disabled:opacity-50"
+                >
+                  {downloading ? "Saving..." : "📥 Download"}
+                </button>
+                <button
+                  onClick={() => setSelectedPlayer(null)}
+                  className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl border border-white/10 bg-[#070b16] text-xs sm:text-sm font-bold text-white hover:bg-white/20"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* SCROLLABLE CARD BODY */}
+            <div className="flex-1 overflow-y-auto overscroll-contain p-2.5 sm:p-4">
+              <div
+                ref={cardRef}
+                className="mx-auto rounded-2xl border border-[#1e293b] bg-[#0b132b] p-3.5 sm:p-5 text-white space-y-3.5"
+              >
+                {/* Banner */}
+                <div className="flex items-center justify-between border-b border-[#38bdf8]/30 pb-3">
+                  <div className="flex items-center gap-2.5 sm:gap-3">
+                    <div className="flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-xl border border-[#38bdf8]/50 bg-[#080d1a] p-1 shadow-md shrink-0">
+                      <img
+                        src="/fcl-logo.png"
+                        alt="FCL"
+                        className="h-full w-full object-contain"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          e.currentTarget.parentElement!.innerHTML = '<span class="text-xl">🏏</span>';
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <h3 className="text-base sm:text-2xl font-black uppercase tracking-wider text-[#e0f2fe]">
+                        Player Statistics Card
+                      </h3>
+                      <p className="text-[10px] sm:text-xs font-semibold tracking-wide text-[#38bdf8]">
+                        Facebook Cricket League (FCL)
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="rounded-md border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-2 py-0.5 text-[10px] sm:text-xs font-bold text-[#f59e0b] shrink-0">
+                    OFFICIAL
+                  </span>
+                </div>
+
+                {/* Profile Top Row with Photo */}
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                  <div className="relative flex items-center justify-center rounded-xl border-2 border-[#38bdf8]/40 bg-[#070b16] p-1.5 aspect-square">
+                    <img
+                      src={`/players/${(selectedPlayer.nickName || "").toLowerCase().trim()}.jpg`}
+                      alt={selectedPlayer.name}
+                      className="h-full w-full rounded-lg object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                        e.currentTarget.parentElement!.innerHTML =
+                          '<div class="flex flex-col items-center justify-center h-full text-center"><span class="text-3xl sm:text-4xl">🏏</span><span class="text-[9px] sm:text-[10px] text-[#94a3b8] mt-1">Player</span></div>';
+                      }}
+                    />
+                    {selectedPlayer.nickName && (
+                      <div className="absolute bottom-1 right-1 rounded bg-[#0284c7] px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
+                        {selectedPlayer.nickName}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-span-2 rounded-xl border border-[#1e293b] bg-[#070b16] p-3 sm:p-3.5 flex flex-col justify-center">
+                    <span className="text-[10px] uppercase tracking-wider text-[#94a3b8]">Player Name</span>
+                    <h4 className="text-sm sm:text-xl font-black text-white truncate mt-0.5">
+                      {selectedPlayer.name}
+                    </h4>
+                    {selectedPlayer.nickName && (
+                      <p className="text-xs sm:text-sm font-semibold text-[#38bdf8] truncate mt-0.5">
+                        @{selectedPlayer.nickName}
+                      </p>
+                    )}
+                    <div className="mt-2 pt-2 border-t border-[#1e293b] flex items-center justify-between">
+                      <span className="text-[9px] sm:text-[10px] uppercase text-[#94a3b8]">Role:</span>
+                      <span className="text-xs sm:text-sm font-bold text-[#f59e0b] truncate">
+                        {selectedPlayer.role}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="col-span-3 sm:col-span-1 rounded-xl border border-[#f59e0b]/40 bg-[#f59e0b]/10 p-2.5 sm:p-3 flex flex-row sm:flex-col justify-between sm:justify-center items-center text-center">
+                    <span className="text-[10px] uppercase tracking-wider text-[#cbd5e1]">Total Final</span>
+                    <p className="text-xl sm:text-3xl font-black text-[#f59e0b] my-0.5">
+                      {selectedPlayer.totalFinal ?? 0}
+                    </p>
+                    <span className="text-[9px] text-[#94a3b8]">Finals Played</span>
+                  </div>
+                </div>
+
+                {/* Debut & Tournaments Row (Clear and Readable) */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 text-center">
+                  <div className="rounded-xl border border-[#1e293b] bg-[#070b16] p-2.5 flex flex-col justify-center">
+                    <p className="text-[10px] uppercase font-semibold text-[#64748b]">Debut Date</p>
+                    <p className="font-extrabold text-[#38bdf8] text-xs sm:text-sm mt-1 truncate">
+                      {selectedPlayer.debutYear || "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-[#1e293b] bg-[#070b16] p-2.5 flex flex-col justify-center">
+                    <p className="text-[10px] uppercase font-semibold text-[#64748b]">Debut Tournament</p>
+                    <p className="font-extrabold text-white text-xs sm:text-sm mt-1 leading-tight break-words">
+                      {selectedPlayer.debutTournament || "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-[#1e293b] bg-[#070b16] p-2.5 flex flex-col justify-center">
+                    <p className="text-[10px] uppercase font-semibold text-[#64748b]">Debut Team</p>
+                    <p className="font-extrabold text-white text-xs sm:text-sm mt-1 leading-tight break-words">
+                      {selectedPlayer.debutTeam || "—"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-[#1e293b] bg-[#070b16] p-2.5 flex flex-col justify-center">
+                    <p className="text-[10px] uppercase font-semibold text-[#64748b]">Total Tournaments</p>
+                    <p className="font-black text-[#22c55e] text-base sm:text-xl mt-0.5">
+                      {selectedPlayer.totalTournament ?? 0}
+                    </p>
+                  </div>
+                </div>
+
+                {/* All-Time League Rankings Badge */}
+                <div className="rounded-2xl border border-[#f59e0b]/40 bg-gradient-to-r from-[#171103] via-[#241804] to-[#171103] p-3 text-center shadow-lg">
+                  <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-[#f59e0b]">
+                    ⭐ ALL-TIME LEAGUE RANKINGS (AMONG {playersData.length} PLAYERS)
+                  </p>
+                  <div className="mt-2.5 grid grid-cols-4 gap-2 text-center">
+                    <div className="rounded-xl bg-black/50 p-2 border border-[#f59e0b]/25">
+                      <p className="text-[10px] uppercase font-semibold text-[#94a3b8]">Runs Rank</p>
+                      <p className="text-sm sm:text-base font-black text-[#22c55e] mt-1">
+                        #{[...playersData].sort((a, b) => b.runs - a.runs).findIndex((p) => p.name === selectedPlayer.name) + 1}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-black/50 p-2 border border-[#f59e0b]/25">
+                      <p className="text-[10px] uppercase font-semibold text-[#94a3b8]">Wickets Rank</p>
+                      <p className="text-sm sm:text-base font-black text-[#f59e0b] mt-1">
+                        #{[...playersData].sort((a, b) => b.wickets - a.wickets).findIndex((p) => p.name === selectedPlayer.name) + 1}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-black/50 p-2 border border-[#f59e0b]/25">
+                      <p className="text-[10px] uppercase font-semibold text-[#94a3b8]">6s Rank</p>
+                      <p className="text-sm sm:text-base font-black text-[#c084fc] mt-1">
+                        #{[...playersData].sort((a, b) => (b.sixes || 0) - (a.sixes || 0)).findIndex((p) => p.name === selectedPlayer.name) + 1}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-black/50 p-2 border border-[#f59e0b]/25">
+                      <p className="text-[10px] uppercase font-semibold text-[#94a3b8]">Trophy Rank</p>
+                      <p className="text-sm sm:text-base font-black text-[#38bdf8] mt-1">
+                        #{[...playersData].sort((a, b) => (b.champion || 0) - (a.champion || 0)).findIndex((p) => p.name === selectedPlayer.name) + 1}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats Breakdown */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                  <div className="rounded-xl border border-[#1e293b] bg-[#070b16] p-3 sm:p-3.5 space-y-1.5 text-xs sm:text-[13px]">
+                    <div className="flex justify-between border-b border-[#172033] pb-1.5">
+                      <span className="text-[#94a3b8]">Total Match:</span>
+                      <strong className="text-white font-extrabold">{selectedPlayer.matches}</strong>
+                    </div>
+                    <div className="flex justify-between border-b border-[#172033] pb-1.5">
+                      <span className="text-[#94a3b8]">Total Runs & Max:</span>
+                      <strong className="text-[#22c55e] font-extrabold">
+                        {selectedPlayer.runs}{" "}
+                        <span className="text-[#64748b] font-normal">
+                          ({selectedPlayer.maxRuns ? selectedPlayer.maxRuns : "—"})
+                        </span>
+                      </strong>
+                    </div>
+                    <div className="flex justify-between border-b border-[#172033] pb-1.5">
+                      <span className="text-[#94a3b8]">Total Wickets & Max:</span>
+                      <strong className="text-[#f59e0b] font-extrabold">
+                        {selectedPlayer.wickets}{" "}
+                        <span className="text-[#64748b] font-normal">
+                          ({selectedPlayer.maxWickets ? selectedPlayer.maxWickets : "—"})
+                        </span>
+                      </strong>
+                    </div>
+                    <div className="flex justify-between border-b border-[#172033] pb-1.5">
+                      <span className="text-[#94a3b8]">Innings / Not Out:</span>
+                      <strong className="text-white font-extrabold">
+                        {selectedPlayer.innings ?? 0} / {selectedPlayer.notOut ?? 0}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between border-b border-[#172033] pb-1.5">
+                      <span className="text-[#94a3b8]">Boundaries (4&apos;s / 6&apos;s):</span>
+                      <strong className="text-white font-extrabold">
+                        <span className="text-[#38bdf8]">{selectedPlayer.fours ?? 0}</span> /{" "}
+                        <span className="text-[#c084fc]">{selectedPlayer.sixes ?? 0}</span>
+                      </strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#94a3b8]">Hat-Trick:</span>
+                      <strong className="text-[#ec4899] font-extrabold">{selectedPlayer.hatTricks ?? 0}</strong>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-[#1e293b] bg-[#070b16] p-3 sm:p-3.5 space-y-1.5 text-xs sm:text-[13px]">
+                    <div className="flex justify-between border-b border-[#172033] pb-1.5">
+                      <span className="text-[#94a3b8]">Batting / Bowling Avg:</span>
+                      <strong className="text-white font-extrabold">
+                        {selectedPlayer.runAvg} / {selectedPlayer.wkAvg}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between border-b border-[#172033] pb-1.5">
+                      <span className="text-[#94a3b8]">Champion / Runner-Up:</span>
+                      <strong className="text-white font-extrabold">
+                        🏆 <span className="text-[#f59e0b]">{selectedPlayer.champion ?? 0}</span> / 🥈{" "}
+                        <span className="text-[#cbd5e1]">{selectedPlayer.runnersUp ?? 0}</span>
+                      </strong>
+                    </div>
+                    <div className="flex justify-between border-b border-[#172033] pb-1.5">
+                      <span className="text-[#94a3b8]">MOT / CPOT:</span>
+                      <strong className="text-white font-extrabold">
+                        ⭐ <span className="text-[#c084fc]">{selectedPlayer.mot ?? 0}</span> /{" "}
+                        <span className="text-[#94a3b8]">{selectedPlayer.cpot ?? 0}</span>
+                      </strong>
+                    </div>
+                    <div className="flex justify-between border-b border-[#172033] pb-1.5">
+                      <span className="text-[#94a3b8]">MOM / CPOM:</span>
+                      <strong className="text-white font-extrabold">
+                        🎖️ <span className="text-[#38bdf8]">{selectedPlayer.mom ?? 0}</span> /{" "}
+                        <span className="text-[#94a3b8]">{selectedPlayer.cpom ?? 0}</span>
+                      </strong>
+                    </div>
+                    <div className="flex justify-between border-b border-[#172033] pb-1.5">
+                      <span className="text-[#94a3b8]">Highest Run Scorer:</span>
+                      <strong className="text-white font-extrabold">
+                        {selectedPlayer.highestRunScorer ?? 0}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#94a3b8]">Top Wicket Taker:</span>
+                      <strong className="text-white font-extrabold">{selectedPlayer.topWicketTaker ?? 0}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Footer */}
+                <div className="flex items-center justify-between border-t border-[#1e293b] pt-2 text-[10px] sm:text-xs text-[#64748b]">
+                  <span className="truncate">
+                    Last Played:{" "}
+                    <strong className="text-white">{selectedPlayer.lastPlayed || "—"}</strong>
+                  </span>
+                  <span className="shrink-0 font-semibold">FCL Official Card</span>
+                </div>
+              </div>
+            </div>
+
+            {/* STICKY BOTTOM ACTION BAR */}
+            <div className="shrink-0 flex gap-2 border-t border-[#1e293b] bg-[#0b1329] p-2.5 sm:p-3">
+              <button
+                onClick={handleDownloadCard}
+                disabled={downloading}
+                className="flex-1 rounded-xl bg-gradient-to-r from-[#1877F2] to-[#0284c7] py-2.5 text-xs font-bold text-white shadow-lg shadow-[#1877F2]/25 transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+              >
+                {downloading ? "Downloading Card..." : "📥 Download Card as Image"}
+              </button>
+              <button
+                onClick={() => setSelectedPlayer(null)}
+                className="rounded-xl border border-[#1e293b] bg-[#070b16] px-4 py-2.5 text-xs font-bold text-[#94a3b8] transition hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

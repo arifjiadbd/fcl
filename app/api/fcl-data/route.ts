@@ -48,16 +48,45 @@ export async function GET() {
         return String(val).trim();
       };
 
-      // এক্সেলের সিরিয়াল ডেট (যেমন 41334) কে সুন্দর তারিখে রূপান্তর
+     // এক্সেলের ডেট বা টেক্সটকে সুন্দরভাবে "Month-YYYY" (যেমন March-2013) ফরম্যাটে রূপান্তর
       const formatExcelDate = (val: string) => {
         if (!val) return "—";
+
+        const monthsFull = [
+          "January", "February", "March", "April", "May", "June",
+          "July", "August", "September", "October", "November", "December"
+        ];
+
+        // ১. যদি এক্সেল সিরিয়াল নাম্বার হয় (যেমন 41334)
         const num = Number(val);
         if (!isNaN(num) && num > 20000 && num < 60000) {
           const date = new Date(Math.round((num - 25569) * 86400 * 1000));
-          const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-          return `${months[date.getUTCMonth()]}-${String(date.getUTCFullYear()).slice(-2)}`;
+          const monthName = monthsFull[date.getUTCMonth()];
+          const fullYear = date.getUTCFullYear();
+          return `${monthName}-${fullYear}`;
         }
-        return val;
+
+        // ২. যদি এক্সেলে সরাসরি টেক্সট হিসেবে থাকে (যেমন "March-13" বা "Mar-14")
+        const textVal = String(val).trim();
+        const parts = textVal.split(/[-/ ]+/);
+        if (parts.length === 2) {
+          let [m, y] = parts;
+          
+          // মাসের নাম সুন্দর করা (যদি Mar থাকে তাকে March করা)
+          const matchedMonth = monthsFull.find((name) =>
+            name.toLowerCase().startsWith(m.toLowerCase())
+          );
+          if (matchedMonth) m = matchedMonth;
+
+          // সাল ২ সংখ্যা হলে ৪ সংখ্যা বানানো (যেমন 13 -> 2013)
+          if (y.length === 2 && !isNaN(Number(y))) {
+            y = `20${y}`;
+          }
+
+          return `${m}-${y}`;
+        }
+
+        return textVal;
       };
 
       const name = getStr(["Full Name", "Name"]) || `Player ${index + 1}`;

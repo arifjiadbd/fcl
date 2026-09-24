@@ -853,7 +853,7 @@ export default function RecordsPage() {
                   </div>
                   <div className="rounded-xl border border-[#1e293b] bg-[#070b16] p-1.5 sm:p-2">
                     <p className="text-[9px] text-[#64748b]">Debut Team</p>
-                    <p className="font-bold text-white text-[10px] sm:text-xs mt-0.5 truncate">{selectedPlayer.debutTeam || "—"}</p>
+                    <p className="font-bold text-white text-[10px] sm:text-xs mt-0.5 leading-tight break-words">{selectedPlayer.debutTeam || "—"}</p>
                   </div>
                   <div className="rounded-xl border border-[#1e293b] bg-[#070b16] p-1.5 sm:p-2">
                     <p className="text-[9px] text-[#64748b]">Total Tournaments</p>
