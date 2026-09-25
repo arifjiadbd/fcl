@@ -1,181 +1,93 @@
 import { NextResponse } from "next/server";
 import path from "path";
-import * as xlsx from "xlsx";
 import fs from "fs";
+import * as XLSX from "xlsx";
 
 export async function GET() {
   try {
     const filePath = path.join(process.cwd(), "public", "fcl-data.xlsx");
 
     if (!fs.existsSync(filePath)) {
-      return NextResponse.json({ error: "Excel file not found" }, { status: 404 });
+      return NextResponse.json({ error: "fcl-data.xlsx file not found" }, { status: 404 });
     }
 
     const fileBuffer = fs.readFileSync(filePath);
-    // cellDates এবং raw সেটিং দিয়ে ডেট নিখুঁতভাবে টেক্সটে আনা
-    const workbook = xlsx.read(fileBuffer, { type: "buffer", cellDates: false });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
+    const workbook = XLSX.read(fileBuffer, { type: "buffer" });
 
-    const rawData: any[] = xlsx.utils.sheet_to_json(sheet, { raw: false });
+    // ১. Overall শিট রিড করা
+    const overallSheetName = workbook.SheetNames.includes("Overall") ? "Overall" : workbook.SheetNames[0];
+    const overallSheet = workbook.Sheets[overallSheetName];
+    const rawOverall: any[] = XLSX.utils.sheet_to_json(overallSheet);
 
-    const players = rawData.map((row, index) => {
-      // যেকোনো ফরম্যাটে কলাম নাম ম্যাচ করার হেল্পার
-      const findKey = (candidates: string[]) => {
-        const rowKeys = Object.keys(row);
-        for (const c of candidates) {
-          const cleanC = c.toLowerCase().replace(/[^a-z0-9]/g, "");
-          const found = rowKeys.find(
-            (k) => k.toLowerCase().replace(/[^a-z0-9]/g, "") === cleanC
-          );
-          if (found && row[found] !== undefined && row[found] !== null && row[found] !== "") {
-            return row[found];
-          }
-        }
-        return undefined;
-      };
-
-      const getNum = (candidates: string[]) => {
-        const val = findKey(candidates);
-        if (val === undefined || val === null || val === "") return 0;
-        const num = Number(String(val).replace(/,/g, ""));
-        return isNaN(num) ? 0 : num;
-      };
-
-      const getStr = (candidates: string[]) => {
-        const val = findKey(candidates);
-        if (val === undefined || val === null) return "";
-        return String(val).trim();
-      };
-
-     // এক্সেলের ডেট বা টেক্সটকে সুন্দরভাবে "Month-YYYY" (যেমন March-2013) ফরম্যাটে রূপান্তর
-      const formatExcelDate = (val: string) => {
-        if (!val) return "—";
-
-        const monthsFull = [
-          "January", "February", "March", "April", "May", "June",
-          "July", "August", "September", "October", "November", "December"
-        ];
-
-        // ১. যদি এক্সেল সিরিয়াল নাম্বার হয় (যেমন 41334)
-        const num = Number(val);
-        if (!isNaN(num) && num > 20000 && num < 60000) {
-          const date = new Date(Math.round((num - 25569) * 86400 * 1000));
-          const monthName = monthsFull[date.getUTCMonth()];
-          const fullYear = date.getUTCFullYear();
-          return `${monthName}-${fullYear}`;
-        }
-
-        // ২. যদি এক্সেলে সরাসরি টেক্সট হিসেবে থাকে (যেমন "March-13" বা "Mar-14")
-        const textVal = String(val).trim();
-        const parts = textVal.split(/[-/ ]+/);
-        if (parts.length === 2) {
-          let [m, y] = parts;
-          
-          // মাসের নাম সুন্দর করা (যদি Mar থাকে তাকে March করা)
-          const matchedMonth = monthsFull.find((name) =>
-            name.toLowerCase().startsWith(m.toLowerCase())
-          );
-          if (matchedMonth) m = matchedMonth;
-
-          // সাল ২ সংখ্যা হলে ৪ সংখ্যা বানানো (যেমন 13 -> 2013)
-          if (y.length === 2 && !isNaN(Number(y))) {
-            y = `20${y}`;
-          }
-
-          return `${m}-${y}`;
-        }
-
-        return textVal;
-      };
-
-      const name = getStr(["Full Name", "Name"]) || `Player ${index + 1}`;
-      const nickName = getStr(["FCL Player Nick Name", "Nick Name"]);
-      const role = getStr(["Player Role", "Role"]) || "All-Rounder";
-
-      const totalTournament = getNum(["Total Tournament"]);
-      const matches = getNum(["Total Match"]);
-      const runs = getNum(["Total Runs"]);
-      const wickets = getNum(["Total Wickets"]);
-      const innings = getNum(["Innings"]);
-      const notOut = getNum(["Not Out"]);
-
-      const fours = getNum(["Total 4's", "Total 4s"]);
-      const sixes = getNum(["Total 6's", "Total 6s"]);
-      const hatTricks = getNum(["Hat-Trick", "Hat Trick"]);
-
-      const mom = getNum(["MOM (Man Of The Match)", "MOM"]);
-      const cpom = getNum(["CPOM (T (Cool Player Of The Match) 2nd Position Of MOM", "CPOM", "CPOM/SAPOM"]);
-      const mot = getNum(["MOT (Man Of The Tournament)", "MOT"]);
-      const cpot = getNum(["CPOT (Cool Player Of The Tournament) 2nd Position Of MOT", "CPOT"]);
-
-      const champion = getNum(["Champion"]);
-      const runnersUp = getNum(["Runner-Up", "Runners-Up"]);
-      const totalFinal = getNum(["Total Final"]);
-
-      const lastPlayed = getStr(["Last Played Tournament"]);
-      const highestRunScorer = getNum(["Highest Run Scorer"]);
-      const topWicketTaker = getNum(["Top Wicket Taker"]);
-
-      // Debut সংক্রান্ত কলামগুলো
-      const rawDebutYear = getStr(["Dabut Year (Month/Year)", "Debut Year", "Dabut Year"]);
-      const debutYear = formatExcelDate(rawDebutYear);
-      const debutTournament = getStr(["Dabut Tournament:", "Dabut Tournament", "Debut Tournament"]);
-      const debutTeam = getStr(["Dabut Team Name", "Debut Team Name"]);
-      const maxRuns = getNum(["Max Runs In Tournament", "Max Runs"]);
-      const maxWickets = getNum(["Max Wickets In Tournament", "Max Wickets"]);
-
-      // Run Avg & Wk Avg (এক্সেলে যা লেখা আছে হুবহু ২ দশমিক ঘরে)
-      const formatAvg = (val: any, fallbackNum: number) => {
-        const num = Number(val);
-        if (!isNaN(num) && num > 0) return num.toFixed(2);
-        if (fallbackNum > 0) return fallbackNum.toFixed(2);
-        return "0.00";
-      };
-
-      const rawRunAvg = findKey(["Run Avg.", "Run Avg", "Bat Avg"]);
-      const rawWkAvg = findKey(["Wk Avg.", "Wk Avg", "Bowl Avg"]);
-
-      const runAvg = formatAvg(rawRunAvg, matches > 0 ? runs / matches : 0);
-      const wkAvg = formatAvg(rawWkAvg, wickets > 0 ? runs / wickets : 0);
-
-      return {
+    const players = rawOverall
+      .filter((row) => row["Full Name"] || row["FCL Player Nick Name"])
+      .map((row, index) => ({
         id: index + 1,
-        name,
-        nickName,
-        role,
-        totalTournament,
-        matches,
-        runs,
-        wickets,
-        innings,
-        notOut,
-        fours,
-        sixes,
-        hatTricks,
-        mom,
-        cpom,
-        mot,
-        cpot,
-        champion,
-        runnersUp,
-        totalFinal,
-        lastPlayed,
-        highestRunScorer,
-        topWicketTaker,
-        debutYear,
-        debutTournament,
-        debutTeam,
-        maxRuns,
-        maxWickets,
-        runAvg,
-        wkAvg,
-      };
-    });
+        name: String(row["Full Name"] || "").trim(),
+        nickName: String(row["FCL Player Nick Name"] || "").trim(),
+        role: String(row["Player Role"] || "All-Rounder").trim(),
+        totalTournament: Number(row["Total Tournament"]) || 0,
+        matches: Number(row["Total Match"]) || 0,
+        runs: Number(row["Total Runs"]) || 0,
+        wickets: Number(row["Total Wickets"]) || 0,
+        innings: Number(row["Innings"]) || 0,
+        notOut: Number(row["Not Out"]) || 0,
+        fours: Number(row["Total 4's"]) || 0,
+        sixes: Number(row["Total 6's"]) || 0,
+        hatTricks: Number(row["Hat-Trick"]) || 0,
+        mom: Number(row["MOM (Man Of The Match)"]) || 0,
+        cpom: Number(row["CPOM (T (Cool Player Of The Match) 2nd Position Of MOM"]) || 0,
+        mot: Number(row["MOT (Man Of The Tournament)"]) || 0,
+        cpot: Number(row["CPOT (Cool Player Of The Tournament) 2nd Position Of MOT"]) || 0,
+        champion: Number(row["Champion"]) || 0,
+        runnersUp: Number(row["Runner-Up"]) || 0,
+        totalFinal: Number(row["Total Final"]) || 0,
+        lastPlayed: String(row["Last Played Tournament"] || "—").trim(),
+        highestRunScorer: Number(row["Highest Run Scorer"]) || 0,
+        topWicketTaker: Number(row["Top Wicket Taker"]) || 0,
+        debutYear: row["Dabut Year (Month/Year)"] ? String(row["Dabut Year (Month/Year)"]).slice(0, 10) : "—",
+        debutTournament: String(row["Dabut Tournament:"] || "—").trim(),
+        debutTeam: String(row["Dabut Team Name"] || "—").trim(),
+        maxRuns: Number(row["Max Runs In Tournament"]) || 0,
+        maxWickets: Number(row["Max Wickets In Tournament"]) || 0,
+        runAvg: row["Run Avg."] !== undefined ? Number(row["Run Avg."]).toFixed(2) : "0.00",
+        wkAvg: row["Wk Avg."] !== undefined ? Number(row["Wk Avg."]).toFixed(2) : "0.00",
+      }));
 
-    return NextResponse.json({ players });
+    // ২. Tournaments শিট রিড করা
+    let tournamentsData: any[] = [];
+    if (workbook.SheetNames.includes("Tournaments")) {
+      const tourSheet = workbook.Sheets["Tournaments"];
+      const rawTour: any[] = XLSX.utils.sheet_to_json(tourSheet);
+
+      tournamentsData = rawTour
+        .filter((row) => row["PLAYERS"] || row["Name"])
+        .map((row) => ({
+          name: String(row["Name"] || "").trim(),
+          playerName: String(row["PLAYERS"] || "").trim(),
+          tournament: String(row["TOURNAMENT"] || "").trim(),
+          team: String(row["Team Name Of The Player"] || "").trim(),
+          matches: Number(row["M"]) || 0,
+          runs: Number(row["RUN"]) || 0,
+          wickets: Number(row["W"]) || 0,
+          innings: Number(row["IN"]) || 0,
+          notOut: Number(row["NO"]) || 0,
+          fours: Number(row["4's"]) || 0,
+          sixes: Number(row["6's"]) || 0,
+          hatTrick: Number(row["Hat-Trick"]) || 0,
+          mom: Number(row["MOM"]) || 0,
+          cpom: Number(row["CPOM/SAPOM"]) || 0,
+          motCpot: String(row["MOT/CPOT"] || "").trim(),
+          chamRu: String(row["Cham/RU"] || "").trim(),
+          time: String(row["TOURNAMENT TIME (Month-Year)"] || "").trim().slice(0, 10),
+          topScorer: Number(row["TOP SCORER"]) || 0,
+          topWicket: Number(row["TOP WICKET"]) || 0,
+        }));
+    }
+
+    return NextResponse.json({ players, tournaments: tournamentsData }, { status: 200 });
   } catch (error: any) {
-    console.error("API Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Error reading fcl-data.xlsx:", error);
+    return NextResponse.json({ error: "Failed to parse excel file" }, { status: 500 });
   }
 }

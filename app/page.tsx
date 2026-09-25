@@ -38,7 +38,28 @@ interface Player {
   photoUrl?: string;
 }
 
-// 🎯 FCL 100% Authentic Tournament Point Formula
+interface TournamentRecord {
+  name: string;
+  playerName: string;
+  tournament: string;
+  team: string;
+  matches: number;
+  runs: number;
+  wickets: number;
+  innings: number;
+  notOut: number;
+  fours: number;
+  sixes: number;
+  hatTrick: number;
+  mom: number;
+  cpom: number;
+  motCpot: string;
+  chamRu: string;
+  time: string;
+  topScorer: number;
+  topWicket: number;
+}
+
 export const calculateFclPoints = (p: Player): number => {
   const runs = Number(p.runs) || 0;
   const sixes = Number(p.sixes) || 0;
@@ -68,8 +89,10 @@ export const calculateFclPoints = (p: Player): number => {
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [playersData, setPlayersData] = useState<Player[]>([]);
+  const [tournamentsData, setTournamentsData] = useState<TournamentRecord[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [cardTheme, setCardTheme] = useState<"dark" | "light">("dark");
+  const [activeTab, setActiveTab] = useState<"card" | "history">("card");
   const [downloading, setDownloading] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -78,10 +101,13 @@ export default function Home() {
     fetch("/api/fcl-data")
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data)) {
-          setPlayersData(data);
-        } else if (data.players && Array.isArray(data.players)) {
+        if (data.players && Array.isArray(data.players)) {
           setPlayersData(data.players);
+        } else if (Array.isArray(data)) {
+          setPlayersData(data);
+        }
+        if (data.tournaments && Array.isArray(data.tournaments)) {
+          setTournamentsData(data.tournaments);
         }
       })
       .catch((err) => console.error("Error fetching live Excel data:", err));
@@ -111,12 +137,10 @@ export default function Home() {
     }
   };
 
-  // 🔥 Top 3 All-Time MVPs
   const top3Mvp = [...playersData]
     .sort((a, b) => calculateFclPoints(b) - calculateFclPoints(a))
     .slice(0, 3);
 
-  // 8 Iconic Record Pillars
   const mostChampionshipPlayer = [...playersData].sort((a, b) => (b.champion || 0) - (a.champion || 0))[0];
   const topRunScorer = [...playersData].sort((a, b) => b.runs - a.runs)[0];
   const topWicketTaker = [...playersData].sort((a, b) => b.wickets - a.wickets)[0];
@@ -141,6 +165,22 @@ export default function Home() {
     const index = sorted.findIndex((p) => p.name === player.name);
     return index !== -1 ? index + 1 : "—";
   };
+
+  // নির্বাচিত প্লেয়ারের টুর্নামেন্ট হিস্ট্রি ফিল্টার
+  const playerTournamentHistory = selectedPlayer
+    ? tournamentsData.filter((t) => {
+        const pName = selectedPlayer.name.toLowerCase().trim();
+        const pNick = (selectedPlayer.nickName || "").toLowerCase().trim();
+        const rowPlayer = t.playerName.toLowerCase().trim();
+        const rowNick = t.name.toLowerCase().trim();
+        return (
+          rowPlayer === pName ||
+          (pNick && rowNick === pNick) ||
+          (rowPlayer && pName.includes(rowPlayer)) ||
+          (pName && rowPlayer.includes(pName))
+        );
+      })
+    : [];
 
   return (
     <main className="min-h-screen bg-[#020617] text-white selection:bg-[#1877F2]/30 selection:text-white">
@@ -213,7 +253,6 @@ export default function Home() {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#1e293b] bg-[#0b1220] text-white transition hover:border-[#1877F2]/50 lg:hidden"
-              aria-label="Toggle Menu"
             >
               {mobileMenuOpen ? <span className="text-xl font-bold">✕</span> : <span className="text-xl">☰</span>}
             </button>
@@ -349,196 +388,14 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-t from-[#02050b]/80 via-transparent to-transparent" />
                 <div className="absolute inset-0 bg-gradient-to-br from-[#1877F2]/5 via-transparent to-[#7c3aed]/10" />
               </div>
-
-              <div className="absolute left-[4%] top-[21%] z-30 animate-[fclFloat_4s_ease-in-out_infinite] rounded-2xl border border-[#22c55e]/30 bg-[#06131c]/95 px-5 py-4 shadow-[0_15px_45px_rgba(34,197,94,0.12)] backdrop-blur-xl">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e]" />
-                  <span className="text-[8px] font-black uppercase tracking-widest text-[#4ade80]">FCL LIVE</span>
-                </div>
-                <div className="mt-3 flex items-end gap-3">
-                  <p className="text-3xl font-black text-white">
-                    14<span className="text-[#ef4444]">/2</span>
-                  </p>
-                  <p className="mb-1 text-[8px] font-bold text-[#64748b]">1.0 OV</p>
-                </div>
-                <p className="mt-1 text-[8px] text-[#64748b]">Team Phoenix</p>
-              </div>
-
-              <div className="absolute right-[1%] top-[34%] z-40 animate-[fclFloat_5s_ease-in-out_infinite_reverse] rounded-2xl border border-[#1877F2]/30 bg-[#07101f]/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1877F2]/15 text-sm font-black text-[#60a5fa]">
-                    4
-                  </div>
-                  <div>
-                    <p className="text-base font-black text-[#4ade80]">+4 RUN</p>
-                    <p className="text-[7px] text-[#64748b]">Bat ≠ Ball</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="absolute bottom-[22%] left-[3%] z-40 animate-[fclFloat_5s_ease-in-out_infinite] rounded-2xl border border-[#ef4444]/30 bg-[#180910]/95 px-4 py-3 shadow-2xl backdrop-blur-xl">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#ef4444]/15 text-sm font-black text-[#f87171]">
-                    6
-                  </div>
-                  <div>
-                    <p className="text-base font-black text-[#f87171]">OUT</p>
-                    <p className="text-[7px] text-[#64748b]">Bat = Ball</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="absolute bottom-[10%] right-[9%] z-50 w-[220px] rounded-2xl border border-[#334155] bg-[#020617]/95 p-4 shadow-2xl backdrop-blur-xl">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-[8px] font-bold uppercase tracking-widest text-[#64748b]">FCL MATCH</p>
-                    <p className="mt-1 text-xs font-black text-white">#104</p>
-                  </div>
-                  <span className="rounded-full bg-[#22c55e]/10 px-2 py-1 text-[7px] font-bold text-[#4ade80]">
-                    LIVE
-                  </span>
-                </div>
-
-                <div className="mt-4">
-                  <p className="mb-2 text-[7px] font-bold uppercase tracking-widest text-[#64748b]">Bat Sequence</p>
-                  <div className="grid grid-cols-6 gap-1">
-                    {["6", "4", "3", "2", "1", "6"].map((num, index) => (
-                      <div
-                        key={index}
-                        className="flex h-7 items-center justify-center rounded-lg border border-[#1877F2]/20 bg-[#1877F2]/10 text-[9px] font-black text-[#60a5fa]"
-                      >
-                        {num}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between border-t border-[#1e293b] pt-3">
-                  <span className="text-[8px] text-[#64748b]">CURRENT SCORE</span>
-                  <span className="text-sm font-black text-white">14 / 2</span>
-                </div>
-              </div>
-
-              <div className="absolute bottom-[4%] left-[12%] z-40 rounded-2xl border border-[#334155] bg-[#07101f]/90 px-4 py-3 shadow-2xl backdrop-blur-xl">
-                <p className="text-[7px] font-bold uppercase tracking-widest text-[#64748b]">FCL COMMUNITY</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-sm">🇧🇩</span>
-                  <span className="text-[10px] font-bold text-white">Bangladesh</span>
-                  <span className="text-[#475569]">•</span>
-                  <span className="text-sm">🌍</span>
-                  <span className="text-[10px] font-bold text-white">Worldwide</span>
-                </div>
-              </div>
             </div>
-          </div>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 border-t border-[#1e293b]/70 bg-[#020617]/75 backdrop-blur-xl">
-          <div className="mx-auto grid max-w-7xl grid-cols-2 divide-x divide-[#1e293b] md:grid-cols-4">
-            <div className="px-5 py-3 text-center">
-              <p className="text-[8px] font-bold uppercase tracking-widest text-[#64748b]">VIRTUAL CRICKET</p>
-              <p className="mt-1 text-[11px] font-semibold text-white">Play Anywhere</p>
-            </div>
-            <div className="px-5 py-3 text-center">
-              <p className="text-[8px] font-bold uppercase tracking-widest text-[#64748b]">COMMUNITY</p>
-              <p className="mt-1 text-[11px] font-semibold text-white">Connected Through FCL</p>
-            </div>
-            <div className="px-5 py-3 text-center">
-              <p className="text-[8px] font-bold uppercase tracking-widest text-[#64748b]">LOCATIONS</p>
-              <p className="mt-1 text-[11px] font-semibold text-white">Bangladesh + Abroad</p>
-            </div>
-            <div className="px-5 py-3 text-center">
-              <p className="text-[8px] font-bold uppercase tracking-widest text-[#64748b]">FCL SPIRIT</p>
-              <p className="mt-1 text-[11px] font-semibold text-[#f59e0b]">Unity Through FCL</p>
-            </div>
-          </div>
-        </div>
-
-        <style>{`
-          @keyframes fclFloat {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-12px); }
-          }
-          @keyframes fclPulse {
-            0%, 100% { transform: scale(1); filter: brightness(1); }
-            50% { transform: scale(1.12); filter: brightness(1.35); }
-          }
-        `}</style>
-      </section>
-
-      {/* ABOUT FCL */}
-      <section id="about" className="relative overflow-hidden border-b border-[#172033] bg-[#030712] py-24">
-        <div className="absolute left-[-180px] top-20 h-[400px] w-[400px] rounded-full bg-[#1877F2]/10 blur-[120px]" />
-        <div className="absolute right-[-180px] bottom-10 h-[400px] w-[400px] rounded-full bg-[#7c3aed]/10 blur-[120px]" />
-
-        <div className="relative mx-auto max-w-[1200px] px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-[#60a5fa]">About FCL</span>
-            <h2 className="mt-4 text-4xl font-black tracking-[-0.04em] text-white md:text-5xl">
-              Cricket Beyond{" "}
-              <span className="bg-gradient-to-r from-[#60a5fa] via-[#1877F2] to-[#8b5cf6] bg-clip-text text-transparent">
-                The Field.
-              </span>
-            </h2>
-            <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-[#94a3b8] md:text-base">
-              Facebook Cricket League is a virtual cricket community where players compete through numbers, strategy
-              and teamwork.
-            </p>
-          </div>
-
-          <div className="mt-14 grid gap-5 md:grid-cols-3">
-            <div className="group rounded-3xl border border-[#1e293b] bg-[#0b1220]/80 p-7 transition duration-300 hover:-translate-y-1 hover:border-[#1877F2]/40 hover:bg-[#0d1627]">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#1877F2]/20 bg-[#1877F2]/10 text-2xl">
-                🏏
-              </div>
-              <h3 className="mt-6 text-lg font-bold text-white">Virtual Cricket</h3>
-              <p className="mt-3 text-sm leading-6 text-[#94a3b8]">
-                A unique cricket format played through numbers, decisions and strategy instead of a physical field.
-              </p>
-            </div>
-
-            <div className="group rounded-3xl border border-[#1e293b] bg-[#0b1220]/80 p-7 transition duration-300 hover:-translate-y-1 hover:border-[#22d3ee]/40 hover:bg-[#0d1627]">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#22d3ee]/20 bg-[#22d3ee]/10 text-2xl">
-                🌍
-              </div>
-              <h3 className="mt-6 text-lg font-bold text-white">One Community</h3>
-              <p className="mt-3 text-sm leading-6 text-[#94a3b8]">
-                Players connect from different districts of Bangladesh and from different corners of the world.
-              </p>
-            </div>
-
-            <div className="group rounded-3xl border border-[#1e293b] bg-[#0b1220]/80 p-7 transition duration-300 hover:-translate-y-1 hover:border-[#f59e0b]/40 hover:bg-[#0d1627]">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#f59e0b]/20 bg-[#f59e0b]/10 text-2xl">
-                🤝
-              </div>
-              <h3 className="mt-6 text-lg font-bold text-white">Unity Through FCL</h3>
-              <p className="mt-3 text-sm leading-6 text-[#94a3b8]">
-                Competition, friendship and fun — bringing people together through one shared game.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-12 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl border border-[#1877F2]/30 bg-gradient-to-r from-[#0b1220] via-[#0d1830] to-[#0b1220] p-6 sm:p-8">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#38bdf8]">Rulebook & Formats</span>
-              <h4 className="text-xl font-bold text-white mt-1">Want to learn how to play FCL?</h4>
-              <p className="text-xs text-[#94a3b8] mt-1">Check out T20, ODI, Test match systems and Power Play rules.</p>
-            </div>
-            <Link
-              href="/rules"
-              className="shrink-0 rounded-xl bg-[#1877F2] px-6 py-3 text-xs font-bold text-white shadow-lg shadow-[#1877F2]/25 transition hover:bg-[#0d6fe8]"
-            >
-              Official Rules Guide →
-            </Link>
           </div>
         </div>
       </section>
 
-      {/* 🌟 ALL-TIME TOP 3 MVP PODIUM (GOLD, SILVER, BRONZE) */}
+      {/* 🌟 ALL-TIME TOP 3 MVP PODIUM */}
       <section id="mvp-podium" className="relative overflow-hidden border-t border-[#172033] bg-[#020617] px-6 py-24">
         <div className="mx-auto max-w-7xl">
-          <div className="pointer-events-none absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-[#f59e0b]/10 blur-[130px]" />
-
           <div className="relative mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
               <div className="flex items-center gap-3">
@@ -550,138 +407,66 @@ export default function Home() {
               <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">
                 All-Time Top 3 MVP Legends
               </h3>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-[#94a3b8]">
-                The highest-impact players in FCL history, dynamically evaluated through total runs, wickets, tournament championships, and awards. Click any card to inspect full stats.
-              </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Link
-                href="/rankings"
-                className="rounded-xl border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-5 py-2.5 text-xs font-extrabold text-[#fbbf24] shadow-lg shadow-[#f59e0b]/15 transition hover:bg-[#f59e0b] hover:text-black"
-              >
-                👑 View Complete MVP Leaderboard →
-              </Link>
-            </div>
+            <Link
+              href="/rankings"
+              className="rounded-xl border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-5 py-2.5 text-xs font-extrabold text-[#fbbf24] shadow-lg shadow-[#f59e0b]/15 transition hover:bg-[#f59e0b] hover:text-black"
+            >
+              👑 View Complete MVP Leaderboard →
+            </Link>
           </div>
 
-          {/* 3 PODIUM CARDS */}
           <div className="relative grid gap-6 md:grid-cols-3">
             {top3Mvp.map((player, idx) => {
               const rank = idx + 1;
               const points = calculateFclPoints(player);
 
-              const badgeColors =
-                rank === 1
-                  ? {
-                      border: "border-2 border-[#f59e0b]/60 hover:border-[#f59e0b]",
-                      bg: "bg-gradient-to-b from-[#241804] via-[#140e02] to-[#070501]",
-                      shadow: "hover:shadow-2xl hover:shadow-[#f59e0b]/25",
-                      tag: "border-[#f59e0b]/40 bg-[#f59e0b]/20 text-[#fbbf24]",
-                      badge: "bg-[#f59e0b] text-black shadow-md shadow-[#f59e0b]/30",
-                      glow: "via-[#f59e0b]",
-                      highlight: "text-[#fbbf24] drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]",
-                      icon: "👑",
-                      label: "GOLD MEDALIST • #01 MVP",
-                    }
-                  : rank === 2
-                  ? {
-                      border: "border border-[#94a3b8]/50 hover:border-white",
-                      bg: "bg-gradient-to-b from-[#1b2230] via-[#0d121c] to-[#04060a]",
-                      shadow: "hover:shadow-2xl hover:shadow-[#94a3b8]/20",
-                      tag: "border-[#94a3b8]/40 bg-[#94a3b8]/20 text-[#e2e8f0]",
-                      badge: "bg-[#cbd5e1] text-black shadow-md shadow-[#cbd5e1]/30",
-                      glow: "via-[#cbd5e1]",
-                      highlight: "text-[#f1f5f9] drop-shadow-[0_0_15px_rgba(203,213,225,0.4)]",
-                      icon: "🥈",
-                      label: "SILVER MEDALIST • #02 MVP",
-                    }
-                  : {
-                      border: "border border-[#d97706]/40 hover:border-[#f59e0b]/80",
-                      bg: "bg-gradient-to-b from-[#211406] via-[#120a02] to-[#050301]",
-                      shadow: "hover:shadow-2xl hover:shadow-[#d97706]/20",
-                      tag: "border-[#d97706]/40 bg-[#d97706]/20 text-[#fcd34d]",
-                      badge: "bg-[#b45309] text-white shadow-md shadow-[#b45309]/30",
-                      glow: "via-[#d97706]",
-                      highlight: "text-[#fbbf24] drop-shadow-[0_0_15px_rgba(217,119,6,0.4)]",
-                      icon: "🥉",
-                      label: "BRONZE MEDALIST • #03 MVP",
-                    };
-
               return (
                 <div
                   key={player.name + idx}
-                  onClick={() => setSelectedPlayer(player)}
-                  className={`group relative cursor-pointer overflow-hidden rounded-3xl ${badgeColors.border} ${badgeColors.bg} p-6 transition-all duration-300 hover:-translate-y-2 ${badgeColors.shadow}`}
+                  onClick={() => {
+                    setSelectedPlayer(player);
+                    setActiveTab("card");
+                  }}
+                  className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#f59e0b]/40 bg-gradient-to-b from-[#181103] to-[#070501] p-6 transition-all duration-300 hover:-translate-y-2 hover:border-[#f59e0b]"
                 >
-                  <div
-                    className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-transparent ${badgeColors.glow} to-transparent`}
-                  />
-
                   <div className="flex items-center justify-between">
-                    <span
-                      className={`rounded-xl border px-3 py-1 text-[10px] font-black uppercase tracking-wider ${badgeColors.tag}`}
-                    >
-                      {badgeColors.icon} {badgeColors.label}
+                    <span className="rounded-xl border border-[#f59e0b]/40 bg-[#f59e0b]/20 px-3 py-1 text-[10px] font-black uppercase text-[#fbbf24]">
+                      👑 #{rank} MVP
                     </span>
-                    <span
-                      className={`flex h-7 w-7 items-center justify-center rounded-xl text-xs font-black ${badgeColors.badge}`}
-                    >
-                      #{rank}
-                    </span>
+                    <span className="text-xs font-bold text-[#64748b]">FCL Pinnacle</span>
                   </div>
 
                   <div className="mt-6 flex items-center gap-4">
-                    <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 border-white/10 bg-[#0b1329] p-0.5 shadow-lg group-hover:scale-105 transition">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border-2 border-white/10 bg-[#0b1329]">
                       <img
                         src={`/players/${(player.nickName || "").toLowerCase().trim()}.jpg`}
                         alt={player.name}
-                        className="h-full w-full rounded-xl object-cover"
+                        className="h-full w-full object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
-                          e.currentTarget.parentElement!.innerHTML = `<div class="flex h-full w-full items-center justify-center text-3xl">${badgeColors.icon}</div>`;
+                          e.currentTarget.parentElement!.innerHTML = '<div class="flex h-full w-full items-center justify-center text-3xl">🏏</div>';
                         }}
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xl font-black text-white group-hover:text-[#60a5fa] transition break-words leading-snug">
+                      <h4 className="text-xl font-black text-white group-hover:text-[#60a5fa] transition break-words">
                         {player.name}
                       </h4>
-                      <p className="text-xs font-semibold text-[#94a3b8] truncate mt-0.5">
-                        @{player.nickName || player.name} • {player.role || "All-Rounder"}
-                      </p>
-                      <p className="text-[11px] text-[#64748b] mt-0.5">
-                        {player.matches} Matches • {player.champion || 0}x Champion
-                      </p>
+                      <p className="text-xs font-semibold text-[#94a3b8]">@{player.nickName || player.name}</p>
                     </div>
                   </div>
 
                   <div className="mt-6 rounded-2xl border border-white/10 bg-black/60 p-4 text-center">
-                    <p className="text-[9px] font-extrabold uppercase tracking-[0.25em] text-[#94a3b8]">
-                      All-Time Performance Rating
-                    </p>
-                    <p className={`mt-1 text-3xl sm:text-4xl font-black ${badgeColors.highlight}`}>
+                    <p className="text-[9px] font-extrabold uppercase tracking-[0.25em] text-[#94a3b8]">Performance Rating</p>
+                    <p className="mt-1 text-3xl font-black text-[#fbbf24]">
                       {points.toLocaleString()} <span className="text-sm font-bold text-[#94a3b8]">PTS</span>
                     </p>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-3 gap-1.5 text-center">
-                    <div className="rounded-xl border border-white/5 bg-black/40 p-2.5">
-                      <p className="text-base font-black text-[#22c55e]">{player.runs?.toLocaleString() ?? 0}</p>
-                      <p className="text-[9px] uppercase tracking-wider text-[#64748b] mt-0.5">Runs</p>
-                    </div>
-                    <div className="rounded-xl border border-white/5 bg-black/40 p-2.5">
-                      <p className="text-base font-black text-[#f59e0b]">{player.wickets ?? 0}</p>
-                      <p className="text-[9px] uppercase tracking-wider text-[#64748b] mt-0.5">Wickets</p>
-                    </div>
-                    <div className="rounded-xl border border-white/5 bg-black/40 p-2.5">
-                      <p className="text-base font-black text-[#38bdf8]">{player.champion ?? 0}x</p>
-                      <p className="text-[9px] uppercase tracking-wider text-[#64748b] mt-0.5">Trophies</p>
-                    </div>
-                  </div>
-
                   <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-3 text-[11px] text-[#94a3b8]">
-                    <span>FCL League Rating</span>
+                    <span>Inspect Player Details</span>
                     <span className="font-extrabold text-white group-hover:underline">Open Official Card →</span>
                   </div>
                 </div>
@@ -694,410 +479,63 @@ export default function Home() {
       {/* 🏆 FCL RECORD CORNER */}
       <section id="records" className="relative overflow-hidden border-t border-[#172033] bg-[#02050b] px-6 py-24">
         <div className="mx-auto max-w-7xl">
-          <div className="pointer-events-none absolute right-0 top-0 h-96 w-96 rounded-full bg-[#1877F2]/10 blur-[130px]" />
-
           <div className="relative mb-14 flex flex-col justify-between gap-6 md:flex-row md:items-end">
             <div>
-              <div className="flex items-center gap-3">
-                <span className="h-2 w-2 rounded-full bg-[#1877F2] shadow-lg shadow-[#1877F2]/50" />
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#1877F2]">
-                  FCL Statistics & Benchmarks
-                </p>
-              </div>
-              <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl">
-                FCL Record Corner
-              </h3>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-[#94a3b8]">
-                All-time historical benchmarks, individual records and milestone stats directly synced from tournament records.
-              </p>
+              <span className="h-2 w-2 rounded-full bg-[#1877F2] shadow-lg shadow-[#1877F2]/50 inline-block mr-2" />
+              <span className="text-xs font-bold uppercase tracking-[0.3em] text-[#1877F2]">FCL Benchmarks</span>
+              <h3 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">FCL Record Corner</h3>
             </div>
-
-            <div className="flex items-center gap-3">
-              <Link
-                href="/records"
-                className="rounded-xl border border-[#1877F2]/40 bg-[#1877F2]/10 px-5 py-2.5 text-xs font-extrabold text-[#60a5fa] transition hover:bg-[#1877F2] hover:text-white"
-              >
-                View Hall of Fame Cabinet →
-              </Link>
-            </div>
+            <Link
+              href="/records"
+              className="rounded-xl border border-[#1877F2]/40 bg-[#1877F2]/10 px-5 py-2.5 text-xs font-extrabold text-[#60a5fa] transition hover:bg-[#1877F2] hover:text-white"
+            >
+              View Hall of Fame Cabinet →
+            </Link>
           </div>
 
-          {/* 4x2 Grid */}
           <div className="relative grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {/* 1. MOST CHAMPIONSHIPS */}
+            {/* 1. Champion */}
             <div
-              onClick={() => setSelectedPlayer(mostChampionshipPlayer)}
-              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#eab308]/40 bg-gradient-to-b from-[#211704] to-[#0c0801] p-6 transition-all duration-300 hover:-translate-y-2 hover:border-[#eab308] hover:shadow-2xl hover:shadow-[#eab308]/20 flex flex-col justify-between"
+              onClick={() => { setSelectedPlayer(mostChampionshipPlayer); setActiveTab("card"); }}
+              className="cursor-pointer rounded-3xl border border-[#eab308]/40 bg-gradient-to-b from-[#211704] to-[#0c0801] p-6 hover:-translate-y-1.5 transition"
             >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#eab308] to-transparent" />
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-lg border border-[#eab308]/30 bg-[#eab308]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#fde047]">
-                    🏆 Champion
-                  </span>
-                  <span className="text-xs font-bold text-[#64748b]">#01</span>
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-[#eab308]/20 bg-[#020617]/80 p-4 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Titles Won</p>
-                  <p className="mt-1 text-4xl font-black text-[#fde047] drop-shadow-[0_0_15px_rgba(253,224,71,0.45)]">
-                    {mostChampionshipPlayer?.champion || 6}
-                  </p>
-                  <p className="mt-1 text-[11px] text-[#94a3b8]">6x Tournament Winner</p>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#eab308]/30 bg-[#1f1707] text-2xl group-hover:scale-105 transition">
-                    ⭐
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Record Holder</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#fde047] transition break-words leading-tight">
-                      {mostChampionshipPlayer?.name || "Arif Ziad"}
-                    </h4>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between border-t border-[#2e2008] pt-3 text-[10px] text-[#64748b]">
-                  <span>Most Titles</span>
-                  <span className="text-[#fde047] font-bold group-hover:underline">Open Card →</span>
-                </div>
-              </div>
+              <span className="rounded-lg bg-[#eab308]/10 border border-[#eab308]/30 px-3 py-1 text-[10px] font-black text-[#fde047]">🏆 Champion</span>
+              <p className="mt-4 text-4xl font-black text-[#fde047]">{mostChampionshipPlayer?.champion || 6}</p>
+              <p className="text-xs text-[#94a3b8] mt-1">Titles Won</p>
+              <p className="text-sm font-black text-white mt-4">{mostChampionshipPlayer?.name || "Arif Ziad"}</p>
             </div>
 
-            {/* 2. ALL-TIME RUNS */}
+            {/* 2. Runs */}
             <div
-              onClick={() => setSelectedPlayer(topRunScorer)}
-              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#1877F2]/40 bg-gradient-to-b from-[#0b1329] to-[#040817] p-6 transition-all duration-300 hover:-translate-y-2 hover:border-[#1877F2] hover:shadow-2xl hover:shadow-[#1877F2]/20 flex flex-col justify-between"
+              onClick={() => { setSelectedPlayer(topRunScorer); setActiveTab("card"); }}
+              className="cursor-pointer rounded-3xl border border-[#1877F2]/40 bg-gradient-to-b from-[#0b1329] to-[#040817] p-6 hover:-translate-y-1.5 transition"
             >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#1877F2] to-transparent" />
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-lg border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#60a5fa]">
-                    🏏 All-Time Runs
-                  </span>
-                  <span className="text-xs font-bold text-[#64748b]">#01</span>
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-[#1877F2]/20 bg-[#020617]/80 p-4 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Career Record Runs</p>
-                  <p className="mt-1 text-4xl font-black text-[#60a5fa] drop-shadow-[0_0_15px_rgba(96,165,250,0.45)]">
-                    {topRunScorer?.runs?.toLocaleString() || "3,317"}
-                  </p>
-                  <p className="mt-1 text-[11px] text-[#94a3b8]">In {topRunScorer?.matches || 168} Mat • Avg {topRunScorer?.runAvg || "15.22"}</p>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#1877F2]/30 bg-[#111936] text-2xl group-hover:scale-105 transition">
-                    👑
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Record Holder</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#60a5fa] transition break-words leading-tight">
-                      {topRunScorer?.name || "Jahin Shahriar Chowdhury"}
-                    </h4>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between border-t border-[#17233f] pt-3 text-[10px] text-[#64748b]">
-                  <span>Run King</span>
-                  <span className="text-[#60a5fa] font-bold group-hover:underline">Open Card →</span>
-                </div>
-              </div>
+              <span className="rounded-lg bg-[#1877F2]/10 border border-[#1877F2]/30 px-3 py-1 text-[10px] font-black text-[#60a5fa]">🏏 All-Time Runs</span>
+              <p className="mt-4 text-4xl font-black text-[#60a5fa]">{topRunScorer?.runs?.toLocaleString() || "3,317"}</p>
+              <p className="text-xs text-[#94a3b8] mt-1">Career Runs</p>
+              <p className="text-sm font-black text-white mt-4">{topRunScorer?.name || "Jahin Shahriar Chowdhury"}</p>
             </div>
 
-            {/* 3. ALL-TIME WICKETS */}
+            {/* 3. Wickets */}
             <div
-              onClick={() => setSelectedPlayer(topWicketTaker)}
-              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#f59e0b]/40 bg-gradient-to-b from-[#211603] to-[#0c0801] p-6 transition-all duration-300 hover:-translate-y-2 hover:border-[#f59e0b] hover:shadow-2xl hover:shadow-[#f59e0b]/20 flex flex-col justify-between"
+              onClick={() => { setSelectedPlayer(topWicketTaker); setActiveTab("card"); }}
+              className="cursor-pointer rounded-3xl border border-[#f59e0b]/40 bg-gradient-to-b from-[#211603] to-[#0c0801] p-6 hover:-translate-y-1.5 transition"
             >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#f59e0b] to-transparent" />
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-lg border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#fbbf24]">
-                    🎯 All-Time Wickets
-                  </span>
-                  <span className="text-xs font-bold text-[#64748b]">#01</span>
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-[#f59e0b]/20 bg-[#020617]/80 p-4 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Career Record Wickets</p>
-                  <p className="mt-1 text-4xl font-black text-[#fbbf24] drop-shadow-[0_0_15px_rgba(245,158,11,0.45)]">
-                    {topWicketTaker?.wickets || 332}
-                  </p>
-                  <p className="mt-1 text-[11px] text-[#94a3b8]">In {topWicketTaker?.matches || 167} Mat • Avg {topWicketTaker?.wkAvg || "1.99"}</p>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#f59e0b]/30 bg-[#1f1707] text-2xl group-hover:scale-105 transition">
-                    ⚡
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Record Holder</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#fbbf24] transition break-words leading-tight">
-                      {topWicketTaker?.name || "Zaheed Hasan"}
-                    </h4>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between border-t border-[#2e2008] pt-3 text-[10px] text-[#64748b]">
-                  <span>Strike Bowler</span>
-                  <span className="text-[#fbbf24] font-bold group-hover:underline">Open Card →</span>
-                </div>
-              </div>
+              <span className="rounded-lg bg-[#f59e0b]/10 border border-[#f59e0b]/30 px-3 py-1 text-[10px] font-black text-[#fbbf24]">🎯 All-Time Wickets</span>
+              <p className="mt-4 text-4xl font-black text-[#fbbf24]">{topWicketTaker?.wickets || 332}</p>
+              <p className="text-xs text-[#94a3b8] mt-1">Career Wickets</p>
+              <p className="text-sm font-black text-white mt-4">{topWicketTaker?.name || "Zaheed Hasan"}</p>
             </div>
 
-            {/* 4. TOTAL FINALS PLAYED */}
+            {/* 4. Finals */}
             <div
-              onClick={() => setSelectedPlayer(mostFinalsPlayer)}
-              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#38bdf8]/40 bg-gradient-to-b from-[#081a29] to-[#020912] p-6 transition-all duration-300 hover:-translate-y-2 hover:border-[#38bdf8] hover:shadow-2xl hover:shadow-[#38bdf8]/20 flex flex-col justify-between"
+              onClick={() => { setSelectedPlayer(mostFinalsPlayer); setActiveTab("card"); }}
+              className="cursor-pointer rounded-3xl border border-[#38bdf8]/40 bg-gradient-to-b from-[#081a29] to-[#020912] p-6 hover:-translate-y-1.5 transition"
             >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#38bdf8] to-transparent" />
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-lg border border-[#38bdf8]/30 bg-[#38bdf8]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#38bdf8]">
-                    ⚔️ Total Finals
-                  </span>
-                  <span className="text-xs font-bold text-[#64748b]">#01</span>
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-[#38bdf8]/20 bg-[#020617]/80 p-4 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Final Appearances</p>
-                  <p className="mt-1 text-4xl font-black text-[#38bdf8] drop-shadow-[0_0_15px_rgba(56,189,248,0.45)]">
-                    {mostFinalsPlayer?.totalFinal || 9}
-                  </p>
-                  <p className="mt-1 text-[11px] text-[#94a3b8]">5x Champion • 4x Runner-Up</p>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#38bdf8]/30 bg-[#0c2438] text-2xl group-hover:scale-105 transition">
-                    🛡️
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Record Holder</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#38bdf8] transition break-words leading-tight">
-                      {mostFinalsPlayer?.name || "Tanvir Shakib"}
-                    </h4>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between border-t border-[#132d42] pt-3 text-[10px] text-[#64748b]">
-                  <span>Big Match Legend</span>
-                  <span className="text-[#38bdf8] font-bold group-hover:underline">Open Card →</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 5. MOST MATCHES */}
-            <div
-              onClick={() => setSelectedPlayer(mostMatchesPlayer)}
-              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#22c55e]/40 bg-gradient-to-b from-[#091f13] to-[#020d07] p-6 transition-all duration-300 hover:-translate-y-2 hover:border-[#22c55e] hover:shadow-2xl hover:shadow-[#22c55e]/20 flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#22c55e] to-transparent" />
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-lg border border-[#22c55e]/30 bg-[#22c55e]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#4ade80]">
-                    ⚡ Most Matches
-                  </span>
-                  <span className="text-xs font-bold text-[#64748b]">#01</span>
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-[#22c55e]/20 bg-[#020617]/80 p-4 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Caps Played</p>
-                  <p className="mt-1 text-4xl font-black text-[#4ade80] drop-shadow-[0_0_15px_rgba(34,197,94,0.45)]">
-                    {mostMatchesPlayer?.matches || 171}
-                  </p>
-                  <p className="mt-1 text-[11px] text-[#94a3b8]">261 Career Wickets</p>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#22c55e]/30 bg-[#0f2416] text-2xl group-hover:scale-105 transition">
-                    🛡️
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Iron Man of FCL</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#4ade80] transition break-words leading-tight">
-                      {mostMatchesPlayer?.name || "Sadrul Anam"}
-                    </h4>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between border-t border-[#122e1b] pt-3 text-[10px] text-[#64748b]">
-                  <span>Appearances</span>
-                  <span className="text-[#4ade80] font-bold group-hover:underline">Open Card →</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 6. MOST SIXES */}
-            <div
-              onClick={() => setSelectedPlayer(mostSixesPlayer)}
-              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#8b5cf6]/40 bg-gradient-to-b from-[#18112d] to-[#070410] p-6 transition-all duration-300 hover:-translate-y-2 hover:border-[#8b5cf6] hover:shadow-2xl hover:shadow-[#8b5cf6]/20 flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#8b5cf6] to-transparent" />
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-lg border border-[#8b5cf6]/30 bg-[#8b5cf6]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#c084fc]">
-                    💥 Six Machine
-                  </span>
-                  <span className="text-xs font-bold text-[#64748b]">#01</span>
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-[#8b5cf6]/20 bg-[#020617]/80 p-4 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Total Sixes Cleared</p>
-                  <p className="mt-1 text-4xl font-black text-[#c084fc] drop-shadow-[0_0_15px_rgba(192,132,252,0.45)]">
-                    {mostSixesPlayer?.sixes || 176}
-                  </p>
-                  <p className="mt-1 text-[11px] text-[#94a3b8]">{mostSixesPlayer?.runs || 2745} Career Runs</p>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#8b5cf6]/30 bg-[#1e153b] text-2xl group-hover:scale-105 transition">
-                    💣
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Power Hitter</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#c084fc] transition break-words leading-tight">
-                      {mostSixesPlayer?.name || "Shahriar Khokon"}
-                    </h4>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between border-t border-[#251845] pt-3 text-[10px] text-[#64748b]">
-                  <span>Maximum Sixes</span>
-                  <span className="text-[#c084fc] font-bold group-hover:underline">Open Card →</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 7. HAT-TRICK MASTER */}
-            <div
-              onClick={() => setSelectedPlayer(topHatTrickPlayer)}
-              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#ec4899]/40 bg-gradient-to-b from-[#240a16] to-[#0c0207] p-6 transition-all duration-300 hover:-translate-y-2 hover:border-[#ec4899] hover:shadow-2xl hover:shadow-[#ec4899]/20 flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#ec4899] to-transparent" />
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-lg border border-[#ec4899]/30 bg-[#ec4899]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#f472b6]">
-                    🔥 Hat-Tricks
-                  </span>
-                  <span className="text-xs font-bold text-[#64748b]">#01</span>
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-[#ec4899]/20 bg-[#020617]/80 p-4 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Career Hat-Tricks</p>
-                  <p className="mt-1 text-4xl font-black text-[#f472b6] drop-shadow-[0_0_15px_rgba(244,114,182,0.45)]">
-                    {topHatTrickPlayer?.hatTricks || 12}x
-                  </p>
-                  <p className="mt-1 text-[11px] text-[#94a3b8]">All-Time Bowling Record</p>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#ec4899]/30 bg-[#2b0f1d] text-2xl group-hover:scale-105 transition">
-                    🎯
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Hat-Trick Hero</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#f472b6] transition break-words leading-tight">
-                      {topHatTrickPlayer?.name || "Zaheed Hasan"}
-                    </h4>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between border-t border-[#361324] pt-3 text-[10px] text-[#64748b]">
-                  <span>Record Bowler</span>
-                  <span className="text-[#f472b6] font-bold group-hover:underline">Open Card →</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 8. MOT / CPOT AWARDS */}
-            <div
-              onClick={() => setSelectedPlayer(mostMotPlayer)}
-              className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#f59e0b]/40 bg-gradient-to-b from-[#211603] to-[#0c0801] p-6 transition-all duration-300 hover:-translate-y-2 hover:border-[#f59e0b] hover:shadow-2xl hover:shadow-[#f59e0b]/20 flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#f59e0b] to-transparent" />
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="rounded-lg border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#fbbf24]">
-                    ⭐ MOT / CPOT
-                  </span>
-                  <span className="text-xs font-bold text-[#64748b]">#01</span>
-                </div>
-
-                <div className="mt-5 rounded-2xl border border-[#f59e0b]/20 bg-[#020617]/80 p-4 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">Tournament Best</p>
-                  <p className="mt-1 text-4xl font-black text-[#fbbf24] drop-shadow-[0_0_15px_rgba(245,158,11,0.45)]">
-                    {(mostMotPlayer?.mot || 0) + (mostMotPlayer?.cpot || 0)}x
-                  </p>
-                  <p className="mt-1 text-[11px] text-[#94a3b8]">Tournament MVP Honors</p>
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#f59e0b]/30 bg-[#1f1707] text-2xl group-hover:scale-105 transition">
-                    🎖️
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">Award Winner</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#fbbf24] transition break-words leading-tight">
-                      {mostMotPlayer?.name || "Player of Tournament"}
-                    </h4>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex items-center justify-between border-t border-[#2e2008] pt-3 text-[10px] text-[#64748b]">
-                  <span>Tournament MVP</span>
-                  <span className="text-[#fbbf24] font-bold group-hover:underline">Open Card →</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 🌟 LEAGUE COMMUNITY STATS BANNER */}
-          <div className="mt-10 rounded-3xl border border-[#22c55e]/40 bg-gradient-to-r from-[#041a0f] via-[#092b1a] to-[#041a0f] p-6 sm:p-8 shadow-2xl">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-center gap-4 text-center md:text-left">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2 border-[#22c55e]/50 bg-[#0e2a1b] text-3xl shadow-lg shadow-[#22c55e]/30">
-                  📊
-                </div>
-                <div>
-                  <span className="rounded-md border border-[#22c55e]/40 bg-[#22c55e]/20 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-widest text-[#4ade80]">
-                    FCL Community Benchmark
-                  </span>
-                  <h4 className="mt-1.5 text-2xl sm:text-3xl font-black text-white">
-                    {totalCommunityRuns ? `${totalCommunityRuns.toLocaleString()}+ Runs` : "127,387+ Runs"}
-                  </h4>
-                  <p className="text-xs text-[#94a3b8] mt-0.5">
-                    Scored across 24+ tournaments by over {playersData.length || 205} registered players in FCL history.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 shrink-0">
-                <div className="rounded-2xl border border-[#22c55e]/30 bg-black/60 px-6 py-3.5 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#64748b]">Total Wickets</p>
-                  <p className="text-3xl sm:text-4xl font-black text-[#4ade80] drop-shadow-[0_0_12px_rgba(74,222,128,0.5)]">
-                    {totalCommunityWickets ? `${totalCommunityWickets.toLocaleString()}` : "10,303"}
-                  </p>
-                  <span className="text-[10px] text-[#22c55e] font-semibold">Active League Legacy</span>
-                </div>
-              </div>
+              <span className="rounded-lg bg-[#38bdf8]/10 border border-[#38bdf8]/30 px-3 py-1 text-[10px] font-black text-[#38bdf8]">⚔️ Total Finals</span>
+              <p className="mt-4 text-4xl font-black text-[#38bdf8]">{mostFinalsPlayer?.totalFinal || 9}</p>
+              <p className="text-xs text-[#94a3b8] mt-1">Final Appearances</p>
+              <p className="text-sm font-black text-white mt-4">{mostFinalsPlayer?.name || "Tanvir Shakib"}</p>
             </div>
           </div>
         </div>
@@ -1106,19 +544,14 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-[#1e293b] bg-[#020617] px-6 py-8">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
-          <div>
-            <p className="font-bold text-white">Facebook Cricket League (FCL)</p>
-            <p className="mt-1 text-xs text-[#64748b]">The Game Lives Beyond The Field</p>
-          </div>
-          <p className="text-xs text-[#94a3b8]">
-            © 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.
-          </p>
+          <p className="font-bold text-white">Facebook Cricket League (FCL)</p>
+          <p className="text-xs text-[#94a3b8]">© 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.</p>
         </div>
       </footer>
 
-      {/* ================================================== */}
-      {/* 🌟 DUAL THEME (DARK / LIGHT WHITE) STAT CARD MODAL */}
-      {/* ================================================== */}
+      {/* ========================================================================= */}
+      {/* 🌟 DUAL TAB MODAL (PAGE 1: STAT CARD | PAGE 2: TOURNAMENT BREAKDOWN) */}
+      {/* ========================================================================= */}
       {selectedPlayer && (
         <div
           onClick={() => setSelectedPlayer(null)}
@@ -1132,45 +565,61 @@ export default function Home() {
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* STICKY TOP CONTROLS */}
+            {/* STICKY TOP CONTROLS & DUAL TABS */}
             <div
-              className={`shrink-0 flex items-center justify-between border-b px-3.5 py-2.5 ${
+              className={`shrink-0 flex flex-wrap items-center justify-between gap-2 border-b px-3.5 py-2.5 ${
                 cardTheme === "dark" ? "border-[#1e293b] bg-[#0b1329]" : "border-[#ced0d4] bg-white"
               }`}
             >
-              <div className="flex items-center gap-1.5 rounded-xl bg-black/20 p-1 border border-white/10">
+              {/* PAGE 1 VS PAGE 2 SWITCHER */}
+              <div className="flex items-center gap-1 rounded-xl bg-black/20 p-1 border border-white/10">
                 <button
-                  onClick={() => setCardTheme("dark")}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold transition ${
-                    cardTheme === "dark"
+                  onClick={() => setActiveTab("card")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    activeTab === "card"
                       ? "bg-[#1877F2] text-white shadow"
                       : "text-[#94a3b8] hover:text-white"
                   }`}
                 >
-                  <span>🌙</span>
-                  <span>Dark</span>
+                  <span>🎖️</span>
+                  <span>Stat Card</span>
                 </button>
                 <button
-                  onClick={() => setCardTheme("light")}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold transition ${
-                    cardTheme === "light"
-                      ? "bg-white text-[#1877F2] shadow font-black"
+                  onClick={() => setActiveTab("history")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                    activeTab === "history"
+                      ? "bg-[#1877F2] text-white shadow font-black"
                       : "text-[#94a3b8] hover:text-white"
                   }`}
                 >
-                  <span>☀️</span>
-                  <span>Light (White)</span>
+                  <span>📊</span>
+                  <span>Tournament History ({playerTournamentHistory.length})</span>
                 </button>
               </div>
 
+              {/* CARD THEME SWITCH & CLOSE */}
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleDownloadCard}
-                  disabled={downloading}
-                  className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-[#22c55e] to-[#16a34a] px-3.5 py-1.5 text-xs font-bold text-white shadow hover:brightness-110 active:scale-95 disabled:opacity-50"
-                >
-                  {downloading ? "Saving..." : "📥 Download"}
-                </button>
+                {activeTab === "card" && (
+                  <div className="flex items-center gap-1 rounded-xl bg-black/20 p-1 border border-white/10">
+                    <button
+                      onClick={() => setCardTheme("dark")}
+                      className={`px-2.5 py-1 rounded text-xs font-bold ${
+                        cardTheme === "dark" ? "bg-[#1877F2] text-white" : "text-[#94a3b8]"
+                      }`}
+                    >
+                      🌙 Dark
+                    </button>
+                    <button
+                      onClick={() => setCardTheme("light")}
+                      className={`px-2.5 py-1 rounded text-xs font-bold ${
+                        cardTheme === "light" ? "bg-white text-[#1877F2] font-black" : "text-[#94a3b8]"
+                      }`}
+                    >
+                      ☀️ Light
+                    </button>
+                  </div>
+                )}
+
                 <button
                   onClick={() => setSelectedPlayer(null)}
                   className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl border text-xs sm:text-sm font-bold transition ${
@@ -1184,466 +633,284 @@ export default function Home() {
               </div>
             </div>
 
-            {/* SCROLLABLE CARD BODY */}
+            {/* SCROLLABLE BODY */}
             <div className="flex-1 overflow-y-auto overscroll-contain p-2.5 sm:p-4">
-              <div
-                ref={cardRef}
-                className={`mx-auto rounded-2xl border p-3.5 sm:p-5 space-y-3.5 transition-colors duration-200 ${
-                  cardTheme === "dark"
-                    ? "border-[#1e293b] bg-[#0b132b] text-white"
-                    : "border-[#ced0d4] bg-white text-[#1c1e21] shadow-xl"
-                }`}
-              >
-                {/* Banner */}
+              {/* ========================================= */}
+              {/* TAB 1: OFFICIAL DIGITAL STAT CARD */}
+              {/* ========================================= */}
+              {activeTab === "card" ? (
                 <div
-                  className={`flex items-center justify-between border-b pb-3 ${
-                    cardTheme === "dark" ? "border-[#38bdf8]/30" : "border-[#ced0d4]"
+                  ref={cardRef}
+                  className={`mx-auto rounded-2xl border p-3.5 sm:p-5 space-y-3.5 transition-colors duration-200 ${
+                    cardTheme === "dark"
+                      ? "border-[#1e293b] bg-[#0b132b] text-white"
+                      : "border-[#ced0d4] bg-white text-[#1c1e21] shadow-xl"
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 sm:gap-3">
-                    <div
-                      className={`flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-xl border p-1 shadow-md shrink-0 ${
-                        cardTheme === "dark"
-                          ? "border-[#38bdf8]/50 bg-[#080d1a]"
-                          : "border-[#1877F2]/40 bg-[#E7F3FF]"
-                      }`}
-                    >
+                  {/* Banner */}
+                  <div className={`flex items-center justify-between border-b pb-3 ${cardTheme === "dark" ? "border-[#38bdf8]/30" : "border-[#ced0d4]"}`}>
+                    <div className="flex items-center gap-2.5 sm:gap-3">
+                      <div className={`flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-xl border p-1 shadow-md shrink-0 ${cardTheme === "dark" ? "border-[#38bdf8]/50 bg-[#080d1a]" : "border-[#1877F2]/40 bg-[#E7F3FF]"}`}>
+                        <img src="/fcl-logo.png" alt="FCL" className="h-full w-full object-contain" />
+                      </div>
+                      <div>
+                        <h3 className={`text-base sm:text-2xl font-black uppercase tracking-wider ${cardTheme === "dark" ? "text-[#e0f2fe]" : "text-[#1877F2]"}`}>
+                          Player Statistics Card
+                        </h3>
+                        <p className={`text-[10px] sm:text-xs font-semibold tracking-wide ${cardTheme === "dark" ? "text-[#38bdf8]" : "text-[#65676B]"}`}>
+                          Facebook Cricket League (FCL)
+                        </p>
+                      </div>
+                    </div>
+                    <span className={`rounded-md border px-2 py-0.5 text-[10px] sm:text-xs font-bold ${cardTheme === "dark" ? "border-[#f59e0b]/40 bg-[#f59e0b]/10 text-[#f59e0b]" : "border-[#1877F2]/30 bg-[#E7F3FF] text-[#1877F2]"}`}>
+                      OFFICIAL
+                    </span>
+                  </div>
+
+                  {/* Profile Row */}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                    <div className={`relative flex items-center justify-center rounded-xl border-2 p-1.5 aspect-square ${cardTheme === "dark" ? "border-[#38bdf8]/40 bg-[#070b16]" : "border-[#1877F2]/40 bg-[#F0F2F5]"}`}>
                       <img
-                        src="/fcl-logo.png"
-                        alt="FCL"
-                        className="h-full w-full object-contain"
+                        src={`/players/${(selectedPlayer.nickName || "").toLowerCase().trim()}.jpg`}
+                        alt={selectedPlayer.name}
+                        className="h-full w-full rounded-lg object-cover"
                         onError={(e) => {
                           e.currentTarget.style.display = "none";
-                          e.currentTarget.parentElement!.innerHTML = '<span class="text-xl">🏏</span>';
+                          e.currentTarget.parentElement!.innerHTML = '<span class="text-3xl">🏏</span>';
                         }}
                       />
+                      {selectedPlayer.nickName && (
+                        <div className="absolute bottom-1 right-1 rounded bg-[#1877F2] px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
+                          {selectedPlayer.nickName}
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <h3
-                        className={`text-base sm:text-2xl font-black uppercase tracking-wider ${
-                          cardTheme === "dark" ? "text-[#e0f2fe]" : "text-[#1877F2]"
-                        }`}
-                      >
-                        Player Statistics Card
-                      </h3>
-                      <p
-                        className={`text-[10px] sm:text-xs font-semibold tracking-wide ${
-                          cardTheme === "dark" ? "text-[#38bdf8]" : "text-[#65676B]"
-                        }`}
-                      >
-                        Facebook Cricket League (FCL)
-                      </p>
-                    </div>
-                  </div>
 
-                  <span
-                    className={`rounded-md border px-2 py-0.5 text-[10px] sm:text-xs font-bold shrink-0 ${
-                      cardTheme === "dark"
-                        ? "border-[#f59e0b]/40 bg-[#f59e0b]/10 text-[#f59e0b]"
-                        : "border-[#1877F2]/30 bg-[#E7F3FF] text-[#1877F2]"
-                    }`}
-                  >
-                    OFFICIAL
-                  </span>
-                </div>
-
-                {/* Profile Top Row with Full Name & Clear High-Contrast Total Final Box */}
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 sm:gap-3">
-                  <div
-                    className={`relative flex items-center justify-center rounded-xl border-2 p-1.5 aspect-square ${
-                      cardTheme === "dark"
-                        ? "border-[#38bdf8]/40 bg-[#070b16]"
-                        : "border-[#1877F2]/40 bg-[#F0F2F5]"
-                    }`}
-                  >
-                    <img
-                      src={`/players/${(selectedPlayer.nickName || "").toLowerCase().trim()}.jpg`}
-                      alt={selectedPlayer.name}
-                      className="h-full w-full rounded-lg object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                        e.currentTarget.parentElement!.innerHTML =
-                          '<div class="flex flex-col items-center justify-center h-full text-center"><span class="text-3xl sm:text-4xl">🏏</span><span class="text-[9px] sm:text-[10px] text-[#94a3b8] mt-1">Player</span></div>';
-                      }}
-                    />
-                    {selectedPlayer.nickName && (
-                      <div className="absolute bottom-1 right-1 rounded bg-[#1877F2] px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
-                        {selectedPlayer.nickName}
+                    <div className={`col-span-2 rounded-xl border p-3 sm:p-3.5 flex flex-col justify-center min-w-0 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-[#65676B]">Player Name</span>
+                      <h4 className={`text-sm sm:text-base md:text-lg font-black break-words leading-tight mt-1 ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>
+                        {selectedPlayer.name}
+                      </h4>
+                      {selectedPlayer.nickName && (
+                        <p className="text-xs sm:text-sm font-semibold text-[#1877F2] truncate mt-0.5">@{selectedPlayer.nickName}</p>
+                      )}
+                      <div className={`mt-2 pt-2 border-t flex items-center justify-between ${cardTheme === "dark" ? "border-[#1e293b]" : "border-[#ced0d4]"}`}>
+                        <span className="text-[9px] sm:text-[10px] uppercase font-bold text-[#65676B]">Role:</span>
+                        <span className="text-xs sm:text-sm font-bold text-[#f59e0b] truncate">{selectedPlayer.role}</span>
                       </div>
-                    )}
-                  </div>
+                    </div>
 
-                  <div
-                    className={`col-span-2 rounded-xl border p-3 sm:p-3.5 flex flex-col justify-center min-w-0 ${
-                      cardTheme === "dark"
-                        ? "border-[#1e293b] bg-[#070b16]"
-                        : "border-[#ced0d4] bg-[#F7F8FA]"
-                    }`}
-                  >
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-[#65676B]">Player Name</span>
-                    <h4
-                      className={`text-sm sm:text-base md:text-lg font-black break-words leading-tight mt-1 ${
-                        cardTheme === "dark" ? "text-white" : "text-[#050505]"
-                      }`}
-                    >
-                      {selectedPlayer.name}
-                    </h4>
-                    {selectedPlayer.nickName && (
-                      <p className="text-xs sm:text-sm font-semibold text-[#1877F2] truncate mt-0.5">
-                        @{selectedPlayer.nickName}
+                    {/* Total Final Box */}
+                    <div className={`col-span-3 sm:col-span-1 rounded-xl border-2 p-2.5 sm:p-3 flex flex-row sm:flex-col justify-between sm:justify-center items-center text-center shadow-sm ${cardTheme === "dark" ? "border-[#f59e0b]/50 bg-gradient-to-b from-[#251804] to-[#120b02]" : "border-[#d97706]/50 bg-gradient-to-b from-[#fffbeb] to-[#fef3c7]"}`}>
+                      <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${cardTheme === "dark" ? "text-[#fbbf24]" : "text-[#92400e]"}`}>
+                        TOTAL FINAL
+                      </span>
+                      <p className={`text-2xl sm:text-4xl font-black my-0.5 ${cardTheme === "dark" ? "text-[#fde047]" : "text-[#b45309]"}`}>
+                        {selectedPlayer.totalFinal ?? 0}
                       </p>
-                    )}
-                    <div
-                      className={`mt-2 pt-2 border-t flex items-center justify-between ${
-                        cardTheme === "dark" ? "border-[#1e293b]" : "border-[#ced0d4]"
-                      }`}
-                    >
-                      <span className="text-[9px] sm:text-[10px] uppercase font-bold text-[#65676B]">Role:</span>
-                      <span className="text-xs sm:text-sm font-bold text-[#f59e0b] truncate">
-                        {selectedPlayer.role}
+                      <span className={`text-[9px] sm:text-[10px] font-extrabold ${cardTheme === "dark" ? "text-[#e2e8f0]" : "text-[#78350f]"}`}>
+                        Finals Played
                       </span>
                     </div>
                   </div>
 
-                  {/* 🌟 100% CLEAR, HIGH-CONTRAST TOTAL FINAL BOX */}
-                  <div
-                    className={`col-span-3 sm:col-span-1 rounded-xl border-2 p-2.5 sm:p-3 flex flex-row sm:flex-col justify-between sm:justify-center items-center text-center shadow-sm ${
-                      cardTheme === "dark"
-                        ? "border-[#f59e0b]/50 bg-gradient-to-b from-[#251804] to-[#120b02]"
-                        : "border-[#d97706]/50 bg-gradient-to-b from-[#fffbeb] to-[#fef3c7]"
-                    }`}
-                  >
-                    <span
-                      className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${
-                        cardTheme === "dark" ? "text-[#fbbf24]" : "text-[#92400e]"
-                      }`}
-                    >
-                      TOTAL FINAL
+                  {/* Debut & Tournaments */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 text-center">
+                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
+                      <p className="text-[10px] uppercase font-bold text-[#65676B]">Debut Date</p>
+                      <p className="font-extrabold text-[#1877F2] text-xs sm:text-sm mt-1 truncate">{selectedPlayer.debutYear || "—"}</p>
+                    </div>
+                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
+                      <p className="text-[10px] uppercase font-bold text-[#65676B]">Debut Tournament</p>
+                      <p className={`font-extrabold text-xs sm:text-sm mt-1 leading-tight break-words ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>{selectedPlayer.debutTournament || "—"}</p>
+                    </div>
+                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
+                      <p className="text-[10px] uppercase font-bold text-[#65676B]">Debut Team</p>
+                      <p className={`font-extrabold text-xs sm:text-sm mt-1 leading-tight break-words ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>{selectedPlayer.debutTeam || "—"}</p>
+                    </div>
+                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
+                      <p className="text-[10px] uppercase font-bold text-[#65676B]">Total Tournaments</p>
+                      <p className="font-black text-[#16a34a] text-base sm:text-xl mt-0.5">{selectedPlayer.totalTournament ?? 0}</p>
+                    </div>
+                  </div>
+
+                  {/* MVP & Rankings */}
+                  <div className={`rounded-2xl border-2 p-3 sm:p-4 text-center shadow-lg ${cardTheme === "dark" ? "border-[#f59e0b]/50 bg-gradient-to-r from-[#1c1203] via-[#2c1c04] to-[#1c1203]" : "border-[#f59e0b] bg-gradient-to-r from-[#fffbeb] via-[#fef3c7] to-[#fffbeb]"}`}>
+                    <div className={`flex flex-col sm:flex-row items-center justify-between gap-2 border-b pb-2.5 ${cardTheme === "dark" ? "border-[#f59e0b]/25" : "border-[#f59e0b]/40"}`}>
+                      <p className="text-xs sm:text-sm font-black uppercase tracking-widest text-[#d97706] flex items-center gap-1.5">
+                        <span>⭐</span> ALL-TIME LEAGUE RANKINGS
+                      </p>
+                      <div className="inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 border shadow-md bg-gradient-to-r from-[#d97706] to-[#b45309] text-white">
+                        <span>👑</span>
+                        <span className="text-xs sm:text-sm font-black">#{getRank(selectedPlayer, "mvp")} MVP</span>
+                        <span className="h-3.5 w-px bg-white/40" />
+                        <span className="text-xs sm:text-sm font-extrabold text-amber-100">{calculateFclPoints(selectedPlayer).toLocaleString()} Pts</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/25" : "bg-white border-[#f59e0b]/30"}`}>
+                        <p className="text-[10px] uppercase font-bold text-[#65676B]">Runs Rank</p>
+                        <p className="text-base sm:text-lg font-black text-[#16a34a] mt-0.5">#{getRank(selectedPlayer, "runs")}</p>
+                      </div>
+                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/25" : "bg-white border-[#f59e0b]/30"}`}>
+                        <p className="text-[10px] uppercase font-bold text-[#65676B]">Wickets Rank</p>
+                        <p className="text-base sm:text-lg font-black text-[#d97706] mt-0.5">#{getRank(selectedPlayer, "wickets")}</p>
+                      </div>
+                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/25" : "bg-white border-[#f59e0b]/30"}`}>
+                        <p className="text-[10px] uppercase font-bold text-[#65676B]">6s Rank</p>
+                        <p className="text-base sm:text-lg font-black text-[#7c3aed] mt-0.5">#{getRank(selectedPlayer, "sixes")}</p>
+                      </div>
+                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/25" : "bg-white border-[#f59e0b]/30"}`}>
+                        <p className="text-[10px] uppercase font-bold text-[#65676B]">Trophy Rank</p>
+                        <p className="text-base sm:text-lg font-black text-[#0284c7] mt-0.5">#{getRank(selectedPlayer, "champion")}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stats Breakdown */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                    <div className={`rounded-xl border p-3 sm:p-3.5 space-y-1.5 text-xs sm:text-[13px] ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
+                      <div className="flex justify-between border-b pb-1.5 border-[#172033]/50">
+                        <span className="text-[#65676B]">Total Match:</span>
+                        <strong className="font-extrabold">{selectedPlayer.matches}</strong>
+                      </div>
+                      <div className="flex justify-between border-b pb-1.5 border-[#172033]/50">
+                        <span className="text-[#65676B]">Total Runs & Max:</span>
+                        <strong className="text-[#16a34a] font-extrabold">{selectedPlayer.runs} ({selectedPlayer.maxRuns || "—"})</strong>
+                      </div>
+                      <div className="flex justify-between border-b pb-1.5 border-[#172033]/50">
+                        <span className="text-[#65676B]">Total Wickets & Max:</span>
+                        <strong className="text-[#d97706] font-extrabold">{selectedPlayer.wickets} ({selectedPlayer.maxWickets || "—"})</strong>
+                      </div>
+                      <div className="flex justify-between border-b pb-1.5 border-[#172033]/50">
+                        <span className="text-[#65676B]">Boundaries (4&apos;s / 6&apos;s):</span>
+                        <strong className="font-extrabold"><span className="text-[#0284c7]">{selectedPlayer.fours}</span> / <span className="text-[#7c3aed]">{selectedPlayer.sixes}</span></strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#65676B]">Career Hat-Trick:</span>
+                        <strong className="text-[#db2777] font-extrabold">{selectedPlayer.hatTricks ?? 0}</strong>
+                      </div>
+                    </div>
+
+                    <div className={`rounded-xl border p-3 sm:p-3.5 space-y-1.5 text-xs sm:text-[13px] ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
+                      <div className="flex justify-between border-b pb-1.5 border-[#172033]/50">
+                        <span className="text-[#65676B]">Batting / Bowling Avg:</span>
+                        <strong className="font-extrabold">{selectedPlayer.runAvg} / {selectedPlayer.wkAvg}</strong>
+                      </div>
+                      <div className="flex justify-between border-b pb-1.5 border-[#172033]/50">
+                        <span className="text-[#65676B]">Champion / Runner-Up:</span>
+                        <strong className="font-extrabold">🏆 {selectedPlayer.champion ?? 0} / 🥈 {selectedPlayer.runnersUp ?? 0}</strong>
+                      </div>
+                      <div className="flex justify-between border-b pb-1.5 border-[#172033]/50">
+                        <span className="text-[#65676B]">MOT / CPOT:</span>
+                        <strong className="font-extrabold">⭐ {selectedPlayer.mot ?? 0} / {selectedPlayer.cpot ?? 0}</strong>
+                      </div>
+                      <div className="flex justify-between border-b pb-1.5 border-[#172033]/50">
+                        <span className="text-[#65676B]">MOM / CPOM:</span>
+                        <strong className="font-extrabold">🎖️ {selectedPlayer.mom ?? 0} / {selectedPlayer.cpom ?? 0}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#65676B]">Top Scorer / Wicket Taker:</span>
+                        <strong className="font-extrabold">{selectedPlayer.highestRunScorer ?? 0} / {selectedPlayer.topWicketTaker ?? 0}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t pt-2 text-[10px] text-[#65676B]">
+                    <span>Last Played: <strong className="text-white">{selectedPlayer.lastPlayed || "—"}</strong></span>
+                    <span className="font-bold">FCL Official Card</span>
+                  </div>
+                </div>
+              ) : (
+                /* ========================================= */
+                /* TAB 2: TOURNAMENT HISTORY BREAKDOWN */
+                /* ========================================= */
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-[#1e293b] pb-3">
+                    <div>
+                      <h4 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                        <span>📊</span>
+                        <span>{selectedPlayer.name} এর টুর্নামেন্ট ইতিহাস</span>
+                      </h4>
+                      <p className="text-xs text-[#94a3b8] mt-0.5">
+                        অংশগ্রহণ করা প্রতিটি আসরের ইন্ডিভিজুয়াল পারফরম্যান্স ব্রেকডাউন
+                      </p>
+                    </div>
+                    <span className="rounded-lg bg-[#1877F2]/20 border border-[#1877F2]/40 px-3 py-1 text-xs font-bold text-[#60a5fa]">
+                      মোট {playerTournamentHistory.length} টি আসর
                     </span>
-                    <p
-                      className={`text-2xl sm:text-4xl font-black my-0.5 ${
-                        cardTheme === "dark"
-                          ? "text-[#fde047] drop-shadow-[0_0_12px_rgba(253,224,71,0.5)]"
-                          : "text-[#b45309]"
-                      }`}
-                    >
-                      {selectedPlayer.totalFinal ?? 0}
-                    </p>
-                    <span
-                      className={`text-[9px] sm:text-[10px] font-extrabold ${
-                        cardTheme === "dark" ? "text-[#e2e8f0]" : "text-[#78350f]"
-                      }`}
-                    >
-                      Finals Played
-                    </span>
                   </div>
+
+                  {playerTournamentHistory.length === 0 ? (
+                    <div className="rounded-2xl border border-[#1e293b] bg-[#070b16] p-8 text-center text-[#94a3b8]">
+                      কোনো টুর্নামেন্ট রেকর্ড পাওয়া যায়নি
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      {playerTournamentHistory.map((t, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded-2xl border border-[#1e293b] bg-gradient-to-r from-[#0b1329] via-[#070e1e] to-[#040813] p-4 transition hover:border-[#1877F2]/50 shadow-md"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-lg bg-[#1877F2] px-2.5 py-0.5 text-xs font-black text-white">
+                                {t.tournament}
+                              </span>
+                              <span className="text-xs font-bold text-white">{t.team}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {t.chamRu && (
+                                <span
+                                  className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
+                                    t.chamRu.toLowerCase().includes("champ")
+                                      ? "bg-[#f59e0b]/20 border border-[#f59e0b]/50 text-[#fbbf24]"
+                                      : "bg-[#94a3b8]/20 border border-[#94a3b8]/50 text-[#cbd5e1]"
+                                  }`}
+                                >
+                                  {t.chamRu}
+                                </span>
+                              )}
+                              {t.time && <span className="text-[10px] text-[#64748b]">📅 {t.time}</span>}
+                            </div>
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-4 sm:grid-cols-6 gap-2 text-center text-xs">
+                            <div className="rounded-xl bg-black/40 p-2 border border-white/5">
+                              <p className="text-[10px] text-[#64748b] uppercase">ম্যাচ</p>
+                              <p className="font-black text-white text-sm mt-0.5">{t.matches}</p>
+                            </div>
+                            <div className="rounded-xl bg-black/40 p-2 border border-white/5">
+                              <p className="text-[10px] text-[#64748b] uppercase">রান</p>
+                              <p className="font-black text-[#22c55e] text-sm mt-0.5">{t.runs}</p>
+                            </div>
+                            <div className="rounded-xl bg-black/40 p-2 border border-white/5">
+                              <p className="text-[10px] text-[#64748b] uppercase">উইকেট</p>
+                              <p className="font-black text-[#f59e0b] text-sm mt-0.5">{t.wickets}</p>
+                            </div>
+                            <div className="rounded-xl bg-black/40 p-2 border border-white/5">
+                              <p className="text-[10px] text-[#64748b] uppercase">ইনিংস</p>
+                              <p className="font-black text-white text-sm mt-0.5">{t.innings}</p>
+                            </div>
+                            <div className="rounded-xl bg-black/40 p-2 border border-white/5">
+                              <p className="text-[10px] text-[#64748b] uppercase">৪ / ৬</p>
+                              <p className="font-black text-[#38bdf8] text-sm mt-0.5">{t.fours} / {t.sixes}</p>
+                            </div>
+                            <div className="rounded-xl bg-black/40 p-2 border border-white/5">
+                              <p className="text-[10px] text-[#64748b] uppercase">অ্যাওয়ার্ড</p>
+                              <p className="font-black text-[#ec4899] text-sm mt-0.5 truncate">
+                                {t.motCpot || (t.mom ? `${t.mom}x MOM` : "—")}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-
-                {/* Debut & Tournaments */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 text-center">
-                  <div
-                    className={`rounded-xl border p-2.5 flex flex-col justify-center ${
-                      cardTheme === "dark"
-                        ? "border-[#1e293b] bg-[#070b16]"
-                        : "border-[#ced0d4] bg-[#F7F8FA]"
-                    }`}
-                  >
-                    <p className="text-[10px] uppercase font-bold text-[#65676B]">Debut Date</p>
-                    <p className="font-extrabold text-[#1877F2] text-xs sm:text-sm mt-1 truncate">
-                      {selectedPlayer.debutYear || "—"}
-                    </p>
-                  </div>
-                  <div
-                    className={`rounded-xl border p-2.5 flex flex-col justify-center ${
-                      cardTheme === "dark"
-                        ? "border-[#1e293b] bg-[#070b16]"
-                        : "border-[#ced0d4] bg-[#F7F8FA]"
-                    }`}
-                  >
-                    <p className="text-[10px] uppercase font-bold text-[#65676B]">Debut Tournament</p>
-                    <p
-                      className={`font-extrabold text-xs sm:text-sm mt-1 leading-tight break-words ${
-                        cardTheme === "dark" ? "text-white" : "text-[#050505]"
-                      }`}
-                    >
-                      {selectedPlayer.debutTournament || "—"}
-                    </p>
-                  </div>
-                  <div
-                    className={`rounded-xl border p-2.5 flex flex-col justify-center ${
-                      cardTheme === "dark"
-                        ? "border-[#1e293b] bg-[#070b16]"
-                        : "border-[#ced0d4] bg-[#F7F8FA]"
-                    }`}
-                  >
-                    <p className="text-[10px] uppercase font-bold text-[#65676B]">Debut Team</p>
-                    <p
-                      className={`font-extrabold text-xs sm:text-sm mt-1 leading-tight break-words ${
-                        cardTheme === "dark" ? "text-white" : "text-[#050505]"
-                      }`}
-                    >
-                      {selectedPlayer.debutTeam || "—"}
-                    </p>
-                  </div>
-                  <div
-                    className={`rounded-xl border p-2.5 flex flex-col justify-center ${
-                      cardTheme === "dark"
-                        ? "border-[#1e293b] bg-[#070b16]"
-                        : "border-[#ced0d4] bg-[#F7F8FA]"
-                    }`}
-                  >
-                    <p className="text-[10px] uppercase font-bold text-[#65676B]">Total Tournaments</p>
-                    <p className="font-black text-[#16a34a] text-base sm:text-xl mt-0.5">
-                      {selectedPlayer.totalTournament ?? 0}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 🌟 ALL-TIME LEAGUE RANKINGS + BIG BOLD MVP POINTS HERO BADGE */}
-                <div
-                  className={`rounded-2xl border-2 p-3 sm:p-4 text-center shadow-lg ${
-                    cardTheme === "dark"
-                      ? "border-[#f59e0b]/50 bg-gradient-to-r from-[#1c1203] via-[#2c1c04] to-[#1c1203]"
-                      : "border-[#f59e0b] bg-gradient-to-r from-[#fffbeb] via-[#fef3c7] to-[#fffbeb]"
-                  }`}
-                >
-                  <div
-                    className={`flex flex-col sm:flex-row items-center justify-between gap-2 border-b pb-2.5 ${
-                      cardTheme === "dark" ? "border-[#f59e0b]/25" : "border-[#f59e0b]/40"
-                    }`}
-                  >
-                    <p className="text-xs sm:text-sm font-black uppercase tracking-widest text-[#d97706] flex items-center gap-1.5">
-                      <span>⭐</span>
-                      <span>ALL-TIME LEAGUE RANKINGS</span>
-                    </p>
-
-                    {/* 🌟 BIGGER, HIGH-CONTRAST MVP BADGE */}
-                    <div
-                      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 border shadow-md ${
-                        cardTheme === "dark"
-                          ? "border-[#f59e0b]/60 bg-gradient-to-r from-[#b45309] to-[#d97706] text-white"
-                          : "border-[#b45309] bg-gradient-to-r from-[#d97706] to-[#b45309] text-white"
-                      }`}
-                    >
-                      <span className="text-sm">👑</span>
-                      <span className="text-xs sm:text-sm font-black tracking-wide">
-                        #{getRank(selectedPlayer, "mvp")} MVP
-                      </span>
-                      <span className="h-3.5 w-px bg-white/40" />
-                      <span className="text-xs sm:text-sm font-extrabold text-amber-100">
-                        {calculateFclPoints(selectedPlayer).toLocaleString()} Pts
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                    <div
-                      className={`rounded-xl p-2 border ${
-                        cardTheme === "dark"
-                          ? "bg-black/60 border-[#f59e0b]/25"
-                          : "bg-white border-[#f59e0b]/30 shadow-sm"
-                      }`}
-                    >
-                      <p className="text-[10px] uppercase font-bold text-[#65676B]">Runs Rank</p>
-                      <p className="text-base sm:text-lg font-black text-[#16a34a] mt-0.5">
-                        #{getRank(selectedPlayer, "runs")}
-                      </p>
-                    </div>
-                    <div
-                      className={`rounded-xl p-2 border ${
-                        cardTheme === "dark"
-                          ? "bg-black/60 border-[#f59e0b]/25"
-                          : "bg-white border-[#f59e0b]/30 shadow-sm"
-                      }`}
-                    >
-                      <p className="text-[10px] uppercase font-bold text-[#65676B]">Wickets Rank</p>
-                      <p className="text-base sm:text-lg font-black text-[#d97706] mt-0.5">
-                        #{getRank(selectedPlayer, "wickets")}
-                      </p>
-                    </div>
-                    <div
-                      className={`rounded-xl p-2 border ${
-                        cardTheme === "dark"
-                          ? "bg-black/60 border-[#f59e0b]/25"
-                          : "bg-white border-[#f59e0b]/30 shadow-sm"
-                      }`}
-                    >
-                      <p className="text-[10px] uppercase font-bold text-[#65676B]">6s Rank</p>
-                      <p className="text-base sm:text-lg font-black text-[#7c3aed] mt-0.5">
-                        #{getRank(selectedPlayer, "sixes")}
-                      </p>
-                    </div>
-                    <div
-                      className={`rounded-xl p-2 border ${
-                        cardTheme === "dark"
-                          ? "bg-black/60 border-[#f59e0b]/25"
-                          : "bg-white border-[#f59e0b]/30 shadow-sm"
-                      }`}
-                    >
-                      <p className="text-[10px] uppercase font-bold text-[#65676B]">Trophy Rank</p>
-                      <p className="text-base sm:text-lg font-black text-[#0284c7] mt-0.5">
-                        #{getRank(selectedPlayer, "champion")}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stats Breakdown */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                  <div
-                    className={`rounded-xl border p-3 sm:p-3.5 space-y-1.5 text-xs sm:text-[13px] ${
-                      cardTheme === "dark"
-                        ? "border-[#1e293b] bg-[#070b16]"
-                        : "border-[#ced0d4] bg-[#F7F8FA]"
-                    }`}
-                  >
-                    <div
-                      className={`flex justify-between border-b pb-1.5 ${
-                        cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"
-                      }`}
-                    >
-                      <span className="text-[#65676B] font-medium">Total Match:</span>
-                      <strong className={`font-extrabold ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>
-                        {selectedPlayer.matches}
-                      </strong>
-                    </div>
-                    <div
-                      className={`flex justify-between border-b pb-1.5 ${
-                        cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"
-                      }`}
-                    >
-                      <span className="text-[#65676B] font-medium">Total Runs & Max:</span>
-                      <strong className="text-[#16a34a] font-extrabold">
-                        {selectedPlayer.runs}{" "}
-                        <span className="text-[#65676B] font-normal">
-                          ({selectedPlayer.maxRuns ? selectedPlayer.maxRuns : "—"})
-                        </span>
-                      </strong>
-                    </div>
-                    <div
-                      className={`flex justify-between border-b pb-1.5 ${
-                        cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"
-                      }`}
-                    >
-                      <span className="text-[#65676B] font-medium">Total Wickets & Max:</span>
-                      <strong className="text-[#d97706] font-extrabold">
-                        {selectedPlayer.wickets}{" "}
-                        <span className="text-[#65676B] font-normal">
-                          ({selectedPlayer.maxWickets ? selectedPlayer.maxWickets : "—"})
-                        </span>
-                      </strong>
-                    </div>
-                    <div
-                      className={`flex justify-between border-b pb-1.5 ${
-                        cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"
-                      }`}
-                    >
-                      <span className="text-[#65676B] font-medium">Innings / Not Out:</span>
-                      <strong className={`font-extrabold ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>
-                        {selectedPlayer.innings ?? 0} / {selectedPlayer.notOut ?? 0}
-                      </strong>
-                    </div>
-                    <div
-                      className={`flex justify-between border-b pb-1.5 ${
-                        cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"
-                      }`}
-                    >
-                      <span className="text-[#65676B] font-medium">Boundaries (4&apos;s / 6&apos;s):</span>
-                      <strong className="font-extrabold">
-                        <span className="text-[#0284c7]">{selectedPlayer.fours ?? 0}</span> /{" "}
-                        <span className="text-[#7c3aed]">{selectedPlayer.sixes ?? 0}</span>
-                      </strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#65676B] font-medium">Hat-Trick:</span>
-                      <strong className="text-[#db2777] font-extrabold">{selectedPlayer.hatTricks ?? 0}</strong>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`rounded-xl border p-3 sm:p-3.5 space-y-1.5 text-xs sm:text-[13px] ${
-                      cardTheme === "dark"
-                        ? "border-[#1e293b] bg-[#070b16]"
-                        : "border-[#ced0d4] bg-[#F7F8FA]"
-                    }`}
-                  >
-                    <div
-                      className={`flex justify-between border-b pb-1.5 ${
-                        cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"
-                      }`}
-                    >
-                      <span className="text-[#65676B] font-medium">Batting / Bowling Avg:</span>
-                      <strong className={`font-extrabold ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>
-                        {selectedPlayer.runAvg} / {selectedPlayer.wkAvg}
-                      </strong>
-                    </div>
-                    <div
-                      className={`flex justify-between border-b pb-1.5 ${
-                        cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"
-                      }`}
-                    >
-                      <span className="text-[#65676B] font-medium">Champion / Runner-Up:</span>
-                      <strong className="font-extrabold">
-                        🏆 <span className="text-[#d97706]">{selectedPlayer.champion ?? 0}</span> / 🥈{" "}
-                        <span className="text-[#65676B]">{selectedPlayer.runnersUp ?? 0}</span>
-                      </strong>
-                    </div>
-                    <div
-                      className={`flex justify-between border-b pb-1.5 ${
-                        cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"
-                      }`}
-                    >
-                      <span className="text-[#65676B] font-medium">MOT / CPOT:</span>
-                      <strong className="font-extrabold">
-                        ⭐ <span className="text-[#7c3aed]">{selectedPlayer.mot ?? 0}</span> /{" "}
-                        <span className="text-[#65676B]">{selectedPlayer.cpot ?? 0}</span>
-                      </strong>
-                    </div>
-                    <div
-                      className={`flex justify-between border-b pb-1.5 ${
-                        cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"
-                      }`}
-                    >
-                      <span className="text-[#65676B] font-medium">MOM / CPOM:</span>
-                      <strong className="font-extrabold">
-                        🎖️ <span className="text-[#0284c7]">{selectedPlayer.mom ?? 0}</span> /{" "}
-                        <span className="text-[#65676B]">{selectedPlayer.cpom ?? 0}</span>
-                      </strong>
-                    </div>
-                    <div
-                      className={`flex justify-between border-b pb-1.5 ${
-                        cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"
-                      }`}
-                    >
-                      <span className="text-[#65676B] font-medium">Highest Run Scorer:</span>
-                      <strong className={`font-extrabold ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>
-                        {selectedPlayer.highestRunScorer ?? 0}
-                      </strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#65676B] font-medium">Top Wicket Taker:</span>
-                      <strong className={`font-extrabold ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>
-                        {selectedPlayer.topWicketTaker ?? 0}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card Footer */}
-                <div
-                  className={`flex items-center justify-between border-t pt-2 text-[10px] sm:text-xs ${
-                    cardTheme === "dark" ? "border-[#1e293b] text-[#64748b]" : "border-[#ced0d4] text-[#65676B]"
-                  }`}
-                >
-                  <span className="truncate font-medium">
-                    Last Played:{" "}
-                    <strong className={cardTheme === "dark" ? "text-white" : "text-[#050505]"}>
-                      {selectedPlayer.lastPlayed || "—"}
-                    </strong>
-                  </span>
-                  <span className="shrink-0 font-bold">FCL Official Card</span>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* STICKY BOTTOM ACTION BAR */}
@@ -1652,13 +919,23 @@ export default function Home() {
                 cardTheme === "dark" ? "border-[#1e293b] bg-[#0b1329]" : "border-[#ced0d4] bg-white"
               }`}
             >
-              <button
-                onClick={handleDownloadCard}
-                disabled={downloading}
-                className="flex-1 rounded-xl bg-gradient-to-r from-[#1877F2] to-[#0284c7] py-2.5 text-xs font-bold text-white shadow-lg shadow-[#1877F2]/25 transition hover:brightness-110 active:scale-95 disabled:opacity-50"
-              >
-                {downloading ? "Downloading Card..." : `📥 Download ${cardTheme === "dark" ? "Dark" : "Light (White)"} Card`}
-              </button>
+              {activeTab === "card" ? (
+                <button
+                  onClick={handleDownloadCard}
+                  disabled={downloading}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-[#1877F2] to-[#0284c7] py-2.5 text-xs font-bold text-white shadow-lg shadow-[#1877F2]/25 transition hover:brightness-110 active:scale-95 disabled:opacity-50"
+                >
+                  {downloading ? "Downloading Card..." : `📥 Download ${cardTheme === "dark" ? "Dark" : "Light (White)"} Card`}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setActiveTab("card")}
+                  className="flex-1 rounded-xl bg-[#1877F2] py-2.5 text-xs font-bold text-white shadow transition hover:bg-[#166fe5]"
+                >
+                  ← Back to Stat Card
+                </button>
+              )}
+
               <button
                 onClick={() => setSelectedPlayer(null)}
                 className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${
