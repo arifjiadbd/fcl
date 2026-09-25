@@ -59,6 +59,18 @@ interface TournamentRecord {
   topWicket: number;
 }
 
+function formatSafeDate(val: any): string {
+  if (!val) return "";
+  const num = Number(val);
+  if (!isNaN(num) && num > 20000 && num < 60000) {
+    const utcDays = Math.floor(num - 25569);
+    const dateInfo = new Date(utcDays * 86400 * 1000);
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${months[dateInfo.getUTCMonth()]} ${dateInfo.getUTCFullYear()}`;
+  }
+  return String(val).trim().slice(0, 10);
+}
+
 export const calculateFclPoints = (p: Player): number => {
   const runs = Number(p.runs) || 0;
   const sixes = Number(p.sixes) || 0;
@@ -255,7 +267,7 @@ export default function Home() {
                 </span>
               </h2>
               <p className="mx-auto mt-7 max-w-[540px] text-sm leading-7 text-[#94a3b8] md:text-base lg:mx-0">
-                From different districts of Bangladesh to different corners of the world, we play, compete and connect through FCL. Distance may separate us, but the game brings us together.
+                From different districts of Bangladesh to different corners of the world, we play, compete and connect through FCL.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row lg:justify-start">
                 <Link href="/players" className="rounded-xl bg-[#1877F2] px-7 py-3.5 text-sm font-bold text-white shadow-[0_12px_40px_rgba(24,119,242,0.25)] hover:bg-[#0d6fe8] transition">
@@ -462,7 +474,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 🏆 100% RESTORED FCL RECORD CORNER (4x2 ULTRA-PREMIUM GRID) */}
+      {/* 🏆 100% RESTORED FCL RECORD CORNER */}
       <section id="records" className="relative overflow-hidden border-t border-[#172033] bg-[#02050b] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <div className="pointer-events-none absolute right-0 top-0 h-96 w-96 rounded-full bg-[#1877F2]/10 blur-[130px]" />
@@ -613,7 +625,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 5. Most Matches */}
+            {/* 5. Matches */}
             <div
               onClick={() => { setSelectedPlayer(mostMatchesPlayer); setActiveTab("card"); }}
               className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#22c55e]/40 bg-gradient-to-b from-[#091f13] to-[#020d07] p-6 hover:-translate-y-2 hover:border-[#22c55e] transition flex flex-col justify-between"
@@ -802,7 +814,7 @@ export default function Home() {
               </div>
 
               <div className="flex items-center gap-2">
-                {/* 🌟 THEME TOGGLE (WORKS ON BOTH TABS) */}
+                {/* THEME TOGGLE (WORKS ON BOTH TABS) */}
                 <div className="flex items-center gap-1 rounded-xl bg-black/20 p-1 border border-white/10">
                   <button
                     onClick={() => setCardTheme("dark")}
@@ -918,7 +930,7 @@ export default function Home() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 text-center">
                     <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
                       <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Debut Date</p>
-                      <p className="font-extrabold text-[#38bdf8] drop-shadow-[0_0_8px_rgba(56,189,248,0.4)] text-xs sm:text-sm mt-1 truncate">{selectedPlayer.debutYear || "—"}</p>
+                      <p className="font-extrabold text-[#38bdf8] drop-shadow-[0_0_8px_rgba(56,189,248,0.4)] text-xs sm:text-sm mt-1 truncate">{formatSafeDate(selectedPlayer.debutYear) || "—"}</p>
                     </div>
                     <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
                       <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Debut Tournament</p>
@@ -1028,20 +1040,20 @@ export default function Home() {
                 </div>
               ) : (
                 /* ========================================================================= */
-                /* TAB 2: TOURNAMENT HISTORY (100% THEME ADAPTIVE: LIGHT & DARK) */
+                /* TAB 2: TOURNAMENT HISTORY (PROMINENT MOT/CPOT HIGHLIGHTS + LIGHT/DARK) */
                 /* ========================================================================= */
                 <div className="space-y-4">
                   <div className={`flex items-center justify-between border-b pb-3 ${cardTheme === "dark" ? "border-[#1e293b]" : "border-[#ced0d4]"}`}>
                     <div>
-                      <h4 className={`text-base sm:text-lg font-black flex items-center gap-2 ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>
+                      <h4 className={`text-base sm:text-xl font-black flex items-center gap-2 ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>
                         <span>📊</span>
                         <span>{selectedPlayer.name} এর টুর্নামেন্ট ইতিহাস</span>
                       </h4>
-                      <p className={`text-xs mt-0.5 ${cardTheme === "dark" ? "text-[#94a3b8]" : "text-[#65676B]"}`}>
+                      <p className={`text-xs mt-0.5 font-medium ${cardTheme === "dark" ? "text-[#94a3b8]" : "text-[#475569]"}`}>
                         অংশগ্রহণ করা প্রতিটি আসরের ইন্ডিভিজুয়াল পারফরম্যান্স ব্রেকডাউন
                       </p>
                     </div>
-                    <span className={`rounded-lg px-3 py-1 text-xs font-bold ${cardTheme === "dark" ? "bg-[#1877F2]/20 border border-[#1877F2]/40 text-[#60a5fa]" : "bg-[#E7F3FF] border border-[#1877F2]/30 text-[#1877F2]"}`}>
+                    <span className={`rounded-xl px-3 py-1.5 text-xs font-bold ${cardTheme === "dark" ? "bg-[#1877F2]/25 border border-[#1877F2]/50 text-[#60a5fa]" : "bg-[#E7F3FF] border border-[#1877F2]/40 text-[#1877F2]"}`}>
                       মোট {playerTournamentHistory.length} টি আসর
                     </span>
                   </div>
@@ -1051,85 +1063,116 @@ export default function Home() {
                       কোনো টুর্নামেন্ট রেকর্ড পাওয়া যায়নি
                     </div>
                   ) : (
-                    <div className="grid gap-3">
+                    <div className="grid gap-3.5">
                       {playerTournamentHistory.map((t, idx) => {
+                        const hasMot = t.motCpot?.toUpperCase() === "MOT";
+                        const hasCpot = t.motCpot?.toUpperCase() === "CPOT";
                         const isTopScorer = Number(t.topScorer) === 1;
                         const isTopWicket = Number(t.topWicket) === 1;
+                        const hasSpecialAward = hasMot || hasCpot || isTopScorer || isTopWicket;
 
                         const cardBg =
                           cardTheme === "dark"
-                            ? isTopScorer || isTopWicket
-                              ? "border-[#f59e0b] bg-gradient-to-r from-[#211603] via-[#0d0a02] to-[#040813] shadow-[#f59e0b]/15 text-white"
-                              : "border-[#1e293b] bg-gradient-to-r from-[#0b1329] via-[#070e1e] to-[#040813] text-white"
-                            : isTopScorer || isTopWicket
-                            ? "border-[#f59e0b] bg-[#fffbeb] shadow-md text-[#1c1e21]"
-                            : "border-[#ced0d4] bg-white shadow-sm text-[#1c1e21]";
+                            ? hasSpecialAward
+                              ? "border-2 border-[#f59e0b] bg-gradient-to-r from-[#241804] via-[#120b02] to-[#040813] shadow-[0_0_20px_rgba(245,158,11,0.2)] text-white"
+                              : "border border-[#1e293b] bg-gradient-to-r from-[#0b1329] via-[#070e1e] to-[#040813] text-white"
+                            : hasSpecialAward
+                            ? "border-2 border-[#f59e0b] bg-gradient-to-r from-[#fffbeb] via-[#fef3c7] to-[#fffbeb] shadow-md text-[#1c1e21]"
+                            : "border border-[#ced0d4] bg-white shadow-sm text-[#1c1e21]";
 
                         const subBoxBg =
                           cardTheme === "dark"
-                            ? "bg-black/40 border-white/5"
-                            : "bg-[#F0F2F5] border-[#ced0d4]/40";
+                            ? "bg-black/50 border-white/5"
+                            : "bg-[#F0F2F5] border-[#ced0d4]/50";
 
                         const labelColor = cardTheme === "dark" ? "text-[#94a3b8]" : "text-[#65676B]";
                         const numColor = cardTheme === "dark" ? "text-white" : "text-[#050505]";
+                        const displayDate = formatSafeDate(t.time);
 
                         return (
-                          <div key={idx} className={`rounded-2xl border p-4 transition ${cardBg}`}>
+                          <div key={idx} className={`rounded-2xl p-4 transition ${cardBg}`}>
+                            {/* Card Header Row */}
                             <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-2.5 ${cardTheme === "dark" ? "border-white/10" : "border-[#ced0d4]"}`}>
                               <div className="flex items-center gap-2">
-                                <span className="rounded-lg bg-[#1877F2] px-2.5 py-0.5 text-xs font-black text-white">
+                                <span className="rounded-lg bg-[#1877F2] px-3 py-1 text-xs font-black text-white shadow-sm">
                                   {t.tournament}
                                 </span>
-                                <span className={`text-xs font-bold ${numColor}`}>{t.team}</span>
+                                <span className={`text-xs sm:text-sm font-black ${numColor}`}>{t.team}</span>
                               </div>
 
                               <div className="flex items-center gap-2">
                                 {t.chamRu && (
                                   <span
-                                    className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
+                                    className={`rounded-lg px-2.5 py-0.5 text-[11px] font-black uppercase ${
                                       t.chamRu.toLowerCase().includes("champ")
-                                        ? "bg-[#f59e0b]/20 border border-[#f59e0b]/50 text-[#d97706]"
-                                        : "bg-[#94a3b8]/20 border border-[#94a3b8]/50 text-[#64748b]"
+                                        ? "bg-[#f59e0b] text-black shadow-sm"
+                                        : "bg-[#64748b] text-white shadow-sm"
                                     }`}
                                   >
                                     {t.chamRu}
                                   </span>
                                 )}
-                                {t.time && <span className={`text-[11px] font-bold ${labelColor}`}>📅 {t.time}</span>}
+                                {displayDate && (
+                                  <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-md ${cardTheme === "dark" ? "bg-black/40 text-slate-300" : "bg-white border border-[#ced0d4] text-slate-700"}`}>
+                                    📅 {displayDate}
+                                  </span>
+                                )}
                               </div>
                             </div>
 
-                            {/* HIGHLIGHT BAR FOR TOP SCORER / TOP WICKET */}
-                            {(isTopScorer || isTopWicket) && (
-                              <div className={`mt-2.5 flex flex-wrap items-center gap-2 rounded-xl border px-3 py-1.5 ${cardTheme === "dark" ? "border-[#f59e0b]/40 bg-[#f59e0b]/10" : "border-[#f59e0b] bg-[#fef3c7]"}`}>
-                                {isTopScorer && (
-                                  <span className="flex items-center gap-1 text-[11px] font-black text-[#d97706]">
-                                    <span>🏏</span> TOP SCORER OF TOURNAMENT ({t.runs} Runs)
+                            {/* 🌟 BRIGHT PROMINENT HIGHLIGHT BAR FOR MOT / CPOT / TOP SCORER / TOP WICKET */}
+                            {hasSpecialAward && (
+                              <div
+                                className={`mt-3 flex flex-wrap items-center gap-2.5 rounded-xl px-3.5 py-2 border-2 shadow-md ${
+                                  cardTheme === "dark"
+                                    ? "border-[#f59e0b] bg-gradient-to-r from-[#b45309]/30 via-[#d97706]/20 to-[#b45309]/30"
+                                    : "border-[#f59e0b] bg-[#fff7ed]"
+                                }`}
+                              >
+                                {hasMot && (
+                                  <span className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-[#fbbf24] drop-shadow-[0_0_12px_rgba(251,191,36,0.7)]">
+                                    <span>👑</span> MAN OF THE TOURNAMENT (MOT)
                                   </span>
                                 )}
-                                {isTopScorer && isTopWicket && <span className="text-[#f59e0b]">•</span>}
+                                {hasCpot && (
+                                  <span className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-[#fde047] drop-shadow-[0_0_12px_rgba(253,224,71,0.7)]">
+                                    <span>⭐</span> COOL PLAYER OF THE TOURNAMENT (CPOT)
+                                  </span>
+                                )}
+                                {(hasMot || hasCpot) && (isTopScorer || isTopWicket) && (
+                                  <span className="text-[#f59e0b] font-bold">•</span>
+                                )}
+                                {isTopScorer && (
+                                  <span className="flex items-center gap-1 text-xs sm:text-sm font-black text-[#60a5fa] drop-shadow-[0_0_10px_rgba(96,165,250,0.6)]">
+                                    <span>🏏</span> TOP SCORER ({t.runs} Runs)
+                                  </span>
+                                )}
+                                {isTopScorer && isTopWicket && (
+                                  <span className="text-[#f59e0b] font-bold">•</span>
+                                )}
                                 {isTopWicket && (
-                                  <span className="flex items-center gap-1 text-[11px] font-black text-[#b45309]">
-                                    <span>🎯</span> TOP WICKET TAKER OF TOURNAMENT ({t.wickets} Wkts)
+                                  <span className="flex items-center gap-1 text-xs sm:text-sm font-black text-[#f472b6] drop-shadow-[0_0_10px_rgba(244,114,182,0.6)]">
+                                    <span>🎯</span> TOP WICKET TAKER ({t.wickets} Wkts)
                                   </span>
                                 )}
                               </div>
                             )}
 
+                            {/* 6-Grid Stats Numbers */}
                             <div className="mt-3 grid grid-cols-4 sm:grid-cols-6 gap-2 text-center text-xs">
                               <div className={`rounded-xl p-2 border ${subBoxBg}`}>
                                 <p className={`text-[10px] uppercase font-bold ${labelColor}`}>ম্যাচ</p>
                                 <p className={`font-black text-sm mt-0.5 ${numColor}`}>{t.matches}</p>
                               </div>
-                              <div className={`rounded-xl p-2 border ${isTopScorer ? "bg-[#f59e0b]/20 border-[#f59e0b]" : subBoxBg}`}>
+                              <div className={`rounded-xl p-2 border ${isTopScorer ? "bg-[#f59e0b]/25 border-2 border-[#f59e0b]" : subBoxBg}`}>
                                 <p className={`text-[10px] uppercase font-bold ${labelColor}`}>রান</p>
-                                <p className={`font-black text-sm mt-0.5 ${isTopScorer ? "text-[#d97706] text-base" : "text-[#16a34a]"}`}>
+                                <p className={`font-black text-sm mt-0.5 ${isTopScorer ? "text-[#fbbf24] text-base font-black drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" : "text-[#22c55e]"}`}>
                                   {t.runs}
                                 </p>
                               </div>
-                              <div className={`rounded-xl p-2 border ${isTopWicket ? "bg-[#f59e0b]/20 border-[#f59e0b]" : subBoxBg}`}>
+                              <div className={`rounded-xl p-2 border ${isTopWicket ? "bg-[#f59e0b]/25 border-2 border-[#f59e0b]" : subBoxBg}`}>
                                 <p className={`text-[10px] uppercase font-bold ${labelColor}`}>উইকেট</p>
-                                <p className={`font-black text-sm mt-0.5 ${isTopWicket ? "text-[#d97706] text-base" : "text-[#d97706]"}`}>
+                                <p className={`font-black text-sm mt-0.5 ${isTopWicket ? "text-[#fbbf24] text-base font-black drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" : "text-[#f59e0b]"}`}>
                                   {t.wickets}
                                 </p>
                               </div>
@@ -1141,10 +1184,10 @@ export default function Home() {
                                 <p className={`text-[10px] uppercase font-bold ${labelColor}`}>৪ / ৬</p>
                                 <p className="font-black text-[#0284c7] text-sm mt-0.5">{t.fours} / {t.sixes}</p>
                               </div>
-                              <div className={`rounded-xl p-2 border ${subBoxBg}`}>
+                              <div className={`rounded-xl p-2 border ${hasMot || hasCpot ? "bg-[#f59e0b]/25 border-2 border-[#f59e0b]" : subBoxBg}`}>
                                 <p className={`text-[10px] uppercase font-bold ${labelColor}`}>অ্যাওয়ার্ড</p>
-                                <p className="font-black text-[#7c3aed] text-sm mt-0.5 truncate">
-                                  {t.motCpot || (t.mom ? `${t.mom}x MOM` : "—")}
+                                <p className="font-black text-sm mt-0.5 truncate text-[#ec4899]">
+                                  {hasMot ? "👑 MOT" : hasCpot ? "⭐ CPOT" : t.mom ? `🎖️ ${t.mom}x MOM` : "—"}
                                 </p>
                               </div>
                             </div>

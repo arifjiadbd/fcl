@@ -59,6 +59,18 @@ interface TournamentRecord {
   topWicket: number;
 }
 
+function formatSafeDate(val: any): string {
+  if (!val) return "";
+  const num = Number(val);
+  if (!isNaN(num) && num > 20000 && num < 60000) {
+    const utcDays = Math.floor(num - 25569);
+    const dateInfo = new Date(utcDays * 86400 * 1000);
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${months[dateInfo.getUTCMonth()]} ${dateInfo.getUTCFullYear()}`;
+  }
+  return String(val).trim().slice(0, 10);
+}
+
 export const calculateFclPoints = (p: Player): number => {
   const runs = Number(p.runs) || 0;
   const sixes = Number(p.sixes) || 0;
@@ -168,7 +180,7 @@ export default function BengaliFacebookHome() {
 
   return (
     <main className="min-h-screen bg-[#F0F2F5] text-[#1c1e21] font-sans antialiased selection:bg-[#1877F2]/20 selection:text-[#1877F2]">
-      {/* 🔵 Classic Facebook Top Bar */}
+      {/* Facebook Top Bar */}
       <header className="sticky top-0 z-40 bg-white border-b border-[#ced0d4] shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
           <Link href="/bn" className="flex items-center gap-2">
@@ -245,7 +257,7 @@ export default function BengaliFacebookHome() {
         </div>
       </section>
 
-      {/* 🌟 RICH TOP 3 MVP CARDS (FIXED BROKEN IMAGES) */}
+      {/* 🌟 ALL-TIME TOP 3 MVP CARDS */}
       <section className="mx-auto max-w-5xl px-4 py-10">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
@@ -524,67 +536,134 @@ export default function BengaliFacebookHome() {
                   </div>
                 </div>
               ) : (
-                /* TAB 2: TOURNAMENT HISTORY IN FACEBOOK VIEW (THEME ADAPTIVE) */
+                /* TAB 2: TOURNAMENT HISTORY WITH PROMINENT MOT/CPOT HIGHLIGHT */
                 <div className="space-y-4">
                   <div className={`flex items-center justify-between border-b pb-3 ${cardTheme === "dark" ? "border-[#1e293b]" : "border-[#ced0d4]"}`}>
                     <div>
-                      <h4 className={`text-base font-black ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>📊 {selectedPlayer.name} এর টুর্নামেন্ট ইতিহাস</h4>
-                      <p className="text-xs text-[#65676B]">অংশগ্রহণ করা প্রতিটি আসরের ইন্ডিভিজুয়াল পারফরম্যান্স</p>
+                      <h4 className={`text-base sm:text-xl font-black flex items-center gap-2 ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>
+                        <span>📊</span>
+                        <span>{selectedPlayer.name} এর টুর্নামেন্ট ইতিহাস</span>
+                      </h4>
+                      <p className={`text-xs mt-0.5 font-medium ${cardTheme === "dark" ? "text-[#94a3b8]" : "text-[#475569]"}`}>
+                        অংশগ্রহণ করা প্রতিটি আসরের ইন্ডিভিজুয়াল পারফরম্যান্স
+                      </p>
                     </div>
-                    <span className="rounded-lg bg-[#E7F3FF] border border-[#1877F2]/30 px-3 py-1 text-xs font-bold text-[#1877F2]">
+                    <span className={`rounded-xl px-3 py-1.5 text-xs font-bold ${cardTheme === "dark" ? "bg-[#1877F2]/25 border border-[#1877F2]/50 text-[#60a5fa]" : "bg-[#E7F3FF] border border-[#1877F2]/40 text-[#1877F2]"}`}>
                       মোট {playerTournamentHistory.length} টি আসর
                     </span>
                   </div>
 
-                  <div className="grid gap-3">
+                  <div className="grid gap-3.5">
                     {playerTournamentHistory.map((t, idx) => {
+                      const hasMot = t.motCpot?.toUpperCase() === "MOT";
+                      const hasCpot = t.motCpot?.toUpperCase() === "CPOT";
                       const isTopScorer = Number(t.topScorer) === 1;
                       const isTopWicket = Number(t.topWicket) === 1;
+                      const hasSpecialAward = hasMot || hasCpot || isTopScorer || isTopWicket;
+
+                      const cardBg =
+                        cardTheme === "dark"
+                          ? hasSpecialAward
+                            ? "border-2 border-[#f59e0b] bg-gradient-to-r from-[#241804] via-[#120b02] to-[#040813] shadow-[0_0_20px_rgba(245,158,11,0.2)] text-white"
+                            : "border border-[#1e293b] bg-gradient-to-r from-[#0b1329] via-[#070e1e] to-[#040813] text-white"
+                          : hasSpecialAward
+                          ? "border-2 border-[#f59e0b] bg-gradient-to-r from-[#fffbeb] via-[#fef3c7] to-[#fffbeb] shadow-md text-[#1c1e21]"
+                          : "border border-[#ced0d4] bg-white shadow-sm text-[#1c1e21]";
+
+                      const subBoxBg =
+                        cardTheme === "dark"
+                          ? "bg-black/50 border-white/5"
+                          : "bg-[#F0F2F5] border-[#ced0d4]/50";
+
+                      const labelColor = cardTheme === "dark" ? "text-[#94a3b8]" : "text-[#65676B]";
+                      const numColor = cardTheme === "dark" ? "text-white" : "text-[#050505]";
+                      const displayDate = formatSafeDate(t.time);
 
                       return (
-                        <div key={idx} className={`rounded-2xl border p-4 shadow-sm ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070e1e] text-white" : "border-[#ced0d4] bg-white text-[#1c1e21]"}`}>
-                          <div className={`flex items-center justify-between border-b pb-2 ${cardTheme === "dark" ? "border-white/10" : "border-[#ced0d4]"}`}>
+                        <div key={idx} className={`rounded-2xl p-4 transition ${cardBg}`}>
+                          <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-2.5 ${cardTheme === "dark" ? "border-white/10" : "border-[#ced0d4]"}`}>
                             <div className="flex items-center gap-2">
-                              <span className="rounded-lg bg-[#1877F2] px-2.5 py-0.5 text-xs font-black text-white">{t.tournament}</span>
-                              <span className="text-xs font-bold">{t.team}</span>
+                              <span className="rounded-lg bg-[#1877F2] px-3 py-1 text-xs font-black text-white shadow-sm">{t.tournament}</span>
+                              <span className={`text-xs sm:text-sm font-black ${numColor}`}>{t.team}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              {t.chamRu && <span className="rounded bg-[#fef3c7] text-[#d97706] px-2 py-0.5 text-[10px] font-black">{t.chamRu}</span>}
-                              {t.time && <span className="text-[11px] text-[#65676B] font-semibold">📅 {t.time}</span>}
+                              {t.chamRu && (
+                                <span className={`rounded-lg px-2.5 py-0.5 text-[11px] font-black uppercase ${t.chamRu.toLowerCase().includes("champ") ? "bg-[#f59e0b] text-black shadow-sm" : "bg-[#64748b] text-white shadow-sm"}`}>
+                                  {t.chamRu}
+                                </span>
+                              )}
+                              {displayDate && (
+                                <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-md ${cardTheme === "dark" ? "bg-black/40 text-slate-300" : "bg-white border border-[#ced0d4] text-slate-700"}`}>
+                                  📅 {displayDate}
+                                </span>
+                              )}
                             </div>
                           </div>
 
-                          {(isTopScorer || isTopWicket) && (
-                            <div className="mt-2 flex gap-2 rounded-lg bg-[#fef3c7] border border-[#f59e0b] px-3 py-1 text-xs font-black text-[#d97706]">
-                              {isTopScorer && <span>🏏 TOP SCORER ({t.runs} Runs)</span>}
-                              {isTopWicket && <span>🎯 TOP WICKET ({t.wickets} Wkts)</span>}
+                          {/* 🌟 PROMINENT MOT / CPOT / TOP SCORER HIGHLIGHT BAR */}
+                          {hasSpecialAward && (
+                            <div
+                              className={`mt-3 flex flex-wrap items-center gap-2.5 rounded-xl px-3.5 py-2 border-2 shadow-md ${
+                                cardTheme === "dark"
+                                  ? "border-[#f59e0b] bg-gradient-to-r from-[#b45309]/30 via-[#d97706]/20 to-[#b45309]/30"
+                                  : "border-[#f59e0b] bg-[#fff7ed]"
+                              }`}
+                            >
+                              {hasMot && (
+                                <span className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-[#fbbf24] drop-shadow-[0_0_12px_rgba(251,191,36,0.7)]">
+                                  <span>👑</span> MAN OF THE TOURNAMENT (MOT)
+                                </span>
+                              )}
+                              {hasCpot && (
+                                <span className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-[#fde047] drop-shadow-[0_0_12px_rgba(253,224,71,0.7)]">
+                                  <span>⭐</span> COOL PLAYER OF THE TOURNAMENT (CPOT)
+                                </span>
+                              )}
+                              {(hasMot || hasCpot) && (isTopScorer || isTopWicket) && (
+                                <span className="text-[#f59e0b] font-bold">•</span>
+                              )}
+                              {isTopScorer && (
+                                <span className="flex items-center gap-1 text-xs sm:text-sm font-black text-[#60a5fa] drop-shadow-[0_0_10px_rgba(96,165,250,0.6)]">
+                                  <span>🏏</span> TOP SCORER ({t.runs} Runs)
+                                </span>
+                              )}
+                              {isTopScorer && isTopWicket && (
+                                <span className="text-[#f59e0b] font-bold">•</span>
+                              )}
+                              {isTopWicket && (
+                                <span className="flex items-center gap-1 text-xs sm:text-sm font-black text-[#f472b6] drop-shadow-[0_0_10px_rgba(244,114,182,0.6)]">
+                                  <span>🎯</span> TOP WICKET TAKER ({t.wickets} Wkts)
+                                </span>
+                              )}
                             </div>
                           )}
 
                           <div className="mt-3 grid grid-cols-4 sm:grid-cols-6 gap-2 text-center text-xs">
-                            <div className={`p-2 rounded-xl ${cardTheme === "dark" ? "bg-black/40" : "bg-[#F0F2F5]"}`}>
-                              <p className="text-[10px] text-[#65676B]">ম্যাচ</p>
-                              <p className="font-black text-sm">{t.matches}</p>
+                            <div className={`rounded-xl p-2 border ${subBoxBg}`}>
+                              <p className={`text-[10px] uppercase font-bold ${labelColor}`}>ম্যাচ</p>
+                              <p className={`font-black text-sm mt-0.5 ${numColor}`}>{t.matches}</p>
                             </div>
-                            <div className={`p-2 rounded-xl ${isTopScorer ? "bg-[#fef3c7]" : cardTheme === "dark" ? "bg-black/40" : "bg-[#F0F2F5]"}`}>
-                              <p className="text-[10px] text-[#65676B]">রান</p>
-                              <p className={`font-black text-sm ${isTopScorer ? "text-[#d97706]" : "text-[#16a34a]"}`}>{t.runs}</p>
+                            <div className={`rounded-xl p-2 border ${isTopScorer ? "bg-[#f59e0b]/25 border-2 border-[#f59e0b]" : subBoxBg}`}>
+                              <p className={`text-[10px] uppercase font-bold ${labelColor}`}>রান</p>
+                              <p className={`font-black text-sm mt-0.5 ${isTopScorer ? "text-[#d97706] text-base" : "text-[#16a34a]"}`}>{t.runs}</p>
                             </div>
-                            <div className={`p-2 rounded-xl ${isTopWicket ? "bg-[#fef3c7]" : cardTheme === "dark" ? "bg-black/40" : "bg-[#F0F2F5]"}`}>
-                              <p className="text-[10px] text-[#65676B]">উইকেট</p>
-                              <p className={`font-black text-sm ${isTopWicket ? "text-[#d97706]" : "text-[#d97706]"}`}>{t.wickets}</p>
+                            <div className={`rounded-xl p-2 border ${isTopWicket ? "bg-[#f59e0b]/25 border-2 border-[#f59e0b]" : subBoxBg}`}>
+                              <p className={`text-[10px] uppercase font-bold ${labelColor}`}>উইকেট</p>
+                              <p className={`font-black text-sm mt-0.5 ${isTopWicket ? "text-[#d97706] text-base" : "text-[#d97706]"}`}>{t.wickets}</p>
                             </div>
-                            <div className={`p-2 rounded-xl ${cardTheme === "dark" ? "bg-black/40" : "bg-[#F0F2F5]"}`}>
-                              <p className="text-[10px] text-[#65676B]">ইনিংস</p>
-                              <p className="font-black text-sm">{t.innings}</p>
+                            <div className={`rounded-xl p-2 border ${subBoxBg}`}>
+                              <p className={`text-[10px] uppercase font-bold ${labelColor}`}>ইনিংস</p>
+                              <p className={`font-black text-sm mt-0.5 ${numColor}`}>{t.innings}</p>
                             </div>
-                            <div className={`p-2 rounded-xl ${cardTheme === "dark" ? "bg-black/40" : "bg-[#F0F2F5]"}`}>
-                              <p className="text-[10px] text-[#65676B]">৪ / ৬</p>
-                              <p className="font-black text-[#0284c7] text-sm">{t.fours} / {t.sixes}</p>
+                            <div className={`rounded-xl p-2 border ${subBoxBg}`}>
+                              <p className={`text-[10px] uppercase font-bold ${labelColor}`}>৪ / ৬</p>
+                              <p className="font-black text-[#0284c7] text-sm mt-0.5">{t.fours} / {t.sixes}</p>
                             </div>
-                            <div className={`p-2 rounded-xl ${cardTheme === "dark" ? "bg-black/40" : "bg-[#F0F2F5]"}`}>
-                              <p className="text-[10px] text-[#65676B]">অ্যাওয়ার্ড</p>
-                              <p className="font-black text-[#7c3aed] text-sm truncate">{t.motCpot || (t.mom ? `${t.mom}x MOM` : "—")}</p>
+                            <div className={`rounded-xl p-2 border ${hasMot || hasCpot ? "bg-[#f59e0b]/25 border-2 border-[#f59e0b]" : subBoxBg}`}>
+                              <p className={`text-[10px] uppercase font-bold ${labelColor}`}>অ্যাওয়ার্ড</p>
+                              <p className="font-black text-sm mt-0.5 truncate text-[#ec4899]">
+                                {hasMot ? "👑 MOT" : hasCpot ? "⭐ CPOT" : t.mom ? `🎖️ ${t.mom}x MOM` : "—"}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -595,6 +674,7 @@ export default function BengaliFacebookHome() {
               )}
             </div>
 
+            {/* Bottom Actions */}
             <div className={`shrink-0 flex gap-2 border-t p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#0b1329]" : "border-[#ced0d4] bg-white"}`}>
               {activeTab === "card" ? (
                 <button onClick={handleDownloadCard} className="flex-1 rounded-xl bg-[#1877F2] py-2.5 text-xs font-bold text-white shadow">

@@ -3,7 +3,6 @@ import path from "path";
 import fs from "fs";
 import * as XLSX from "xlsx";
 
-// 📅 এক্সেল সিরিয়াল নম্বর (যেমন 41334) কে 'Mar 2013' এ রূপান্তর করার ফাংশন
 function formatExcelDate(val: any): string {
   if (!val) return "";
   const num = Number(val);
@@ -17,7 +16,15 @@ function formatExcelDate(val: any): string {
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     return `${months[val.getMonth()]} ${val.getFullYear()}`;
   }
-  return String(val).trim().slice(0, 10);
+  const str = String(val).trim();
+  const strNum = parseFloat(str);
+  if (!isNaN(strNum) && strNum > 20000 && strNum < 60000) {
+    const utcDays = Math.floor(strNum - 25569);
+    const dateInfo = new Date(utcDays * 86400 * 1000);
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${months[dateInfo.getUTCMonth()]} ${dateInfo.getUTCFullYear()}`;
+  }
+  return str.slice(0, 10);
 }
 
 export async function GET() {
