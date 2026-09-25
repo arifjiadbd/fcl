@@ -147,9 +147,6 @@ export default function Home() {
   const topHatTrickPlayer = [...playersData].sort((a, b) => (b.hatTricks || 0) - (a.hatTricks || 0))[0];
   const mostMotPlayer = [...playersData].sort((a, b) => ((b.mot || 0) + (b.cpot || 0)) - ((a.mot || 0) + (a.cpot || 0)))[0];
 
-  const totalCommunityRuns = playersData.reduce((acc, curr) => acc + (curr.runs || 0), 0);
-  const totalCommunityWickets = playersData.reduce((acc, curr) => acc + (curr.wickets || 0), 0);
-
   const getRank = (player: Player, type: "mvp" | "runs" | "wickets" | "sixes" | "champion") => {
     const sorted = [...playersData].sort((a, b) => {
       if (type === "mvp") return calculateFclPoints(b) - calculateFclPoints(a);
@@ -177,6 +174,16 @@ export default function Home() {
         );
       })
     : [];
+
+  const getDebutTournament = (p: Player) => {
+    if (p.debutTournament && p.debutTournament !== "—" && p.debutTournament !== "") {
+      return p.debutTournament;
+    }
+    if (playerTournamentHistory.length > 0) {
+      return playerTournamentHistory[0].tournament;
+    }
+    return "—";
+  };
 
   return (
     <main className="min-h-screen bg-[#020617] text-white selection:bg-[#1877F2]/30 selection:text-white">
@@ -267,7 +274,7 @@ export default function Home() {
                 </span>
               </h2>
               <p className="mx-auto mt-7 max-w-[540px] text-sm leading-7 text-[#94a3b8] md:text-base lg:mx-0">
-                From different districts of Bangladesh to different corners of the world, we play, compete and connect through FCL.
+                From different districts of Bangladesh to different corners of the world, we play, compete and connect through FCL. Distance may separate us, but the game brings us together.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row lg:justify-start">
                 <Link href="/players" className="rounded-xl bg-[#1877F2] px-7 py-3.5 text-sm font-bold text-white shadow-[0_12px_40px_rgba(24,119,242,0.25)] hover:bg-[#0d6fe8] transition">
@@ -288,7 +295,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 🌟 100% RESTORED ABOUT FCL SECTION */}
+      {/* About FCL Section */}
       <section id="about" className="relative overflow-hidden border-b border-[#172033] bg-[#030712] py-24">
         <div className="absolute left-[-180px] top-20 h-[400px] w-[400px] rounded-full bg-[#1877F2]/10 blur-[120px]" />
         <div className="absolute right-[-180px] bottom-10 h-[400px] w-[400px] rounded-full bg-[#7c3aed]/10 blur-[120px]" />
@@ -335,7 +342,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 🌟 100% RESTORED ALL-TIME TOP 3 MVP LEGENDS PODIUM */}
+      {/* 🌟 ALL-TIME TOP 3 MVP LEGENDS PODIUM */}
       <section id="mvp-podium" className="relative overflow-hidden border-t border-[#172033] bg-[#020617] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <div className="pointer-events-none absolute left-1/2 top-0 h-96 w-96 -translate-x-1/2 rounded-full bg-[#f59e0b]/10 blur-[130px]" />
@@ -347,14 +354,10 @@ export default function Home() {
                 <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#f59e0b]">FCL PINNACLE RATING</p>
               </div>
               <h3 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-5xl">All-Time Top 3 MVP Legends</h3>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-[#94a3b8]">
-                The highest-impact players in FCL history, dynamically evaluated through total runs, wickets, tournament championships, and awards. Click any card to inspect full stats.
-              </p>
             </div>
-
             <Link
               href="/rankings"
-              className="rounded-xl border border-[#f59e0b]/50 bg-gradient-to-r from-[#2a1b04] to-[#170f02] px-6 py-3 text-xs font-black text-[#fbbf24] shadow-lg shadow-[#f59e0b]/20 hover:border-[#f59e0b] transition"
+              className="rounded-xl border border-[#f59e0b]/50 bg-gradient-to-r from-[#2a1b04] to-[#170f02] px-6 py-3 text-xs font-black text-[#fbbf24] shadow-lg hover:border-[#f59e0b] transition"
             >
               👑 View Complete MVP Leaderboard →
             </Link>
@@ -364,40 +367,12 @@ export default function Home() {
             {top3Mvp.map((player, idx) => {
               const rank = idx + 1;
               const points = calculateFclPoints(player);
-
               const badgeColors =
                 rank === 1
-                  ? {
-                      border: "border-2 border-[#f59e0b] shadow-[0_0_30px_rgba(245,158,11,0.25)]",
-                      bg: "bg-gradient-to-b from-[#1c1203] via-[#0d0901] to-[#040300]",
-                      tag: "border-[#f59e0b]/50 bg-[#f59e0b]/20 text-[#fbbf24]",
-                      badge: "bg-[#f59e0b] text-black font-black",
-                      glow: "via-[#f59e0b]",
-                      highlight: "text-[#fbbf24] drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]",
-                      icon: "👑",
-                      label: "GOLD MEDALIST • #01 MVP",
-                    }
+                  ? { border: "border-2 border-[#f59e0b] shadow-[0_0_30px_rgba(245,158,11,0.25)]", bg: "bg-gradient-to-b from-[#1c1203] via-[#0d0901] to-[#040300]", tag: "border-[#f59e0b]/50 bg-[#f59e0b]/20 text-[#fbbf24]", badge: "bg-[#f59e0b] text-black font-black", highlight: "text-[#fbbf24]", icon: "👑", label: "GOLD MEDALIST • #01 MVP" }
                   : rank === 2
-                  ? {
-                      border: "border-2 border-[#94a3b8] shadow-[0_0_30px_rgba(148,163,184,0.2)]",
-                      bg: "bg-gradient-to-b from-[#171d28] via-[#0c1017] to-[#030508]",
-                      tag: "border-[#94a3b8]/50 bg-[#94a3b8]/20 text-[#e2e8f0]",
-                      badge: "bg-[#cbd5e1] text-black font-black",
-                      glow: "via-[#cbd5e1]",
-                      highlight: "text-[#f1f5f9] drop-shadow-[0_0_15px_rgba(203,213,225,0.5)]",
-                      icon: "🥈",
-                      label: "SILVER MEDALIST • #02 MVP",
-                    }
-                  : {
-                      border: "border-2 border-[#d97706] shadow-[0_0_30px_rgba(217,119,6,0.2)]",
-                      bg: "bg-gradient-to-b from-[#1a1005] via-[#0e0802] to-[#030200]",
-                      tag: "border-[#d97706]/50 bg-[#d97706]/20 text-[#fcd34d]",
-                      badge: "bg-[#d97706] text-white font-black",
-                      glow: "via-[#d97706]",
-                      highlight: "text-[#fbbf24] drop-shadow-[0_0_15px_rgba(217,119,6,0.5)]",
-                      icon: "🥉",
-                      label: "BRONZE MEDALIST • #03 MVP",
-                    };
+                  ? { border: "border-2 border-[#94a3b8] shadow-[0_0_30px_rgba(148,163,184,0.2)]", bg: "bg-gradient-to-b from-[#171d28] via-[#0c1017] to-[#030508]", tag: "border-[#94a3b8]/50 bg-[#94a3b8]/20 text-[#e2e8f0]", badge: "bg-[#cbd5e1] text-black font-black", highlight: "text-[#f1f5f9]", icon: "🥈", label: "SILVER MEDALIST • #02 MVP" }
+                  : { border: "border-2 border-[#d97706] shadow-[0_0_30px_rgba(217,119,6,0.2)]", bg: "bg-gradient-to-b from-[#1a1005] via-[#0e0802] to-[#030200]", tag: "border-[#d97706]/50 bg-[#d97706]/20 text-[#fcd34d]", badge: "bg-[#d97706] text-white font-black", highlight: "text-[#fbbf24]", icon: "🥉", label: "BRONZE MEDALIST • #03 MVP" };
 
               return (
                 <div
@@ -405,39 +380,22 @@ export default function Home() {
                   onClick={() => { setSelectedPlayer(player); setActiveTab("card"); }}
                   className={`group relative cursor-pointer overflow-hidden rounded-[2rem] ${badgeColors.border} ${badgeColors.bg} p-6 sm:p-7 transition-all duration-300 hover:-translate-y-2`}
                 >
-                  <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-transparent ${badgeColors.glow} to-transparent`} />
-
                   <div className="flex items-center justify-between">
                     <span className={`rounded-xl border px-3.5 py-1.5 text-[11px] font-black uppercase tracking-wider ${badgeColors.tag}`}>
                       {badgeColors.icon} {badgeColors.label}
                     </span>
-                    <span className={`flex h-8 w-8 items-center justify-center rounded-xl text-sm ${badgeColors.badge}`}>
-                      #{rank}
-                    </span>
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-xl text-sm ${badgeColors.badge}`}>#{rank}</span>
                   </div>
 
                   <div className="mt-6 flex items-center gap-4">
-                    <div className="relative h-18 w-18 shrink-0 overflow-hidden rounded-2xl border-2 border-white/10 bg-[#0b1329] p-0.5 shadow-lg group-hover:scale-105 transition">
-                      <img
-                        src={`/players/${(player.nickName || "").toLowerCase().trim()}.jpg`}
-                        alt={player.name}
-                        className="h-full w-full rounded-xl object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                          e.currentTarget.parentElement!.innerHTML = `<div class="flex h-full w-full items-center justify-center text-3xl">${badgeColors.icon}</div>`;
-                        }}
-                      />
+                    <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2 border-white/10 bg-[#0f172a] text-3xl shadow-lg">
+                      {badgeColors.icon}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h4 className="text-xl sm:text-2xl font-black text-white group-hover:text-[#60a5fa] transition break-words leading-snug">
+                      <h4 className="text-xl sm:text-2xl font-black text-white group-hover:text-[#60a5fa] transition break-words leading-tight">
                         {player.name}
                       </h4>
-                      <p className="text-xs font-semibold text-[#94a3b8] truncate mt-0.5">
-                        @{player.nickName || player.name} • {player.role || "All-Rounder"}
-                      </p>
-                      <p className="text-[11px] text-[#64748b] mt-0.5 font-medium">
-                        {player.matches} Matches • {player.champion || 0}x Champion
-                      </p>
+                      <p className="text-xs text-[#94a3b8] mt-0.5">@{player.nickName || player.name} • {player.role}</p>
                     </div>
                   </div>
 
@@ -462,11 +420,6 @@ export default function Home() {
                       <p className="text-[10px] uppercase font-bold tracking-wider text-[#64748b] mt-0.5">TROPHIES</p>
                     </div>
                   </div>
-
-                  <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-3.5 text-xs text-[#94a3b8]">
-                    <span>FCL League Rating</span>
-                    <span className="font-extrabold text-white group-hover:underline">Open Official Card →</span>
-                  </div>
                 </div>
               );
             })}
@@ -474,7 +427,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 🏆 100% RESTORED FCL RECORD CORNER */}
+      {/* 🏆 100% AUTHENTIC FCL RECORD CORNER (8 CARDS WITH INNER BOXES, ICONS & FOOTER BAR) */}
       <section id="records" className="relative overflow-hidden border-t border-[#172033] bg-[#02050b] px-6 py-24">
         <div className="mx-auto max-w-7xl">
           <div className="pointer-events-none absolute right-0 top-0 h-96 w-96 rounded-full bg-[#1877F2]/10 blur-[130px]" />
@@ -490,19 +443,16 @@ export default function Home() {
             </div>
             <Link
               href="/records"
-              className="rounded-xl border border-[#1877F2]/50 bg-gradient-to-r from-[#0d1c38] to-[#071124] px-6 py-3 text-xs font-black text-[#60a5fa] shadow-lg shadow-[#1877F2]/20 hover:border-[#1877F2] transition"
+              className="rounded-xl border border-[#1877F2]/50 bg-gradient-to-r from-[#0d1c38] to-[#071124] px-6 py-3 text-xs font-black text-[#60a5fa] shadow-lg hover:border-[#1877F2] transition"
             >
               View Hall of Fame Cabinet →
             </Link>
           </div>
 
+          {/* 🌟 4x2 GRID RESTORED TO PERFECTION (8 CARDS AS SHOWN IN IMAGE 1) */}
           <div className="relative grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {/* 1. Champion */}
-            <div
-              onClick={() => { setSelectedPlayer(mostChampionshipPlayer); setActiveTab("card"); }}
-              className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#eab308]/40 bg-gradient-to-b from-[#211704] to-[#0c0801] p-6 hover:-translate-y-2 hover:border-[#eab308] transition flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#eab308] to-transparent" />
+            <div onClick={() => { setSelectedPlayer(mostChampionshipPlayer); setActiveTab("card"); }} className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#eab308]/40 bg-gradient-to-b from-[#211704] to-[#0c0801] p-6 hover:-translate-y-2 hover:border-[#eab308] transition flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="rounded-lg border border-[#eab308]/40 bg-[#eab308]/15 px-3 py-1 text-[10px] font-black uppercase text-[#fde047]">🏆 CHAMPION</span>
@@ -519,22 +469,18 @@ export default function Home() {
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#eab308]/30 bg-[#1f1707] text-2xl">⭐</div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">RECORD HOLDER</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#fde047] transition truncate">{mostChampionshipPlayer?.name || "Arif Ziad"}</h4>
+                    <h4 className="text-base font-black text-white group-hover:text-[#fde047] transition break-words leading-tight">{mostChampionshipPlayer?.name || "Arif Ziad"}</h4>
                   </div>
                 </div>
                 <div className="mt-5 flex items-center justify-between border-t border-[#2e2008] pt-3 text-[10px] text-[#64748b]">
                   <span>Most Titles</span>
-                  <span className="text-[#fde047] font-bold">Open Card →</span>
+                  <span className="text-[#fde047] font-bold group-hover:underline">Open Card →</span>
                 </div>
               </div>
             </div>
 
-            {/* 2. Runs */}
-            <div
-              onClick={() => { setSelectedPlayer(topRunScorer); setActiveTab("card"); }}
-              className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#1877F2]/40 bg-gradient-to-b from-[#0b1329] to-[#040817] p-6 hover:-translate-y-2 hover:border-[#1877F2] transition flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#1877F2] to-transparent" />
+            {/* 2. All-Time Runs */}
+            <div onClick={() => { setSelectedPlayer(topRunScorer); setActiveTab("card"); }} className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#1877F2]/40 bg-gradient-to-b from-[#0b1329] to-[#040817] p-6 hover:-translate-y-2 hover:border-[#1877F2] transition flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="rounded-lg border border-[#1877F2]/40 bg-[#1877F2]/15 px-3 py-1 text-[10px] font-black uppercase text-[#60a5fa]">🏏 ALL-TIME RUNS</span>
@@ -551,22 +497,18 @@ export default function Home() {
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#1877F2]/30 bg-[#111936] text-2xl">👑</div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">RECORD HOLDER</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#60a5fa] transition truncate">{topRunScorer?.name || "Jahin Shahriar Chowdhury"}</h4>
+                    <h4 className="text-base font-black text-white group-hover:text-[#60a5fa] transition break-words leading-tight">{topRunScorer?.name || "Jahin Shahriar Chowdhury"}</h4>
                   </div>
                 </div>
                 <div className="mt-5 flex items-center justify-between border-t border-[#17233f] pt-3 text-[10px] text-[#64748b]">
                   <span>Run King</span>
-                  <span className="text-[#60a5fa] font-bold">Open Card →</span>
+                  <span className="text-[#60a5fa] font-bold group-hover:underline">Open Card →</span>
                 </div>
               </div>
             </div>
 
-            {/* 3. Wickets */}
-            <div
-              onClick={() => { setSelectedPlayer(topWicketTaker); setActiveTab("card"); }}
-              className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#f59e0b]/40 bg-gradient-to-b from-[#211603] to-[#0c0801] p-6 hover:-translate-y-2 hover:border-[#f59e0b] transition flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#f59e0b] to-transparent" />
+            {/* 3. All-Time Wickets */}
+            <div onClick={() => { setSelectedPlayer(topWicketTaker); setActiveTab("card"); }} className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#f59e0b]/40 bg-gradient-to-b from-[#211603] to-[#0c0801] p-6 hover:-translate-y-2 hover:border-[#f59e0b] transition flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="rounded-lg border border-[#f59e0b]/40 bg-[#f59e0b]/15 px-3 py-1 text-[10px] font-black uppercase text-[#fbbf24]">🎯 ALL-TIME WICKETS</span>
@@ -583,22 +525,18 @@ export default function Home() {
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#f59e0b]/30 bg-[#1f1707] text-2xl">⚡</div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">RECORD HOLDER</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#fbbf24] transition truncate">{topWicketTaker?.name || "Zaheed Hasan"}</h4>
+                    <h4 className="text-base font-black text-white group-hover:text-[#fbbf24] transition break-words leading-tight">{topWicketTaker?.name || "Zaheed Hasan"}</h4>
                   </div>
                 </div>
                 <div className="mt-5 flex items-center justify-between border-t border-[#2e2008] pt-3 text-[10px] text-[#64748b]">
                   <span>Strike Bowler</span>
-                  <span className="text-[#fbbf24] font-bold">Open Card →</span>
+                  <span className="text-[#fbbf24] font-bold group-hover:underline">Open Card →</span>
                 </div>
               </div>
             </div>
 
-            {/* 4. Finals */}
-            <div
-              onClick={() => { setSelectedPlayer(mostFinalsPlayer); setActiveTab("card"); }}
-              className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#38bdf8]/40 bg-gradient-to-b from-[#081a29] to-[#020912] p-6 hover:-translate-y-2 hover:border-[#38bdf8] transition flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#38bdf8] to-transparent" />
+            {/* 4. Total Finals */}
+            <div onClick={() => { setSelectedPlayer(mostFinalsPlayer); setActiveTab("card"); }} className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#38bdf8]/40 bg-gradient-to-b from-[#081a29] to-[#020912] p-6 hover:-translate-y-2 hover:border-[#38bdf8] transition flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="rounded-lg border border-[#38bdf8]/40 bg-[#38bdf8]/15 px-3 py-1 text-[10px] font-black uppercase text-[#38bdf8]">⚔️ TOTAL FINALS</span>
@@ -615,22 +553,18 @@ export default function Home() {
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#38bdf8]/30 bg-[#0c2438] text-2xl">🛡️</div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">RECORD HOLDER</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#38bdf8] transition truncate">{mostFinalsPlayer?.name || "Tanvir Shakib"}</h4>
+                    <h4 className="text-base font-black text-white group-hover:text-[#38bdf8] transition break-words leading-tight">{mostFinalsPlayer?.name || "Tanvir Shakib"}</h4>
                   </div>
                 </div>
                 <div className="mt-5 flex items-center justify-between border-t border-[#132d42] pt-3 text-[10px] text-[#64748b]">
                   <span>Big Match Legend</span>
-                  <span className="text-[#38bdf8] font-bold">Open Card →</span>
+                  <span className="text-[#38bdf8] font-bold group-hover:underline">Open Card →</span>
                 </div>
               </div>
             </div>
 
-            {/* 5. Matches */}
-            <div
-              onClick={() => { setSelectedPlayer(mostMatchesPlayer); setActiveTab("card"); }}
-              className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#22c55e]/40 bg-gradient-to-b from-[#091f13] to-[#020d07] p-6 hover:-translate-y-2 hover:border-[#22c55e] transition flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#22c55e] to-transparent" />
+            {/* 5. Most Matches */}
+            <div onClick={() => { setSelectedPlayer(mostMatchesPlayer); setActiveTab("card"); }} className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#22c55e]/40 bg-gradient-to-b from-[#091f13] to-[#020d07] p-6 hover:-translate-y-2 hover:border-[#22c55e] transition flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="rounded-lg border border-[#22c55e]/40 bg-[#22c55e]/15 px-3 py-1 text-[10px] font-black uppercase text-[#4ade80]">⚡ MOST MATCHES</span>
@@ -647,22 +581,18 @@ export default function Home() {
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#22c55e]/30 bg-[#0f2416] text-2xl">🛡️</div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">IRON MAN OF FCL</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#4ade80] transition truncate">{mostMatchesPlayer?.name || "Sadrul Anam"}</h4>
+                    <h4 className="text-base font-black text-white group-hover:text-[#4ade80] transition break-words leading-tight">{mostMatchesPlayer?.name || "Sadrul Anam"}</h4>
                   </div>
                 </div>
                 <div className="mt-5 flex items-center justify-between border-t border-[#122e1b] pt-3 text-[10px] text-[#64748b]">
                   <span>Appearances</span>
-                  <span className="text-[#4ade80] font-bold">Open Card →</span>
+                  <span className="text-[#4ade80] font-bold group-hover:underline">Open Card →</span>
                 </div>
               </div>
             </div>
 
-            {/* 6. Sixes */}
-            <div
-              onClick={() => { setSelectedPlayer(mostSixesPlayer); setActiveTab("card"); }}
-              className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#8b5cf6]/40 bg-gradient-to-b from-[#18112d] to-[#070410] p-6 hover:-translate-y-2 hover:border-[#8b5cf6] transition flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#8b5cf6] to-transparent" />
+            {/* 6. Six Machine */}
+            <div onClick={() => { setSelectedPlayer(mostSixesPlayer); setActiveTab("card"); }} className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#8b5cf6]/40 bg-gradient-to-b from-[#18112d] to-[#070410] p-6 hover:-translate-y-2 hover:border-[#8b5cf6] transition flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="rounded-lg border border-[#8b5cf6]/40 bg-[#8b5cf6]/15 px-3 py-1 text-[10px] font-black uppercase text-[#c084fc]">💥 SIX MACHINE</span>
@@ -679,22 +609,18 @@ export default function Home() {
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#8b5cf6]/30 bg-[#1e153b] text-2xl">💣</div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">POWER HITTER</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#c084fc] transition truncate">{mostSixesPlayer?.name || "Shahriar Khokon"}</h4>
+                    <h4 className="text-base font-black text-white group-hover:text-[#c084fc] transition break-words leading-tight">{mostSixesPlayer?.name || "Shahriar Khokon"}</h4>
                   </div>
                 </div>
                 <div className="mt-5 flex items-center justify-between border-t border-[#251845] pt-3 text-[10px] text-[#64748b]">
                   <span>Maximum Sixes</span>
-                  <span className="text-[#c084fc] font-bold">Open Card →</span>
+                  <span className="text-[#c084fc] font-bold group-hover:underline">Open Card →</span>
                 </div>
               </div>
             </div>
 
             {/* 7. Hat-Tricks */}
-            <div
-              onClick={() => { setSelectedPlayer(topHatTrickPlayer); setActiveTab("card"); }}
-              className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#ec4899]/40 bg-gradient-to-b from-[#240a16] to-[#0c0207] p-6 hover:-translate-y-2 hover:border-[#ec4899] transition flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#ec4899] to-transparent" />
+            <div onClick={() => { setSelectedPlayer(topHatTrickPlayer); setActiveTab("card"); }} className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#ec4899]/40 bg-gradient-to-b from-[#240a16] to-[#0c0207] p-6 hover:-translate-y-2 hover:border-[#ec4899] transition flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="rounded-lg border border-[#ec4899]/40 bg-[#ec4899]/15 px-3 py-1 text-[10px] font-black uppercase text-[#f472b6]">🔥 HAT-TRICKS</span>
@@ -710,23 +636,19 @@ export default function Home() {
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#ec4899]/30 bg-[#2b0f1d] text-2xl">🎯</div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">HAT-TRICK HERO</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#f472b6] transition truncate">{topHatTrickPlayer?.name || "Zaheed Hasan"}</h4>
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">RECORD HOLDER</p>
+                    <h4 className="text-base font-black text-white group-hover:text-[#f472b6] transition break-words leading-tight">{topHatTrickPlayer?.name || "Zaheed Hasan"}</h4>
                   </div>
                 </div>
                 <div className="mt-5 flex items-center justify-between border-t border-[#361324] pt-3 text-[10px] text-[#64748b]">
                   <span>Record Bowler</span>
-                  <span className="text-[#f472b6] font-bold">Open Card →</span>
+                  <span className="text-[#f472b6] font-bold group-hover:underline">Open Card →</span>
                 </div>
               </div>
             </div>
 
-            {/* 8. MOT / CPOT */}
-            <div
-              onClick={() => { setSelectedPlayer(mostMotPlayer); setActiveTab("card"); }}
-              className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#f59e0b]/40 bg-gradient-to-b from-[#211603] to-[#0c0801] p-6 hover:-translate-y-2 hover:border-[#f59e0b] transition flex flex-col justify-between"
-            >
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#f59e0b] to-transparent" />
+            {/* 8. MOT / CPOT (Toufiq Ahmed Ovi) */}
+            <div onClick={() => { setSelectedPlayer(mostMotPlayer); setActiveTab("card"); }} className="group relative cursor-pointer overflow-hidden rounded-[2rem] border border-[#f59e0b]/40 bg-gradient-to-b from-[#211603] to-[#0c0801] p-6 hover:-translate-y-2 hover:border-[#f59e0b] transition flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between">
                   <span className="rounded-lg border border-[#f59e0b]/40 bg-[#f59e0b]/15 px-3 py-1 text-[10px] font-black uppercase text-[#fbbf24]">⭐ MOT / CPOT</span>
@@ -745,12 +667,12 @@ export default function Home() {
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#f59e0b]/30 bg-[#1f1707] text-2xl">🎖️</div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[9px] font-bold uppercase tracking-wider text-[#64748b]">AWARD WINNER</p>
-                    <h4 className="text-base font-black text-white group-hover:text-[#fbbf24] transition truncate">{mostMotPlayer?.name || "Player of Tournament"}</h4>
+                    <h4 className="text-base font-black text-white group-hover:text-[#fbbf24] transition break-words leading-tight">{mostMotPlayer?.name || "Toufiq Ahmed Ovi"}</h4>
                   </div>
                 </div>
                 <div className="mt-5 flex items-center justify-between border-t border-[#2e2008] pt-3 text-[10px] text-[#64748b]">
                   <span>Tournament MVP</span>
-                  <span className="text-[#fbbf24] font-bold">Open Card →</span>
+                  <span className="text-[#fbbf24] font-bold group-hover:underline">Open Card →</span>
                 </div>
               </div>
             </div>
@@ -767,7 +689,7 @@ export default function Home() {
       </footer>
 
       {/* ========================================================================= */}
-      {/* 🌟 STAT CARD MODAL (THEME-ADAPTIVE TOURNAMENT HISTORY + NEON GLOWS) */}
+      {/* 🌟 STAT CARD MODAL (WITH DEBUT TOURNAMENT & HIGHLIGHTED LAST PLAYED) */}
       {/* ========================================================================= */}
       {selectedPlayer && (
         <div
@@ -777,179 +699,166 @@ export default function Home() {
           <div
             className={`relative flex h-[94vh] sm:h-auto sm:max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl sm:rounded-3xl border shadow-2xl transition-colors duration-200 ${
               cardTheme === "dark"
-                ? "border-[#38bdf8]/40 bg-[#0f172a] shadow-[#0284c7]/20 text-white"
-                : "border-[#ced0d4] bg-[#F0F2F5] shadow-2xl text-[#1c1e21]"
+                ? "border-[#38bdf8]/40 bg-[#0f172a] text-white"
+                : "border-slate-300 bg-white text-slate-900 shadow-2xl"
             }`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Top Tabs */}
+            {/* Sticky Header */}
             <div
-              className={`shrink-0 flex flex-wrap items-center justify-between gap-2 border-b px-3.5 py-2.5 ${
-                cardTheme === "dark" ? "border-[#1e293b] bg-[#0b1329]" : "border-[#ced0d4] bg-white"
+              className={`sticky top-0 z-30 shrink-0 border-b px-4 py-3 backdrop-blur-md ${
+                cardTheme === "dark" ? "border-[#1e293b] bg-[#0b1329]/95 text-white" : "border-slate-200 bg-white/95 text-slate-900"
               }`}
             >
-              <div className="flex items-center gap-1 rounded-xl bg-black/20 p-1 border border-white/10">
-                <button
-                  onClick={() => setActiveTab("card")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                    activeTab === "card"
-                      ? "bg-[#1877F2] text-white shadow"
-                      : cardTheme === "dark" ? "text-[#94a3b8] hover:text-white" : "text-[#65676B] hover:text-[#050505]"
-                  }`}
-                >
-                  <span>🎖️</span>
-                  <span>Stat Card</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab("history")}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                    activeTab === "history"
-                      ? "bg-[#1877F2] text-white shadow font-black"
-                      : cardTheme === "dark" ? "text-[#94a3b8] hover:text-white" : "text-[#65676B] hover:text-[#050505]"
-                  }`}
-                >
-                  <span>📊</span>
-                  <span>Tournament History ({playerTournamentHistory.length})</span>
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* THEME TOGGLE (WORKS ON BOTH TABS) */}
-                <div className="flex items-center gap-1 rounded-xl bg-black/20 p-1 border border-white/10">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1 rounded-xl p-1 border border-black/10 dark:border-white/10 bg-black/5 dark:bg-black/20">
                   <button
-                    onClick={() => setCardTheme("dark")}
-                    className={`px-2.5 py-1 rounded text-xs font-bold transition ${
-                      cardTheme === "dark" ? "bg-[#1877F2] text-white shadow" : "text-[#94a3b8] hover:text-white"
+                    onClick={() => setActiveTab("card")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                      activeTab === "card"
+                        ? "bg-[#1877F2] text-white shadow"
+                        : cardTheme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
                     }`}
                   >
-                    🌙 Dark
+                    <span>🎖️</span>
+                    <span>Stat Card</span>
                   </button>
                   <button
-                    onClick={() => setCardTheme("light")}
-                    className={`px-2.5 py-1 rounded text-xs font-bold transition ${
-                      cardTheme === "light" ? "bg-white text-[#1877F2] font-black shadow" : "text-[#94a3b8] hover:text-white"
+                    onClick={() => setActiveTab("history")}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                      activeTab === "history"
+                        ? "bg-[#1877F2] text-white shadow font-black"
+                        : cardTheme === "dark" ? "text-slate-400 hover:text-white" : "text-slate-600 hover:text-black"
                     }`}
                   >
-                    ☀️ Light
+                    <span>📊</span>
+                    <span>Tournament History ({playerTournamentHistory.length})</span>
                   </button>
                 </div>
 
-                <button
-                  onClick={() => setSelectedPlayer(null)}
-                  className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-xl border text-xs sm:text-sm font-bold transition ${
-                    cardTheme === "dark"
-                      ? "border-white/10 bg-[#070b16] text-white hover:bg-white/20"
-                      : "border-[#ced0d4] bg-white text-[#050505] hover:bg-[#E4E6EB]"
-                  }`}
-                >
-                  ✕
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 rounded-xl p-1 border border-black/10 dark:border-white/10 bg-black/5 dark:bg-black/20">
+                    <button
+                      onClick={() => setCardTheme("dark")}
+                      className={`px-2.5 py-1 rounded text-xs font-bold transition ${
+                        cardTheme === "dark" ? "bg-[#1877F2] text-white shadow" : "text-slate-500 hover:text-black"
+                      }`}
+                    >
+                      🌙 Dark
+                    </button>
+                    <button
+                      onClick={() => setCardTheme("light")}
+                      className={`px-2.5 py-1 rounded text-xs font-bold transition ${
+                        cardTheme === "light" ? "bg-white text-[#1877F2] font-black shadow border border-slate-200" : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      ☀️ Light
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedPlayer(null)}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl border border-black/10 dark:border-white/10 text-sm font-bold hover:bg-black/5 dark:hover:bg-white/20"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
+
+              {activeTab === "history" && (
+                <div className={`mt-3 flex items-center justify-between border-t pt-2.5 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                  <div>
+                    <h4 className={`text-base sm:text-lg font-black flex items-center gap-2 ${cardTheme === "dark" ? "text-white" : "text-slate-900"}`}>
+                      <span>📊</span>
+                      <span>{selectedPlayer.name} এর টুর্নামেন্ট ইতিহাস</span>
+                    </h4>
+                    <p className={`text-[11px] font-medium ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>
+                      অংশগ্রহণ করা প্রতিটি আসরের ইন্ডিভিজুয়াল পারফরম্যান্স ব্রেকডাউন
+                    </p>
+                  </div>
+                  <span className={`rounded-xl px-3 py-1 text-xs font-bold shrink-0 ${cardTheme === "dark" ? "bg-[#1877F2]/25 border border-[#1877F2]/50 text-[#60a5fa]" : "bg-blue-50 border border-blue-200 text-[#1877F2]"}`}>
+                    মোট {playerTournamentHistory.length} টি আসর
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto overscroll-contain p-2.5 sm:p-4">
+            <div className={`flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 ${cardTheme === "dark" ? "bg-[#0b132b]" : "bg-[#F8FAFC]"}`}>
               {activeTab === "card" ? (
-                /* TAB 1: NEON ENHANCED STAT CARD */
+                /* TAB 1: 100% COMPLETE STAT CARD */
                 <div
                   ref={cardRef}
-                  className={`mx-auto rounded-2xl border p-3.5 sm:p-5 space-y-3.5 transition-colors duration-200 ${
+                  className={`mx-auto rounded-2xl border p-4 sm:p-6 space-y-4 shadow-xl ${
                     cardTheme === "dark"
-                      ? "border-[#1e293b] bg-[#0b132b] text-white"
-                      : "border-[#ced0d4] bg-white text-[#1c1e21] shadow-xl"
+                      ? "border-[#1e293b] bg-[#070b16] text-white"
+                      : "border-slate-200 bg-white text-slate-900"
                   }`}
                 >
-                  {/* Banner */}
-                  <div className={`flex items-center justify-between border-b pb-3 ${cardTheme === "dark" ? "border-[#38bdf8]/30" : "border-[#ced0d4]"}`}>
-                    <div className="flex items-center gap-2.5 sm:gap-3">
-                      <div className={`flex h-11 w-11 sm:h-13 sm:w-13 items-center justify-center rounded-xl border p-1 shadow-md shrink-0 ${cardTheme === "dark" ? "border-[#38bdf8]/50 bg-[#080d1a]" : "border-[#1877F2]/40 bg-[#E7F3FF]"}`}>
-                        <img src="/fcl-logo.png" alt="FCL" className="h-full w-full object-contain" />
+                  <div className={`flex items-center justify-between border-b pb-3 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl border p-1 bg-[#1877F2]/10 text-2xl">
+                        🏏
                       </div>
                       <div>
-                        <h3 className={`text-base sm:text-2xl font-black uppercase tracking-wider ${cardTheme === "dark" ? "text-[#e0f2fe]" : "text-[#1877F2]"}`}>
+                        <h3 className={`text-base sm:text-2xl font-black uppercase ${cardTheme === "dark" ? "text-[#e0f2fe]" : "text-[#1877F2]"}`}>
                           Player Statistics Card
                         </h3>
-                        <p className={`text-[10px] sm:text-xs font-semibold tracking-wide ${cardTheme === "dark" ? "text-[#38bdf8]" : "text-[#65676B]"}`}>
-                          Facebook Cricket League (FCL)
-                        </p>
+                        <p className={`text-xs ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Facebook Cricket League (FCL)</p>
                       </div>
                     </div>
-                    <span className={`rounded-md border px-2 py-0.5 text-[10px] sm:text-xs font-bold ${cardTheme === "dark" ? "border-[#f59e0b]/40 bg-[#f59e0b]/10 text-[#f59e0b]" : "border-[#1877F2]/30 bg-[#E7F3FF] text-[#1877F2]"}`}>
-                      OFFICIAL
-                    </span>
+                    <span className="rounded-md border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-2.5 py-1 text-xs font-bold text-[#f59e0b]">OFFICIAL</span>
                   </div>
 
-                  {/* Profile Top Row with Full Name & Neon High-Contrast Total Final Box */}
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 sm:gap-3">
-                    <div className={`relative flex items-center justify-center rounded-xl border-2 p-1.5 aspect-square ${cardTheme === "dark" ? "border-[#38bdf8]/40 bg-[#070b16]" : "border-[#1877F2]/40 bg-[#F0F2F5]"}`}>
-                      <img
-                        src={`/players/${(selectedPlayer.nickName || "").toLowerCase().trim()}.jpg`}
-                        alt={selectedPlayer.name}
-                        className="h-full w-full rounded-lg object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                          e.currentTarget.parentElement!.innerHTML = '<span class="text-3xl">🏏</span>';
-                        }}
-                      />
-                      {selectedPlayer.nickName && (
-                        <div className="absolute bottom-1 right-1 rounded bg-[#1877F2] px-1.5 py-0.5 text-[9px] font-bold text-white shadow">
-                          {selectedPlayer.nickName}
-                        </div>
-                      )}
+                  {/* Profile Top Row with FULL NAME */}
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    <div className={`relative flex items-center justify-center rounded-xl border-2 p-1.5 aspect-square text-4xl ${cardTheme === "dark" ? "border-[#38bdf8]/40 bg-[#0b132b]" : "border-blue-200 bg-blue-50"}`}>
+                      🏏
                     </div>
-
-                    <div className={`col-span-2 rounded-xl border p-3 sm:p-3.5 flex flex-col justify-center min-w-0 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
-                      <span className="text-[10px] uppercase font-bold tracking-wider text-[#65676B]">Player Name</span>
-                      <h4 className={`text-sm sm:text-base md:text-lg font-black break-words leading-tight mt-1 ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>
+                    <div className={`col-span-2 rounded-xl border p-3.5 flex flex-col justify-center ${cardTheme === "dark" ? "border-[#1e293b] bg-[#0b132b]" : "border-slate-200 bg-slate-50"}`}>
+                      <span className={`text-[10px] uppercase font-bold tracking-wider ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Player Name</span>
+                      <h4 className="text-base sm:text-lg font-black break-words leading-tight mt-1">
                         {selectedPlayer.name}
                       </h4>
-                      {selectedPlayer.nickName && (
-                        <p className="text-xs sm:text-sm font-semibold text-[#1877F2] truncate mt-0.5">@{selectedPlayer.nickName}</p>
-                      )}
-                      <div className={`mt-2 pt-2 border-t flex items-center justify-between ${cardTheme === "dark" ? "border-[#1e293b]" : "border-[#ced0d4]"}`}>
-                        <span className="text-[9px] sm:text-[10px] uppercase font-bold text-[#65676B]">Role:</span>
-                        <span className="text-xs sm:text-sm font-bold text-[#f59e0b] truncate">{selectedPlayer.role}</span>
+                      {selectedPlayer.nickName && <p className="text-xs font-bold text-[#1877F2] mt-0.5">@{selectedPlayer.nickName}</p>}
+                      <div className="mt-2 pt-2 border-t border-black/10 dark:border-white/10 flex items-center justify-between">
+                        <span className={`text-[10px] uppercase font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Role:</span>
+                        <span className="text-xs font-bold text-[#f59e0b] truncate">{selectedPlayer.role}</span>
                       </div>
                     </div>
+                    <div className="col-span-3 sm:col-span-1 rounded-xl border-2 p-2.5 text-center shadow-lg border-[#f59e0b] bg-gradient-to-b from-[#2a1b04] to-[#120b02]">
+                      <span className="text-[11px] font-black uppercase text-[#fbbf24]">TOTAL FINAL</span>
+                      <p className="text-3xl font-black text-[#fde047] my-0.5">{selectedPlayer.totalFinal ?? 0}</p>
+                      <span className="text-[10px] font-bold text-[#e2e8f0]">Finals Played</span>
+                    </div>
+                  </div>
 
-                    {/* NEON TOTAL FINAL BOX */}
-                    <div className={`col-span-3 sm:col-span-1 rounded-xl border-2 p-2.5 sm:p-3 flex flex-row sm:flex-col justify-between sm:justify-center items-center text-center shadow-lg ${cardTheme === "dark" ? "border-[#f59e0b] bg-gradient-to-b from-[#2a1b04] to-[#120b02]" : "border-[#d97706] bg-gradient-to-b from-[#fffbeb] to-[#fef3c7]"}`}>
-                      <span className={`text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${cardTheme === "dark" ? "text-[#fbbf24]" : "text-[#92400e]"}`}>
-                        TOTAL FINAL
-                      </span>
-                      <p className={`text-2xl sm:text-4xl font-black my-0.5 ${cardTheme === "dark" ? "text-[#fde047] drop-shadow-[0_0_15px_rgba(253,224,71,0.6)]" : "text-[#b45309]"}`}>
-                        {selectedPlayer.totalFinal ?? 0}
+                  {/* Debut & Tournaments Row (WITH DEBUT TOURNAMENT FIXED) */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#0b132b]" : "border-slate-200 bg-slate-50"}`}>
+                      <p className={`text-[10px] uppercase font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Debut Date</p>
+                      <p className="font-extrabold text-[#1877F2] text-xs sm:text-sm mt-1">{formatSafeDate(selectedPlayer.debutYear) || "—"}</p>
+                    </div>
+                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#0b132b]" : "border-slate-200 bg-slate-50"}`}>
+                      <p className={`text-[10px] uppercase font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Debut Tournament</p>
+                      <p className="font-black text-xs sm:text-sm mt-1 break-words text-[#22c55e]">
+                        {getDebutTournament(selectedPlayer)}
                       </p>
-                      <span className={`text-[9px] sm:text-[10px] font-extrabold ${cardTheme === "dark" ? "text-[#e2e8f0]" : "text-[#78350f]"}`}>
-                        Finals Played
-                      </span>
+                    </div>
+                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#0b132b]" : "border-slate-200 bg-slate-50"}`}>
+                      <p className={`text-[10px] uppercase font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Debut Team</p>
+                      <p className="font-extrabold text-xs sm:text-sm mt-1 break-words">{selectedPlayer.debutTeam || "—"}</p>
+                    </div>
+                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#0b132b]" : "border-slate-200 bg-slate-50"}`}>
+                      <p className={`text-[10px] uppercase font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Total Tournaments</p>
+                      <p className="font-black text-[#16a34a] text-base sm:text-xl mt-0.5">{selectedPlayer.totalTournament ?? 0}</p>
                     </div>
                   </div>
 
-                  {/* Debut & Tournaments */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 text-center">
-                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
-                      <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Debut Date</p>
-                      <p className="font-extrabold text-[#38bdf8] drop-shadow-[0_0_8px_rgba(56,189,248,0.4)] text-xs sm:text-sm mt-1 truncate">{formatSafeDate(selectedPlayer.debutYear) || "—"}</p>
-                    </div>
-                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
-                      <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Debut Tournament</p>
-                      <p className={`font-extrabold text-xs sm:text-sm mt-1 leading-tight break-words ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>{selectedPlayer.debutTournament || "—"}</p>
-                    </div>
-                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
-                      <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Debut Team</p>
-                      <p className={`font-extrabold text-xs sm:text-sm mt-1 leading-tight break-words ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>{selectedPlayer.debutTeam || "—"}</p>
-                    </div>
-                    <div className={`rounded-xl border p-2.5 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
-                      <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Total Tournaments</p>
-                      <p className="font-black text-[#22c55e] drop-shadow-[0_0_8px_rgba(34,197,94,0.4)] text-base sm:text-xl mt-0.5">{selectedPlayer.totalTournament ?? 0}</p>
-                    </div>
-                  </div>
-
-                  {/* MVP Badge & Rankings */}
-                  <div className={`rounded-2xl border-2 p-3 sm:p-4 text-center shadow-lg ${cardTheme === "dark" ? "border-[#f59e0b]/60 bg-gradient-to-r from-[#1c1203] via-[#2c1c04] to-[#1c1203]" : "border-[#f59e0b] bg-gradient-to-r from-[#fffbeb] via-[#fef3c7] to-[#fffbeb]"}`}>
-                    <div className={`flex flex-col sm:flex-row items-center justify-between gap-2 border-b pb-2.5 ${cardTheme === "dark" ? "border-[#f59e0b]/30" : "border-[#f59e0b]/40"}`}>
-                      <p className="text-xs sm:text-sm font-black uppercase tracking-widest text-[#f59e0b] flex items-center gap-1.5">
+                  {/* MVP & Rankings Grid */}
+                  <div className={`rounded-2xl border-2 p-3.5 sm:p-4 text-center shadow-lg ${cardTheme === "dark" ? "border-[#f59e0b]/60 bg-gradient-to-r from-[#1c1203] via-[#2c1c04] to-[#1c1203]" : "border-[#f59e0b] bg-amber-50/70"}`}>
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 border-b pb-2.5 border-[#f59e0b]/30">
+                      <p className="text-xs sm:text-sm font-black uppercase tracking-widest text-[#d97706] flex items-center gap-1.5">
                         <span>⭐</span> ALL-TIME LEAGUE RANKINGS
                       </p>
                       <div className="inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 border shadow-md bg-gradient-to-r from-[#d97706] to-[#b45309] text-white">
@@ -961,277 +870,237 @@ export default function Home() {
                     </div>
 
                     <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/30" : "bg-white border-[#f59e0b]/30 shadow-sm"}`}>
-                        <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Runs Rank</p>
-                        <p className="text-base sm:text-lg font-black text-[#22c55e] drop-shadow-[0_0_8px_rgba(34,197,94,0.4)] mt-0.5">#{getRank(selectedPlayer, "runs")}</p>
+                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/30" : "bg-white border-amber-200 shadow-sm"}`}>
+                        <p className={`text-[10px] uppercase font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Runs Rank</p>
+                        <p className="text-base sm:text-lg font-black text-[#16a34a] mt-0.5">#{getRank(selectedPlayer, "runs")}</p>
                       </div>
-                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/30" : "bg-white border-[#f59e0b]/30 shadow-sm"}`}>
-                        <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Wickets Rank</p>
-                        <p className="text-base sm:text-lg font-black text-[#f59e0b] drop-shadow-[0_0_8px_rgba(245,158,11,0.4)] mt-0.5">#{getRank(selectedPlayer, "wickets")}</p>
+                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/30" : "bg-white border-amber-200 shadow-sm"}`}>
+                        <p className={`text-[10px] uppercase font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Wkts Rank</p>
+                        <p className="text-base sm:text-lg font-black text-[#d97706] mt-0.5">#{getRank(selectedPlayer, "wickets")}</p>
                       </div>
-                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/30" : "bg-white border-[#f59e0b]/30 shadow-sm"}`}>
-                        <p className="text-[10px] uppercase font-bold text-[#94a3b8]">6s Rank</p>
-                        <p className="text-base sm:text-lg font-black text-[#c084fc] drop-shadow-[0_0_8px_rgba(192,132,252,0.4)] mt-0.5">#{getRank(selectedPlayer, "sixes")}</p>
+                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/30" : "bg-white border-amber-200 shadow-sm"}`}>
+                        <p className={`text-[10px] uppercase font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>6s Rank</p>
+                        <p className="text-base sm:text-lg font-black text-[#7c3aed] mt-0.5">#{getRank(selectedPlayer, "sixes")}</p>
                       </div>
-                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/30" : "bg-white border-[#f59e0b]/30 shadow-sm"}`}>
-                        <p className="text-[10px] uppercase font-bold text-[#94a3b8]">Trophy Rank</p>
-                        <p className="text-base sm:text-lg font-black text-[#38bdf8] drop-shadow-[0_0_8px_rgba(56,189,248,0.4)] mt-0.5">#{getRank(selectedPlayer, "champion")}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stats Breakdown */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                    <div className={`rounded-xl border p-3 sm:p-3.5 space-y-2 text-xs sm:text-[13px] ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
-                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"}`}>
-                        <span className="text-[#94a3b8] font-bold">Total Match:</span>
-                        <strong className={`font-extrabold ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>{selectedPlayer.matches}</strong>
-                      </div>
-                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"}`}>
-                        <span className="text-[#94a3b8] font-bold">Total Runs & Max:</span>
-                        <strong className="text-[#22c55e] font-black drop-shadow-[0_0_8px_rgba(34,197,94,0.35)]">{selectedPlayer.runs} ({selectedPlayer.maxRuns || "—"})</strong>
-                      </div>
-                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"}`}>
-                        <span className="text-[#94a3b8] font-bold">Total Wickets & Max:</span>
-                        <strong className="text-[#f59e0b] font-black drop-shadow-[0_0_8px_rgba(245,158,11,0.35)]">{selectedPlayer.wickets} ({selectedPlayer.maxWickets || "—"})</strong>
-                      </div>
-                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"}`}>
-                        <span className="text-[#94a3b8] font-bold">Innings / Not Out:</span>
-                        <strong className={`font-bold ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>{selectedPlayer.innings ?? 0} / {selectedPlayer.notOut ?? 0}</strong>
-                      </div>
-                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"}`}>
-                        <span className="text-[#94a3b8] font-bold">Boundaries (4&apos;s / 6&apos;s):</span>
-                        <strong className="font-extrabold"><span className="text-[#38bdf8]">{selectedPlayer.fours}</span> / <span className="text-[#c084fc]">{selectedPlayer.sixes}</span></strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#94a3b8] font-bold">Career Hat-Trick:</span>
-                        <strong className="text-[#f472b6] font-black drop-shadow-[0_0_8px_rgba(244,114,182,0.4)]">{selectedPlayer.hatTricks ?? 0}</strong>
-                      </div>
-                    </div>
-
-                    <div className={`rounded-xl border p-3 sm:p-3.5 space-y-2 text-xs sm:text-[13px] ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16]" : "border-[#ced0d4] bg-[#F7F8FA]"}`}>
-                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"}`}>
-                        <span className="text-[#94a3b8] font-bold">Batting / Bowling Avg:</span>
-                        <strong className={`font-extrabold ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>{selectedPlayer.runAvg} / {selectedPlayer.wkAvg}</strong>
-                      </div>
-                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"}`}>
-                        <span className="text-[#94a3b8] font-bold">Champion / Runner-Up:</span>
-                        <strong className="font-extrabold">🏆 <span className="text-[#f59e0b]">{selectedPlayer.champion ?? 0}</span> / 🥈 <span className="text-[#cbd5e1]">{selectedPlayer.runnersUp ?? 0}</span></strong>
-                      </div>
-                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"}`}>
-                        <span className="text-[#94a3b8] font-bold">MOT / CPOT:</span>
-                        <strong className="font-extrabold">⭐ <span className="text-[#c084fc]">{selectedPlayer.mot ?? 0}</span> / {selectedPlayer.cpot ?? 0}</strong>
-                      </div>
-                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-[#172033]" : "border-[#ced0d4]"}`}>
-                        <span className="text-[#94a3b8] font-bold">MOM / CPOM:</span>
-                        <strong className="font-extrabold">🎖️ <span className="text-[#38bdf8]">{selectedPlayer.mom ?? 0}</span> / {selectedPlayer.cpom ?? 0}</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#94a3b8] font-bold">Top Scorer / Wicket Taker:</span>
-                        <strong className="font-black text-[#fbbf24]">{selectedPlayer.highestRunScorer ?? 0} / {selectedPlayer.topWicketTaker ?? 0}</strong>
+                      <div className={`rounded-xl p-2 border ${cardTheme === "dark" ? "bg-black/60 border-[#f59e0b]/30" : "bg-white border-amber-200 shadow-sm"}`}>
+                        <p className={`text-[10px] uppercase font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-500"}`}>Trophy Rank</p>
+                        <p className="text-base sm:text-lg font-black text-[#0284c7] mt-0.5">#{getRank(selectedPlayer, "champion")}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className={`flex items-center justify-between border-t pt-2 text-[10px] ${cardTheme === "dark" ? "border-[#1e293b] text-[#64748b]" : "border-[#ced0d4] text-[#65676B]"}`}>
-                    <span>Last Played: <strong className={cardTheme === "dark" ? "text-white" : "text-[#050505]"}>{selectedPlayer.lastPlayed || "—"}</strong></span>
-                    <span className="font-bold">FCL Official Card</span>
+                  {/* Career Stats Breakdown */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className={`rounded-xl border p-3.5 space-y-2 text-xs sm:text-[13px] ${cardTheme === "dark" ? "border-[#1e293b] bg-[#0b132b]" : "border-slate-200 bg-slate-50"}`}>
+                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                        <span className={`font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-600"}`}>Total Match:</span>
+                        <strong className="font-extrabold">{selectedPlayer.matches}</strong>
+                      </div>
+                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                        <span className={`font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-600"}`}>Total Runs & Max:</span>
+                        <strong className="text-[#16a34a] font-black">{selectedPlayer.runs} ({selectedPlayer.maxRuns || "—"})</strong>
+                      </div>
+                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                        <span className={`font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-600"}`}>Total Wickets & Max:</span>
+                        <strong className="text-[#d97706] font-black">{selectedPlayer.wickets} ({selectedPlayer.maxWickets || "—"})</strong>
+                      </div>
+                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                        <span className={`font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-600"}`}>Innings / Not Out:</span>
+                        <strong className="font-bold">{selectedPlayer.innings ?? 0} / {selectedPlayer.notOut ?? 0}</strong>
+                      </div>
+                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                        <span className={`font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-600"}`}>Boundaries (4s / 6s):</span>
+                        <strong className="font-extrabold"><span className="text-[#0284c7]">{selectedPlayer.fours}</span> / <span className="text-[#7c3aed]">{selectedPlayer.sixes}</span></strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className={`font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-600"}`}>Career Hat-Trick:</span>
+                        <strong className="text-[#db2777] font-black">{selectedPlayer.hatTricks ?? 0}</strong>
+                      </div>
+                    </div>
+
+                    <div className={`rounded-xl border p-3.5 space-y-2 text-xs sm:text-[13px] ${cardTheme === "dark" ? "border-[#1e293b] bg-[#0b132b]" : "border-slate-200 bg-slate-50"}`}>
+                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                        <span className={`font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-600"}`}>Batting / Bowling Avg:</span>
+                        <strong className="font-extrabold">{selectedPlayer.runAvg} / {selectedPlayer.wkAvg}</strong>
+                      </div>
+                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                        <span className={`font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-600"}`}>Champion / Runner-Up:</span>
+                        <strong className="font-extrabold">🏆 <span className="text-[#d97706]">{selectedPlayer.champion ?? 0}</span> / 🥈 <span>{selectedPlayer.runnersUp ?? 0}</span></strong>
+                      </div>
+                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                        <span className={`font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-600"}`}>MOT / CPOT:</span>
+                        <strong className="font-extrabold">⭐ <span className="text-[#7c3aed]">{selectedPlayer.mot ?? 0}</span> / {selectedPlayer.cpot ?? 0}</strong>
+                      </div>
+                      <div className={`flex justify-between border-b pb-1.5 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                        <span className={`font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-600"}`}>MOM / CPOM:</span>
+                        <strong className="font-extrabold">🎖️ <span className="text-[#0284c7]">{selectedPlayer.mom ?? 0}</span> / {selectedPlayer.cpom ?? 0}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className={`font-bold ${cardTheme === "dark" ? "text-slate-400" : "text-slate-600"}`}>Top Scorer / Wicket Taker:</span>
+                        <strong className="font-black text-[#d97706]">{selectedPlayer.highestRunScorer ?? 0} / {selectedPlayer.topWicketTaker ?? 0}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 🌟 PROMINENTLY HIGHLIGHTED LAST PLAYED BANNER */}
+                  <div className={`flex flex-col sm:flex-row items-center justify-between gap-2 rounded-xl p-3 border-2 ${
+                    cardTheme === "dark"
+                      ? "border-[#f59e0b]/50 bg-gradient-to-r from-[#1e1302] to-[#0a0701]"
+                      : "border-[#d97706]/40 bg-gradient-to-r from-[#fffbeb] via-[#fef3c7] to-[#fffbeb]"
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-2.5 w-2.5 rounded-full bg-[#22c55e] animate-pulse" />
+                      <span className={`text-xs font-black uppercase tracking-wider ${cardTheme === "dark" ? "text-[#fbbf24]" : "text-[#b45309]"}`}>
+                        Last Played Tournament:
+                      </span>
+                    </div>
+                    <span className={`text-xs sm:text-sm font-black px-3 py-1 rounded-lg border shadow-sm ${
+                      cardTheme === "dark"
+                        ? "bg-[#f59e0b] text-black border-[#f59e0b]"
+                        : "bg-white text-[#b45309] border-[#d97706]"
+                    }`}>
+                      🏟️ {selectedPlayer.lastPlayed || "—"}
+                    </span>
                   </div>
                 </div>
               ) : (
-                /* ========================================================================= */
-                /* TAB 2: TOURNAMENT HISTORY (PROMINENT MOT/CPOT HIGHLIGHTS + LIGHT/DARK) */
-                /* ========================================================================= */
-                <div className="space-y-4">
-                  <div className={`flex items-center justify-between border-b pb-3 ${cardTheme === "dark" ? "border-[#1e293b]" : "border-[#ced0d4]"}`}>
-                    <div>
-                      <h4 className={`text-base sm:text-xl font-black flex items-center gap-2 ${cardTheme === "dark" ? "text-white" : "text-[#050505]"}`}>
-                        <span>📊</span>
-                        <span>{selectedPlayer.name} এর টুর্নামেন্ট ইতিহাস</span>
-                      </h4>
-                      <p className={`text-xs mt-0.5 font-medium ${cardTheme === "dark" ? "text-[#94a3b8]" : "text-[#475569]"}`}>
-                        অংশগ্রহণ করা প্রতিটি আসরের ইন্ডিভিজুয়াল পারফরম্যান্স ব্রেকডাউন
-                      </p>
-                    </div>
-                    <span className={`rounded-xl px-3 py-1.5 text-xs font-bold ${cardTheme === "dark" ? "bg-[#1877F2]/25 border border-[#1877F2]/50 text-[#60a5fa]" : "bg-[#E7F3FF] border border-[#1877F2]/40 text-[#1877F2]"}`}>
-                      মোট {playerTournamentHistory.length} টি আসর
-                    </span>
-                  </div>
-
+                /* TAB 2: TOURNAMENT HISTORY WITH HIGH-CONTRAST MOT/CPOT BANNER */
+                <div className="space-y-3.5">
                   {playerTournamentHistory.length === 0 ? (
-                    <div className={`rounded-2xl border p-8 text-center ${cardTheme === "dark" ? "border-[#1e293b] bg-[#070b16] text-[#94a3b8]" : "border-[#ced0d4] bg-white text-[#65676B]"}`}>
-                      কোনো টুর্নামেন্ট রেকর্ড পাওয়া যায়নি
-                    </div>
+                    <div className="rounded-2xl border p-8 text-center text-slate-400">কোনো টুর্নামেন্ট রেকর্ড পাওয়া যায়নি</div>
                   ) : (
-                    <div className="grid gap-3.5">
-                      {playerTournamentHistory.map((t, idx) => {
-                        const hasMot = t.motCpot?.toUpperCase() === "MOT";
-                        const hasCpot = t.motCpot?.toUpperCase() === "CPOT";
-                        const isTopScorer = Number(t.topScorer) === 1;
-                        const isTopWicket = Number(t.topWicket) === 1;
-                        const hasSpecialAward = hasMot || hasCpot || isTopScorer || isTopWicket;
+                    playerTournamentHistory.map((t, idx) => {
+                      const hasMot = t.motCpot?.toUpperCase() === "MOT";
+                      const hasCpot = t.motCpot?.toUpperCase() === "CPOT";
+                      const isTopScorer = Number(t.topScorer) === 1;
+                      const isTopWicket = Number(t.topWicket) === 1;
+                      const hasSpecialAward = hasMot || hasCpot || isTopScorer || isTopWicket;
 
-                        const cardBg =
-                          cardTheme === "dark"
-                            ? hasSpecialAward
-                              ? "border-2 border-[#f59e0b] bg-gradient-to-r from-[#241804] via-[#120b02] to-[#040813] shadow-[0_0_20px_rgba(245,158,11,0.2)] text-white"
-                              : "border border-[#1e293b] bg-gradient-to-r from-[#0b1329] via-[#070e1e] to-[#040813] text-white"
-                            : hasSpecialAward
-                            ? "border-2 border-[#f59e0b] bg-gradient-to-r from-[#fffbeb] via-[#fef3c7] to-[#fffbeb] shadow-md text-[#1c1e21]"
-                            : "border border-[#ced0d4] bg-white shadow-sm text-[#1c1e21]";
+                      const cardBg =
+                        cardTheme === "dark"
+                          ? hasSpecialAward
+                            ? "border-2 border-[#f59e0b] bg-gradient-to-r from-[#241804] via-[#120b02] to-[#040813] shadow-[0_0_20px_rgba(245,158,11,0.2)] text-white"
+                            : "border border-[#1e293b] bg-gradient-to-r from-[#0b1329] via-[#070e1e] to-[#040813] text-white"
+                          : hasSpecialAward
+                          ? "border-2 border-[#f59e0b] bg-amber-50/90 shadow-md text-slate-900"
+                          : "border border-slate-200 bg-white shadow-sm text-slate-900";
 
-                        const subBoxBg =
-                          cardTheme === "dark"
-                            ? "bg-black/50 border-white/5"
-                            : "bg-[#F0F2F5] border-[#ced0d4]/50";
+                      const subBoxBg =
+                        cardTheme === "dark"
+                          ? "bg-black/50 border-white/5"
+                          : "bg-slate-100 border-slate-200";
 
-                        const labelColor = cardTheme === "dark" ? "text-[#94a3b8]" : "text-[#65676B]";
-                        const numColor = cardTheme === "dark" ? "text-white" : "text-[#050505]";
-                        const displayDate = formatSafeDate(t.time);
+                      const labelStyle = cardTheme === "dark" ? "text-xs font-bold uppercase tracking-wider text-slate-400" : "text-xs font-bold uppercase tracking-wider text-slate-500";
+                      const numStyle = "font-black text-base sm:text-lg mt-0.5";
+                      const displayDate = formatSafeDate(t.time);
 
-                        return (
-                          <div key={idx} className={`rounded-2xl p-4 transition ${cardBg}`}>
-                            {/* Card Header Row */}
-                            <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-2.5 ${cardTheme === "dark" ? "border-white/10" : "border-[#ced0d4]"}`}>
-                              <div className="flex items-center gap-2">
-                                <span className="rounded-lg bg-[#1877F2] px-3 py-1 text-xs font-black text-white shadow-sm">
-                                  {t.tournament}
-                                </span>
-                                <span className={`text-xs sm:text-sm font-black ${numColor}`}>{t.team}</span>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                {t.chamRu && (
-                                  <span
-                                    className={`rounded-lg px-2.5 py-0.5 text-[11px] font-black uppercase ${
-                                      t.chamRu.toLowerCase().includes("champ")
-                                        ? "bg-[#f59e0b] text-black shadow-sm"
-                                        : "bg-[#64748b] text-white shadow-sm"
-                                    }`}
-                                  >
-                                    {t.chamRu}
-                                  </span>
-                                )}
-                                {displayDate && (
-                                  <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-md ${cardTheme === "dark" ? "bg-black/40 text-slate-300" : "bg-white border border-[#ced0d4] text-slate-700"}`}>
-                                    📅 {displayDate}
-                                  </span>
-                                )}
-                              </div>
+                      return (
+                        <div key={idx} className={`rounded-2xl p-4 transition ${cardBg}`}>
+                          <div className={`flex flex-wrap items-center justify-between gap-2 border-b pb-2.5 ${cardTheme === "dark" ? "border-white/10" : "border-slate-200"}`}>
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-lg bg-[#1877F2] px-3 py-1 text-xs font-black text-white shadow-sm">
+                                {t.tournament}
+                              </span>
+                              <span className="text-sm font-black">{t.team}</span>
                             </div>
 
-                            {/* 🌟 BRIGHT PROMINENT HIGHLIGHT BAR FOR MOT / CPOT / TOP SCORER / TOP WICKET */}
-                            {hasSpecialAward && (
-                              <div
-                                className={`mt-3 flex flex-wrap items-center gap-2.5 rounded-xl px-3.5 py-2 border-2 shadow-md ${
-                                  cardTheme === "dark"
-                                    ? "border-[#f59e0b] bg-gradient-to-r from-[#b45309]/30 via-[#d97706]/20 to-[#b45309]/30"
-                                    : "border-[#f59e0b] bg-[#fff7ed]"
-                                }`}
-                              >
-                                {hasMot && (
-                                  <span className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-[#fbbf24] drop-shadow-[0_0_12px_rgba(251,191,36,0.7)]">
-                                    <span>👑</span> MAN OF THE TOURNAMENT (MOT)
-                                  </span>
-                                )}
-                                {hasCpot && (
-                                  <span className="flex items-center gap-1.5 text-xs sm:text-sm font-black text-[#fde047] drop-shadow-[0_0_12px_rgba(253,224,71,0.7)]">
-                                    <span>⭐</span> COOL PLAYER OF THE TOURNAMENT (CPOT)
-                                  </span>
-                                )}
-                                {(hasMot || hasCpot) && (isTopScorer || isTopWicket) && (
-                                  <span className="text-[#f59e0b] font-bold">•</span>
-                                )}
-                                {isTopScorer && (
-                                  <span className="flex items-center gap-1 text-xs sm:text-sm font-black text-[#60a5fa] drop-shadow-[0_0_10px_rgba(96,165,250,0.6)]">
-                                    <span>🏏</span> TOP SCORER ({t.runs} Runs)
-                                  </span>
-                                )}
-                                {isTopScorer && isTopWicket && (
-                                  <span className="text-[#f59e0b] font-bold">•</span>
-                                )}
-                                {isTopWicket && (
-                                  <span className="flex items-center gap-1 text-xs sm:text-sm font-black text-[#f472b6] drop-shadow-[0_0_10px_rgba(244,114,182,0.6)]">
-                                    <span>🎯</span> TOP WICKET TAKER ({t.wickets} Wkts)
-                                  </span>
-                                )}
-                              </div>
-                            )}
-
-                            {/* 6-Grid Stats Numbers */}
-                            <div className="mt-3 grid grid-cols-4 sm:grid-cols-6 gap-2 text-center text-xs">
-                              <div className={`rounded-xl p-2 border ${subBoxBg}`}>
-                                <p className={`text-[10px] uppercase font-bold ${labelColor}`}>ম্যাচ</p>
-                                <p className={`font-black text-sm mt-0.5 ${numColor}`}>{t.matches}</p>
-                              </div>
-                              <div className={`rounded-xl p-2 border ${isTopScorer ? "bg-[#f59e0b]/25 border-2 border-[#f59e0b]" : subBoxBg}`}>
-                                <p className={`text-[10px] uppercase font-bold ${labelColor}`}>রান</p>
-                                <p className={`font-black text-sm mt-0.5 ${isTopScorer ? "text-[#fbbf24] text-base font-black drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" : "text-[#22c55e]"}`}>
-                                  {t.runs}
-                                </p>
-                              </div>
-                              <div className={`rounded-xl p-2 border ${isTopWicket ? "bg-[#f59e0b]/25 border-2 border-[#f59e0b]" : subBoxBg}`}>
-                                <p className={`text-[10px] uppercase font-bold ${labelColor}`}>উইকেট</p>
-                                <p className={`font-black text-sm mt-0.5 ${isTopWicket ? "text-[#fbbf24] text-base font-black drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" : "text-[#f59e0b]"}`}>
-                                  {t.wickets}
-                                </p>
-                              </div>
-                              <div className={`rounded-xl p-2 border ${subBoxBg}`}>
-                                <p className={`text-[10px] uppercase font-bold ${labelColor}`}>ইনিংস</p>
-                                <p className={`font-black text-sm mt-0.5 ${numColor}`}>{t.innings}</p>
-                              </div>
-                              <div className={`rounded-xl p-2 border ${subBoxBg}`}>
-                                <p className={`text-[10px] uppercase font-bold ${labelColor}`}>৪ / ৬</p>
-                                <p className="font-black text-[#0284c7] text-sm mt-0.5">{t.fours} / {t.sixes}</p>
-                              </div>
-                              <div className={`rounded-xl p-2 border ${hasMot || hasCpot ? "bg-[#f59e0b]/25 border-2 border-[#f59e0b]" : subBoxBg}`}>
-                                <p className={`text-[10px] uppercase font-bold ${labelColor}`}>অ্যাওয়ার্ড</p>
-                                <p className="font-black text-sm mt-0.5 truncate text-[#ec4899]">
-                                  {hasMot ? "👑 MOT" : hasCpot ? "⭐ CPOT" : t.mom ? `🎖️ ${t.mom}x MOM` : "—"}
-                                </p>
-                              </div>
+                            <div className="flex items-center gap-2">
+                              {t.chamRu && (
+                                <span className="rounded-lg px-2.5 py-0.5 text-xs font-black uppercase bg-[#f59e0b] text-black">
+                                  {t.chamRu}
+                                </span>
+                              )}
+                              {displayDate && (
+                                <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-md border ${cardTheme === "dark" ? "bg-black/30 border-white/10 text-slate-300" : "bg-white border-slate-300 text-slate-700"}`}>
+                                  📅 {displayDate}
+                                </span>
+                              )}
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+
+                          {/* 🌟 100% VISIBLE & HIGH-CONTRAST MOT / CPOT BANNER */}
+                          {hasSpecialAward && (
+                            <div
+                              className={`mt-3 flex flex-wrap items-center gap-2.5 rounded-xl px-3.5 py-2.5 border-2 shadow-md ${
+                                cardTheme === "dark"
+                                  ? "border-[#f59e0b] bg-gradient-to-r from-[#b45309]/40 via-[#d97706]/30 to-[#b45309]/40"
+                                  : "border-[#d97706] bg-gradient-to-r from-[#d97706] via-[#ea580c] to-[#d97706] text-white shadow-amber-500/20"
+                              }`}
+                            >
+                              {hasMot && (
+                                <span className={`flex items-center gap-1.5 text-xs sm:text-sm font-black ${cardTheme === "dark" ? "text-[#fbbf24] drop-shadow-[0_0_12px_rgba(251,191,36,0.7)]" : "text-white drop-shadow"}`}>
+                                  <span>👑</span> MAN OF THE TOURNAMENT (MOT)
+                                </span>
+                              )}
+                              {hasCpot && (
+                                <span className={`flex items-center gap-1.5 text-xs sm:text-sm font-black ${cardTheme === "dark" ? "text-[#fde047] drop-shadow-[0_0_12px_rgba(253,224,71,0.7)]" : "text-white drop-shadow"}`}>
+                                  <span>⭐</span> COOL PLAYER OF THE TOURNAMENT (CPOT)
+                                </span>
+                              )}
+                              {(hasMot || hasCpot) && (isTopScorer || isTopWicket) && <span className={cardTheme === "dark" ? "text-[#f59e0b] font-bold" : "text-white/60 font-bold"}>•</span>}
+                              {isTopScorer && (
+                                <span className={`flex items-center gap-1 text-xs sm:text-sm font-black ${cardTheme === "dark" ? "text-[#60a5fa]" : "text-amber-100"}`}>
+                                  <span>🏏</span> TOP SCORER ({t.runs} Runs)
+                                </span>
+                              )}
+                              {isTopScorer && isTopWicket && <span className={cardTheme === "dark" ? "text-[#f59e0b] font-bold" : "text-white/60 font-bold"}>•</span>}
+                              {isTopWicket && (
+                                <span className={`flex items-center gap-1 text-xs sm:text-sm font-black ${cardTheme === "dark" ? "text-[#f472b6]" : "text-amber-100"}`}>
+                                  <span>🎯</span> TOP WICKET TAKER ({t.wickets} Wkts)
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="mt-3.5 grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+                            <div className={`rounded-xl p-2.5 border ${subBoxBg}`}>
+                              <p className={labelStyle}>Matches</p>
+                              <p className={numStyle}>{t.matches}</p>
+                            </div>
+                            <div className={`rounded-xl p-2.5 border ${isTopScorer ? "bg-amber-100/80 border-2 border-[#f59e0b]" : subBoxBg}`}>
+                              <p className={labelStyle}>Runs</p>
+                              <p className={`${numStyle} ${isTopScorer ? "text-[#d97706]" : "text-[#16a34a]"}`}>{t.runs}</p>
+                            </div>
+                            <div className={`rounded-xl p-2.5 border ${isTopWicket ? "bg-amber-100/80 border-2 border-[#f59e0b]" : subBoxBg}`}>
+                              <p className={labelStyle}>Wkts</p>
+                              <p className={`${numStyle} ${isTopWicket ? "text-[#d97706]" : "text-[#d97706]"}`}>{t.wickets}</p>
+                            </div>
+                            <div className={`rounded-xl p-2.5 border ${subBoxBg}`}>
+                              <p className={labelStyle}>Inn</p>
+                              <p className={numStyle}>{t.innings}</p>
+                            </div>
+                            <div className={`rounded-xl p-2.5 border ${subBoxBg}`}>
+                              <p className={labelStyle}>4s / 6s</p>
+                              <p className={`${numStyle} text-[#0284c7]`}>{t.fours} / {t.sixes}</p>
+                            </div>
+                            <div className={`rounded-xl p-2.5 border ${hasMot || hasCpot ? "bg-amber-100/80 border-2 border-[#f59e0b]" : subBoxBg}`}>
+                              <p className={labelStyle}>Awards</p>
+                              <p className={`${numStyle} ${hasMot || hasCpot ? "text-[#d97706] font-black" : "text-slate-400"}`}>
+                                {hasMot ? "👑 MOT" : hasCpot ? "⭐ CPOT" : "—"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               )}
             </div>
 
-            {/* Action Bar */}
-            <div
-              className={`shrink-0 flex gap-2 border-t p-2.5 sm:p-3 ${
-                cardTheme === "dark" ? "border-[#1e293b] bg-[#0b1329]" : "border-[#ced0d4] bg-white"
-              }`}
-            >
+            {/* Bottom Actions Bar */}
+            <div className={`shrink-0 flex gap-2 border-t p-3 ${cardTheme === "dark" ? "border-[#1e293b] bg-[#0b1329]" : "border-slate-200 bg-white"}`}>
               {activeTab === "card" ? (
-                <button
-                  onClick={handleDownloadCard}
-                  disabled={downloading}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-[#1877F2] to-[#0284c7] py-2.5 text-xs font-bold text-white shadow-lg shadow-[#1877F2]/25 transition hover:brightness-110 active:scale-95 disabled:opacity-50"
-                >
-                  {downloading ? "Downloading Card..." : `📥 Download ${cardTheme === "dark" ? "Dark" : "Light (White)"} Card`}
+                <button onClick={handleDownloadCard} className="flex-1 rounded-xl bg-[#1877F2] py-2.5 text-xs font-bold text-white shadow hover:bg-[#166fe5]">
+                  📥 ডাউনলোড কার্ড
                 </button>
               ) : (
-                <button
-                  onClick={() => setActiveTab("card")}
-                  className="flex-1 rounded-xl bg-[#1877F2] py-2.5 text-xs font-bold text-white shadow transition hover:bg-[#166fe5]"
-                >
-                  ← Back to Stat Card
+                <button onClick={() => setActiveTab("card")} className="flex-1 rounded-xl bg-[#1877F2] py-2.5 text-xs font-bold text-white shadow hover:bg-[#166fe5]">
+                  ← স্ট্যাট কার্ডে ফিরে যান
                 </button>
               )}
-
-              <button
-                onClick={() => setSelectedPlayer(null)}
-                className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${
-                  cardTheme === "dark"
-                    ? "border-[#1e293b] bg-[#070b16] text-[#94a3b8] hover:text-white"
-                    : "border-[#ced0d4] bg-[#E4E6EB] text-[#050505] hover:bg-[#d8dadf]"
-                }`}
-              >
-                Close
+              <button onClick={() => setSelectedPlayer(null)} className={`rounded-xl border px-4 py-2.5 text-xs font-bold ${cardTheme === "dark" ? "border-slate-700 bg-slate-800 text-slate-300" : "border-slate-300 bg-slate-100 text-slate-700"}`}>
+                বন্ধ করুন
               </button>
             </div>
           </div>
