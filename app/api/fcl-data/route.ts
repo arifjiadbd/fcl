@@ -3,6 +3,23 @@ import path from "path";
 import fs from "fs";
 import * as XLSX from "xlsx";
 
+// 📅 এক্সেল সিরিয়াল নম্বর (যেমন 41334) কে 'Mar 2013' এ রূপান্তর করার ফাংশন
+function formatExcelDate(val: any): string {
+  if (!val) return "";
+  const num = Number(val);
+  if (!isNaN(num) && num > 20000 && num < 60000) {
+    const utcDays = Math.floor(num - 25569);
+    const dateInfo = new Date(utcDays * 86400 * 1000);
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${months[dateInfo.getUTCMonth()]} ${dateInfo.getUTCFullYear()}`;
+  }
+  if (val instanceof Date && !isNaN(val.getTime())) {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${months[val.getMonth()]} ${val.getFullYear()}`;
+  }
+  return String(val).trim().slice(0, 10);
+}
+
 export async function GET() {
   try {
     const filePath = path.join(process.cwd(), "public", "fcl-data.xlsx");
@@ -14,7 +31,7 @@ export async function GET() {
     const fileBuffer = fs.readFileSync(filePath);
     const workbook = XLSX.read(fileBuffer, { type: "buffer" });
 
-    // ১. Overall শিট রিড করা
+    // ১. Overall শিট
     const overallSheetName = workbook.SheetNames.includes("Overall") ? "Overall" : workbook.SheetNames[0];
     const overallSheet = workbook.Sheets[overallSheetName];
     const rawOverall: any[] = XLSX.utils.sheet_to_json(overallSheet);
@@ -45,7 +62,7 @@ export async function GET() {
         lastPlayed: String(row["Last Played Tournament"] || "—").trim(),
         highestRunScorer: Number(row["Highest Run Scorer"]) || 0,
         topWicketTaker: Number(row["Top Wicket Taker"]) || 0,
-        debutYear: row["Dabut Year (Month/Year)"] ? String(row["Dabut Year (Month/Year)"]).slice(0, 10) : "—",
+        debutYear: formatExcelDate(row["Dabut Year (Month/Year)"]),
         debutTournament: String(row["Dabut Tournament:"] || "—").trim(),
         debutTeam: String(row["Dabut Team Name"] || "—").trim(),
         maxRuns: Number(row["Max Runs In Tournament"]) || 0,
@@ -54,7 +71,7 @@ export async function GET() {
         wkAvg: row["Wk Avg."] !== undefined ? Number(row["Wk Avg."]).toFixed(2) : "0.00",
       }));
 
-    // ২. Tournaments শিট রিড করা
+    // ২. Tournaments শিট
     let tournamentsData: any[] = [];
     if (workbook.SheetNames.includes("Tournaments")) {
       const tourSheet = workbook.Sheets["Tournaments"];
@@ -79,7 +96,7 @@ export async function GET() {
           cpom: Number(row["CPOM/SAPOM"]) || 0,
           motCpot: String(row["MOT/CPOT"] || "").trim(),
           chamRu: String(row["Cham/RU"] || "").trim(),
-          time: String(row["TOURNAMENT TIME (Month-Year)"] || "").trim().slice(0, 10),
+          time: formatExcelDate(row["TOURNAMENT TIME (Month-Year)"]),
           topScorer: Number(row["TOP SCORER"]) || 0,
           topWicket: Number(row["TOP WICKET"]) || 0,
         }));
