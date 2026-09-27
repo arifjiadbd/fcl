@@ -419,19 +419,40 @@ export default function Home() {
               <div className="fcl-chip absolute -left-6 top-10 flex flex-col gap-0.5 rounded-2xl border border-white/10 bg-[#0b1220]/85 px-4 py-2.5 backdrop-blur-xl shadow-2xl">
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e] shadow-[0_0_10px_rgba(34,197,94,0.8)]" />
-                  <span className="text-xs font-bold text-white">Phoenix CC</span>
+                  <span className="text-xs font-bold text-white">Team Phoenix</span>
                 </div>
                 <span className="text-[11px] font-semibold text-[#93c5fd]">
-                  142/3 <span className="text-[#64748b]">· 16.2 OV</span>
+                  14/2 <span className="text-[#64748b]">· 1.0 OV</span>
                 </span>
+              </div>
+                            {/* 🌟 নতুন এনিমেটেড "OUT!" চিপ (ছবির বামে নিচে) */}
+              <div className="fcl-chip absolute -left-6 bottom-16 hidden items-center gap-3 rounded-2xl border border-rose-500/40 bg-[#0b1220]/90 px-4 py-3 backdrop-blur-xl shadow-2xl lg:flex animate-bounce">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-400 text-lg shadow-[0_0_15px_rgba(244,63,94,0.5)]">
+                  ⚡
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black tracking-wider text-rose-400">WICKET!</span>
+                    <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-ping" />
+                  </div>
+                  <p className="text-xs font-extrabold text-white">OUT! Bowled & Caught</p>
+                </div>
+              </div>
+{/* মিডল রাইট টার্গেট চিপ */}
+              <div className="fcl-chip fcl-chip-delay absolute -right-4 top-36 hidden flex-col gap-0.5 rounded-2xl border border-[#f59e0b]/30 bg-[#0b1220]/85 px-4 py-2.5 backdrop-blur-xl shadow-2xl lg:flex">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">🎯</span>
+                  <span className="text-xs font-bold text-[#fbbf24]">Best Match</span>
+                </div>
+                <span className="text-[11px] font-semibold text-[#94a3b8]">Live</span>
               </div>
 
               <div className="fcl-chip fcl-chip-delay absolute -right-4 bottom-16 flex flex-col gap-0.5 rounded-2xl border border-[#f59e0b]/30 bg-[#0b1220]/85 px-4 py-2.5 backdrop-blur-xl shadow-2xl">
                 <div className="flex items-center gap-2">
                   <span className="text-sm">🎯</span>
-                  <span className="text-xs font-bold text-[#fbbf24]">Need 36 off 24</span>
+                  <span className="text-xs font-bold text-[#fbbf24]">Need 56 off 24</span>
                 </div>
-                <span className="text-[11px] font-semibold text-[#94a3b8]">Target 178</span>
+                <span className="text-[11px] font-semibold text-[#94a3b8]">Target 70</span>
               </div>
             </div>
           </div>
