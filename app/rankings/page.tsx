@@ -74,15 +74,15 @@ export const calculateFclPoints = (p: Player): number => {
 
   return Math.round(
     runs * 1 +
-      sixes * 2 +
-      fours * 1 +
-      wickets * 20 +
-      matches * 2 +
-      champion * 100 +
-      runnersUp * 40 +
-      motCpot * 60 +
-      highestRuns * 30 +
-      topWickets * 30
+    sixes * 2 +
+    fours * 1 +
+    wickets * 20 +
+    matches * 2 +
+    champion * 100 +
+    runnersUp * 40 +
+    motCpot * 60 +
+    highestRuns * 30 +
+    topWickets * 30
   );
 };
 
@@ -114,6 +114,9 @@ export default function RankingsPage() {
         setLoading(false);
       });
   }, []);
+
+  // Top 3 MVP Legends for the top podium showcase
+  const top3Mvp = [...players].sort((a, b) => calculateFclPoints(b) - calculateFclPoints(a)).slice(0, 3);
 
   // ক্যাটেগরি অনুযায়ী সর্টিং
   const sortedPlayers = [...players].sort((a, b) => {
@@ -210,6 +213,77 @@ export default function RankingsPage() {
             </div>
           </div>
         </div>
+
+        {/* 🌟 ALL-TIME TOP 3 MVP LEGENDS PODIUM (SHOWN AT THE TOP) */}
+        {!loading && top3Mvp.length > 0 && (
+          <div className="mb-12">
+            <div className="mb-6 flex items-center gap-3">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#f59e0b] shadow-lg shadow-[#f59e0b]/60 animate-pulse" />
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#f59e0b]">FCL PINNACLE RATING • TOP 3 PODIUM</p>
+            </div>
+            <div className="grid gap-6 md:grid-cols-3">
+              {top3Mvp.map((player, idx) => {
+                const rank = idx + 1;
+                const points = calculateFclPoints(player);
+                const badgeColors =
+                  rank === 1
+                    ? { border: "border-2 border-[#f59e0b] shadow-[0_0_30px_rgba(245,158,11,0.25)]", bg: "bg-gradient-to-b from-[#1c1203] via-[#0d0901] to-[#040300]", tag: "border-[#f59e0b]/50 bg-[#f59e0b]/20 text-[#fbbf24]", badge: "bg-[#f59e0b] text-black font-black", highlight: "text-[#fbbf24]", icon: "👑", label: "GOLD MEDALIST • #01 MVP" }
+                    : rank === 2
+                    ? { border: "border-2 border-[#94a3b8] shadow-[0_0_30px_rgba(148,163,184,0.2)]", bg: "bg-gradient-to-b from-[#171d28] via-[#0c1017] to-[#030508]", tag: "border-[#94a3b8]/50 bg-[#94a3b8]/20 text-[#e2e8f0]", badge: "bg-[#cbd5e1] text-black font-black", highlight: "text-[#f1f5f9]", icon: "🥈", label: "SILVER MEDALIST • #02 MVP" }
+                    : { border: "border-2 border-[#d97706] shadow-[0_0_30px_rgba(217,119,6,0.2)]", bg: "bg-gradient-to-b from-[#1a1005] via-[#0e0802] to-[#030200]", tag: "border-[#d97706]/50 bg-[#d97706]/20 text-[#fcd34d]", badge: "bg-[#d97706] text-white font-black", highlight: "text-[#fbbf24]", icon: "🥉", label: "BRONZE MEDALIST • #03 MVP" };
+
+                return (
+                  <div
+                    key={player.name + idx}
+                    onClick={() => setSelectedPlayer(player)}
+                    className={`group relative cursor-pointer overflow-hidden rounded-[2rem] ${badgeColors.border} ${badgeColors.bg} p-6 transition-all duration-300 hover:-translate-y-2`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`rounded-xl border px-3 py-1 text-[10px] font-black uppercase tracking-wider ${badgeColors.tag}`}>
+                        {badgeColors.icon} {badgeColors.label}
+                      </span>
+                      <span className={`flex h-7 w-7 items-center justify-center rounded-xl text-xs ${badgeColors.badge}`}>#{rank}</span>
+                    </div>
+
+                    <div className="mt-5 flex items-center gap-3">
+                      <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-white/10 bg-[#0f172a] text-2xl shadow-lg">
+                        {badgeColors.icon}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-lg font-black text-white group-hover:text-[#60a5fa] transition break-words leading-tight">
+                          {player.name}
+                        </h4>
+                        <p className="text-xs text-[#94a3b8] mt-0.5">@{player.nickName || player.name} • {player.role}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-white/10 bg-black/70 p-3.5 text-center">
+                      <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[#94a3b8]">ALL-TIME PERFORMANCE RATING</p>
+                      <p className={`mt-1 text-3xl font-black ${badgeColors.highlight}`}>
+                        {points.toLocaleString()} <span className="text-xs font-bold text-[#94a3b8]">PTS</span>
+                      </p>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-xl border border-white/5 bg-black/50 p-2">
+                        <p className="text-base font-black text-[#22c55e]">{player.runs?.toLocaleString() ?? 0}</p>
+                        <p className="text-[9px] uppercase font-bold tracking-wider text-[#64748b]">RUNS</p>
+                      </div>
+                      <div className="rounded-xl border border-white/5 bg-black/50 p-2">
+                        <p className="text-base font-black text-[#f59e0b]">{player.wickets ?? 0}</p>
+                        <p className="text-[9px] uppercase font-bold tracking-wider text-[#64748b]">WICKETS</p>
+                      </div>
+                      <div className="rounded-xl border border-white/5 bg-black/50 p-2">
+                        <p className="text-base font-black text-[#38bdf8]">{player.champion ?? 0}x</p>
+                        <p className="text-[9px] uppercase font-bold tracking-wider text-[#64748b]">WINS</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* 🌟 MVP Formula Dropdown Details */}
         {showFormula && (
@@ -412,7 +486,7 @@ export default function RankingsPage() {
             <p className="mt-1 text-xs text-[#64748b]">Official All-Time Player Rankings & MVP Index</p>
           </div>
           <p className="text-xs text-[#94a3b8]">
-            © 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.
+            © 2026 Facebook Cricket League | Arif Md. Jiad | All rights reserved.
           </p>
         </div>
       </footer>
