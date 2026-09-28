@@ -63,7 +63,7 @@ function GatewayCard({
   const [hover, setHover] = useState(false);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
-  function handleMove(e: React.MouseEvent<HTMLDivElement>) {
+  function handleMove(e: React.MouseEvent<HTMLElement>) {
     const rect = e.currentTarget.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width - 0.5;
     const py = (e.clientY - rect.top) / rect.height - 0.5;
