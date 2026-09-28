@@ -1,438 +1,584 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import PlayerCardModal from "../../components/PlayerCardModal";
 
-interface Player {
-  id?: number;
-  name: string;
-  nickName?: string;
-  role: string;
-  totalTournament?: number;
-  matches: number;
-  runs: number;
-  wickets: number;
-  innings?: number;
-  notOut?: number;
-  fours?: number;
-  sixes?: number;
-  hatTricks?: number;
-  mom?: number;
-  cpom?: number;
-  mot?: number;
-  cpot?: number;
-  champion?: number;
-  runnersUp?: number;
-  totalFinal?: number;
-  lastPlayed?: string;
-  highestRunScorer?: number;
-  topWicketTaker?: number;
-  debutYear?: string;
-  debutTournament?: string;
-  debutTeam?: string;
-  maxRuns?: number;
-  maxWickets?: number;
-  runAvg?: string;
-  wkAvg?: string;
-}
-
-interface TournamentRecord {
-  name: string;
-  playerName: string;
-  tournament: string;
-  team: string;
-  matches: number;
-  runs: number;
-  wickets: number;
-  innings: number;
-  notOut: number;
-  fours: number;
-  sixes: number;
-  hatTrick: number;
-  mom: number;
-  cpom: number;
-  motCpot: string;
-  chamRu: string;
-  time: string;
-  topScorer: number;
-  topWicket: number;
-}
-
-export const calculateFclPoints = (p: Player): number => {
-  const runs = Number(p.runs) || 0;
-  const sixes = Number(p.sixes) || 0;
-  const fours = Number(p.fours) || 0;
-  const wickets = Number(p.wickets) || 0;
-  const matches = Number(p.matches) || 0;
-  const champion = Number(p.champion) || 0;
-  const runnersUp = Number(p.runnersUp) || 0;
-  const motCpot = (Number(p.mot) || 0) + (Number(p.cpot) || 0);
-  const highestRuns = Number(p.highestRunScorer) || 0;
-  const topWickets = Number(p.topWicketTaker) || 0;
-
-  return Math.round(
-    runs * 1 +
-      sixes * 2 +
-      fours * 1 +
-      wickets * 20 +
-      matches * 2 +
-      champion * 100 +
-      runnersUp * 40 +
-      motCpot * 60 +
-      highestRuns * 30 +
-      topWickets * 30
-  );
-};
-
-export default function BengaliFacebookHome() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [playersData, setPlayersData] = useState<Player[]>([]);
-  const [tournamentsData, setTournamentsData] = useState<TournamentRecord[]>([]);
-  const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
+/* ------------------------------------------------------------------ */
+/*  Scroll-reveal hook — fades/lifts an element in once it enters view */
+/* ------------------------------------------------------------------ */
+function useReveal<T extends HTMLElement>(threshold = 0.15) {
+  const ref = useRef<T>(null);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    fetch("/api/fcl-data")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.players && Array.isArray(data.players)) setPlayersData(data.players);
-        else if (Array.isArray(data)) setPlayersData(data);
-        if (data.tournaments && Array.isArray(data.tournaments)) setTournamentsData(data.tournaments);
-      })
-      .catch((err) => console.error("Error fetching data:", err));
-  }, []);
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setVisible(true);
+            obs.unobserve(el);
+          }
+        });
+      },
+      { threshold }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
 
-  const top3Mvp = [...playersData].sort((a, b) => calculateFclPoints(b) - calculateFclPoints(a)).slice(0, 3);
-  const mostChampionshipPlayer = [...playersData].sort((a, b) => (b.champion || 0) - (a.champion || 0))[0];
-  const topRunScorer = [...playersData].sort((a, b) => b.runs - a.runs)[0];
-  const topWicketTaker = [...playersData].sort((a, b) => b.wickets - a.wickets)[0];
-  const mostFinalsPlayer = [...playersData].sort((a, b) => (b.totalFinal || 0) - (a.totalFinal || 0))[0];
-  const mostMatchesPlayer = [...playersData].sort((a, b) => b.matches - a.matches)[0];
-  const mostSixesPlayer = [...playersData].sort((a, b) => (b.sixes || 0) - (a.sixes || 0))[0];
-  const topHatTrickPlayer = [...playersData].sort((a, b) => (b.hatTricks || 0) - (a.hatTricks || 0))[0];
-  const mostMotPlayer = [...playersData].sort((a, b) => ((b.mot || 0) + (b.cpot || 0)) - ((a.mot || 0) + (a.cpot || 0)))[0];
+  return { ref, visible };
+}
 
-  const totalCommunityRuns = playersData.reduce((acc, curr) => acc + (curr.runs || 0), 0);
-  const totalCommunityWickets = playersData.reduce((acc, curr) => acc + (curr.wickets || 0), 0);
+/* ------------------------------------------------------------------ */
+/*  Reusable premium gateway card — tilt-on-hover + shimmer + reveal   */
+/* ------------------------------------------------------------------ */
+type GatewayCardProps = {
+  href?: string;
+  color: string;
+  badgeText: string;
+  badgeIcon: string;
+  cornerIcon: string;
+  title: string;
+  description: string;
+  footerText: string;
+  delay?: number;
+  comingSoon?: boolean;
+};
+
+function GatewayCard({
+  href,
+  color,
+  badgeText,
+  badgeIcon,
+  cornerIcon,
+  title,
+  description,
+  footerText,
+  delay = 0,
+  comingSoon = false,
+}: GatewayCardProps) {
+  const { ref, visible } = useReveal<HTMLDivElement>();
+  const [hover, setHover] = useState(false);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+
+  function handleMove(e: React.MouseEvent<HTMLElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width - 0.5;
+    const py = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ x: py * -9, y: px * 9 });
+  }
+
+  const Wrapper = comingSoon ? "div" : Link;
+  const wrapperProps = comingSoon ? {} : { href: href as string };
 
   return (
-    <main className="min-h-screen bg-[#F0F2F5] text-slate-900 font-sans antialiased selection:bg-[#1877F2]/20 selection:text-[#1877F2]">
-      {/* 🔵 Classic Facebook Top Bar */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2.5 sm:px-6">
-          <Link href="/bn" className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1877F2] text-white shadow-md">
-              <span className="text-2xl font-black leading-none">f</span>
+    <div
+      ref={ref}
+      style={{
+        transitionDelay: `${delay}ms`,
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(28px)",
+      }}
+      className="transition-all duration-700 ease-out"
+    >
+      {/* @ts-ignore - polymorphic wrapper (Link vs div) */}
+      <Wrapper
+        {...wrapperProps}
+        onMouseEnter={() => setHover(true)}
+        onMouseMove={handleMove}
+        onMouseLeave={() => {
+          setHover(false);
+          setTilt({ x: 0, y: 0 });
+        }}
+        style={{
+          borderColor: hover ? color : `${color}44`,
+          boxShadow: hover ? `0 0 40px ${color}22, 0 20px 40px -15px ${color}25` : "0 10px 30px rgba(0,0,0,0.04)",
+          transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateY(${
+            hover ? -8 : 0
+          }px) scale(${hover ? 1.015 : 1})`,
+          transition: hover
+            ? "transform 80ms linear, box-shadow 300ms ease, border-color 300ms ease"
+            : "transform 500ms cubic-bezier(.2,.8,.2,1), box-shadow 400ms ease, border-color 400ms ease",
+        }}
+        className={`group relative flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[2.5rem] border-2 bg-white p-8 ${
+          comingSoon ? "cursor-pointer" : ""
+        }`}
+      >
+        {/* ambient tint */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-20"
+          style={{
+            background: `radial-gradient(circle at 30% 0%, ${color}22, transparent 60%)`,
+          }}
+        />
+        {/* shimmer sweep */}
+        <div
+          className="pointer-events-none absolute inset-y-0 left-[-60%] w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-black/5 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[220%]"
+        />
+
+        <div className="relative">
+          <div className="flex items-center justify-between">
+            <span
+              className="rounded-xl border px-3.5 py-1.5 text-xs font-black uppercase"
+              style={{ borderColor: `${color}60`, backgroundColor: `${color}12`, color }}
+            >
+              {badgeIcon} {badgeText}
+            </span>
+            <span className="text-2xl transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110">
+              {cornerIcon}
+            </span>
+          </div>
+          <h4
+            className="mt-8 text-2xl font-black text-slate-900 transition sm:text-3xl"
+            style={{ color: hover ? color : undefined }}
+          >
+            {title}
+          </h4>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600">{description}</p>
+        </div>
+
+        <div
+          className="relative mt-8 flex items-center justify-between border-t pt-4"
+          style={{ borderColor: `${color}22` }}
+        >
+          <span className="text-xs font-bold" style={{ color }}>
+            {footerText}
+          </span>
+          <span
+            className="transform text-lg font-black transition-transform duration-300 group-hover:translate-x-2"
+            style={{ color }}
+          >
+            {comingSoon ? "⚡" : "→"}
+          </span>
+        </div>
+      </Wrapper>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page                                                              */
+/* ------------------------------------------------------------------ */
+export default function Home() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  const hero = useReveal<HTMLDivElement>(0.05);
+  const heroArt = useReveal<HTMLDivElement>(0.05);
+  const sectionHead = useReveal<HTMLDivElement>(0.2);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const cards: GatewayCardProps[] = [
+    {
+      href: "/rankings",
+      color: "#d97706",
+      badgeText: "লিডারবোর্ড",
+      badgeIcon: "👑",
+      cornerIcon: "⭐",
+      title: "র‍্যাঙ্কিং ও সেরা খেলোয়াড়",
+      description:
+        "সর্বকালের সেরা খেলোয়াড়দের র‍্যাঙ্কিং, এমভিপি রেটিং এবং জমজমাট চ্যাম্পিয়নশিপ লিডারবোর্ড দেখুন।",
+      footerText: "প্রবেশ করুন",
+    },
+    {
+      href: "/records",
+      color: "#1877F2",
+      badgeText: "রেকর্ড কেবিনেট",
+      badgeIcon: "🏆",
+      cornerIcon: "📜",
+      title: "হল অব ফেম ও রেকর্ডসমূহ",
+      description:
+        "ঐতিহাসিক মাইলফলক, সর্বাধিক রান, সর্বোচ্চ উইকেট, হ্যাট্রিক এবং অসাধারণ সব রেকর্ডের খোঁজ নিন।",
+      footerText: "প্রবেশ করুন",
+    },
+    {
+      href: "/memories",
+      color: "#db2777",
+      badgeText: "নস্টালজিয়া",
+      badgeIcon: "📖",
+      cornerIcon: "🎞️",
+      title: "এফসিএল স্মৃতি ও আড্ডা",
+      description:
+        "সোনালী দিনগুলো, মজার মুহূর্ত, কমিউনিটির গল্প এবং নস্টালজিক ছবির গ্যালাভারি পুনরায় উপভোগ করুন।",
+      footerText: "প্রবেশ করুন",
+    },
+    {
+      href: "/players",
+      color: "#16a34a",
+      badgeText: "স্কোয়াড ডিরেক্টরি",
+      badgeIcon: "👥",
+      cornerIcon: "🏏",
+      title: "খেলোয়াড় ও স্ট্যাট কার্ড",
+      description:
+        "নিবন্ধিত সকল খেলোয়াড়দের ব্রাউজ করুন, অফিসিয়াল খেলোয়াড় স্ট্যাট কার্ড দেখুন এবং পিএনজি কার্ড ডাউনলোড করুন।",
+      footerText: "প্রবেশ করুন",
+    },
+    {
+      href: "/rules",
+      color: "#0284c7",
+      badgeText: "রুলবুক",
+      badgeIcon: "📜",
+      cornerIcon: "⚖️",
+      title: "নিয়মাবলী ও ম্যাচের ফরম্যাট",
+      description:
+        "অফিসিয়াল টুর্নামেন্ট নির্দেশিকা, টি-টোয়েন্টি/ওয়ানডে/টেস্ট সিস্টেম এবং পাওয়ার-প্লে প্রবিধানগুলো পড়ুন।",
+      footerText: "প্রবেশ করুন",
+    },
+    {
+      href: "/play",
+      color: "#1877F2",
+      badgeText: "এফসিএল অনলাইন",
+      badgeIcon: "🏏",
+      cornerIcon: "🎮",
+      title: "খেলা খেলুন",
+      description:
+        "এফসিএল অনলাইনে লগইন করুন, ম্যাচে যোগ দিন এবং আসল ফেসবুক ক্রিকেট লিগ গেমের অভিজ্ঞতা নিন।",
+      footerText: "এফসিএল অনলাইনে যান",
+    },
+    {
+      color: "#9333ea",
+      badgeText: "থ্রিলার",
+      badgeIcon: "⚡",
+      cornerIcon: "🔥",
+      title: "উত্তেজনাপূর্ণ ম্যাচসমূহ",
+      description:
+        "সবচেয়ে তীব্র ও রোমাঞ্চকর ফিনিশিং এবং মহাকাব্যিক টুর্নামেন্ট যুদ্ধের ম্যাচগুলো পুনরায় উপভোগ করুন। (শীঘ্রই আসছে)",
+      footerText: "শীঘ্রই আসছে",
+      comingSoon: true,
+    },
+  ];
+
+  return (
+    <main className="min-h-screen bg-white text-slate-900 selection:bg-[#1877F2]/20 selection:text-slate-900 font-sans pb-20 sm:pb-0">
+      <style jsx global>{`
+        @keyframes float-a {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(24px, -32px) scale(1.05); }
+        }
+        @keyframes float-b {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          50% { transform: translate(-28px, 26px) scale(1.06); }
+        }
+        @keyframes gradient-shift {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        @keyframes chip-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes fcl-zoom-pulse {
+          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(14,165,233,0.3)); }
+          50% { transform: scale(1.18); filter: drop-shadow(0 0 20px rgba(14,165,233,0.6)); }
+        }
+        @keyframes fcl-color-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes mobile-glow {
+          0%, 100% { opacity: .3; transform: scale(1); }
+          50% { opacity: .5; transform: scale(1.08); }
+        }
+        .fcl-orb-a { animation: float-a 11s ease-in-out infinite; }
+        .fcl-orb-b { animation: float-b 13s ease-in-out infinite; }
+        .fcl-gradient-text {
+          background-size: 200% 200%;
+          animation: gradient-shift 6s ease-in-out infinite;
+        }
+        .fcl-chip { animation: chip-float 5s ease-in-out infinite; }
+        .fcl-chip-delay { animation-delay: 1.4s; }
+        .fcl-grid-bg {
+          background-image:
+            linear-gradient(to right, rgba(100,116,139,0.08) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(100,116,139,0.08) 1px, transparent 1px);
+          background-size: 56px 56px;
+          -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 90%);
+          mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 90%);
+        }
+        .fcl-zoom-text {
+          background: linear-gradient(90deg, #2563eb, #0284c7, #d97706, #9333ea, #2563eb);
+          background-size: 300% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: fcl-color-shift 4s ease infinite, fcl-zoom-pulse 2.5s ease-in-out infinite;
+          display: inline-block;
+        }
+        .fcl-mobile-glow { animation: mobile-glow 5s ease-in-out infinite; }
+        @media (min-width: 640px) {
+          .fcl-mobile-only { display: none !important; }
+        }
+      `}</style>
+
+      {/* ================================================================
+          DESKTOP / TABLET HEADER — white background theme
+          ================================================================ */}
+      <header
+        className={`hidden sm:block sticky top-0 z-40 border-b transition-all duration-500 ${
+          scrolled
+            ? "border-slate-200 bg-white/90 backdrop-blur-xl py-1 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
+            : "border-slate-200 bg-white/70 backdrop-blur-md py-0"
+        }`}
+      >
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+          <Link href="/bn" className="flex items-center gap-3">
+            <div className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center overflow-hidden rounded-xl border border-[#1877F2]/30 bg-blue-50 shadow-md shadow-[#1877F2]/10 transition-transform duration-300 hover:scale-105 hover:rotate-3">
+              <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain p-1" />
             </div>
             <div>
-              <h1 className="text-lg font-black text-[#1877F2]">ফেসবুক ক্রিকেট লীগ</h1>
-              <p className="text-[10px] text-slate-500 font-semibold">FCL অফিসিয়াল বাংলা পোর্টাল</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base sm:text-xl font-bold tracking-tight text-slate-900">
+                  Facebook <span className="text-[#1877F2]">Cricket League</span>
+                </h1>
+                <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-amber-600">FCL</span>
+              </div>
+              <p className="text-[10px] sm:text-xs text-slate-500">অফিসিয়াল এফসিএল ডিজিটাল প্ল্যাটফর্ম</p>
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-2 md:flex">
-            <Link href="/bn" className="rounded-xl bg-[#E7F3FF] px-4 py-2 text-sm font-bold text-[#1877F2]">হোম ফিড</Link>
-            <Link href="/players" className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100">খেলোয়াড় তালিকা</Link>
-            <Link href="/rankings" className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100">সেরা একাদশ ও MVP</Link>
-            <Link href="/records" className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100">রেকর্ডস ও হল অফ ফেম</Link>
-            <Link href="/memories" className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100">স্মৃতি ও আড্ডা 📖</Link>
+          <nav className="hidden items-center gap-6 lg:flex">
+            <Link href="/bn" className="text-sm font-semibold text-[#1877F2] transition hover:text-[#1877F2]">হোম</Link>
+            <Link href="#gateways" className="text-sm font-medium text-slate-600 transition hover:text-[#1877F2]">পোর্টালসমূহ</Link>
+            <Link href="/rules" className="text-sm font-medium text-sky-600 transition hover:text-slate-900">নিয়ম ও ফরম্যাট</Link>
+            <Link href="/players" className="text-sm font-medium text-slate-600 transition hover:text-[#1877F2]">খেলোয়াড়বৃন্দ</Link>
+            <Link href="/rankings" className="text-sm font-medium text-amber-600 transition hover:text-slate-900">র‍্যাঙ্কিং</Link>
+            <Link href="/records" className="text-sm font-medium text-amber-600 transition hover:text-slate-900">হল অব ফেম</Link>
+            <Link href="/memories" className="text-sm font-bold text-pink-600 transition hover:text-slate-900 flex items-center gap-1">স্মৃতিচারণ 📖</Link>
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-1.5 rounded-full border border-slate-900 bg-[#020617] px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#0f172a]">
-              <span>🌙</span> ডার্ক মোড
+            <Link href="/" className="flex items-center gap-1.5 rounded-full border border-[#1877F2]/40 bg-gradient-to-r from-[#1877F2] to-[#166fe5] px-3.5 py-1.5 text-xs font-bold text-white shadow-lg shadow-[#1877F2]/20 transition hover:brightness-110 active:scale-95">
+              <span>🌙</span>
+              <span>Dark Version</span>
             </Link>
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 md:hidden">
-              {mobileMenuOpen ? "✕" : "☰"}
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="hidden h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-900 transition hover:border-[#1877F2]/50">
+              {mobileMenuOpen ? <span className="text-xl font-bold">✕</span> : <span className="text-xl">☰</span>}
             </button>
           </div>
         </div>
+
+        {mobileMenuOpen && (
+          <div className="border-t border-slate-200 bg-white px-6 py-5 lg:hidden animate-in fade-in slide-in-from-top-2 duration-200 shadow-xl">
+            <nav className="flex flex-col gap-4">
+              <Link href="/bn" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-slate-900 hover:bg-blue-50">🏠 হোম</Link>
+              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-sm font-bold text-blue-600">🌙 Dark Version</Link>
+              <Link href="/players" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50">👥 খেলোয়াড় ডিরেক্টরি</Link>
+              <Link href="/rankings" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-amber-600 hover:bg-amber-50">👑 র‍্যাঙ্কিং ও এমভিপি</Link>
+              <Link href="/records" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-amber-600 hover:bg-amber-50">🏆 রেকর্ড ও হল অব ফেম</Link>
+              <Link href="/memories" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-bold text-pink-600 hover:bg-pink-50">📖 এফসিএল স্মৃতি ও নস্টালজিয়া</Link>
+            </nav>
+          </div>
+        )}
       </header>
 
-      {/* Hero Section */}
-      <section className="bg-white border-b border-slate-200 py-8 sm:py-12">
-        <div className="mx-auto max-w-5xl px-4">
-          <div className="flex flex-col md:flex-row items-center gap-6 sm:gap-8">
-            <div className="flex h-28 w-28 sm:h-36 sm:w-36 shrink-0 items-center justify-center rounded-3xl border-4 border-white bg-gradient-to-tr from-[#1877F2] to-[#42b72a] shadow-xl p-2">
-              <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain" />
+      {/* ================================================================
+          MOBILE APP HEADER — only below 640px
+          ================================================================ */}
+      <header className="sm:hidden sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
+        <div className="flex h-[68px] items-center justify-between px-4">
+          <Link href="/bn" className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-blue-200 bg-blue-50 shadow-sm">
+              <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain p-1" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="truncate text-[14px] font-extrabold tracking-tight text-slate-900">Facebook Cricket League</span>
+                <span className="rounded border border-amber-500/40 bg-amber-50 px-1 py-0.5 text-[7px] font-black text-amber-600">FCL</span>
+              </div>
+              <p className="text-[8px] font-medium text-slate-500">অফিসিয়াল এফসিএল ডিজিটাল প্ল্যাটফর্ম</p>
+            </div>
+          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/" aria-label="Dark Version" className="flex h-9 items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 text-[9px] font-bold text-blue-600">
+              <span>🌙</span>
+              <span>Dark</span>
+            </Link>
+            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Menu" className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-900">
+              {mobileMenuOpen ? <span className="text-base font-bold">✕</span> : <span className="text-lg">☰</span>}
+            </button>
+          </div>
+        </div>
+        {mobileMenuOpen && (
+          <nav className="border-t border-slate-200 bg-slate-50 px-4 py-3 shadow-xl">
+            <div className="grid grid-cols-2 gap-2">
+              <Link href="/rules" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-sky-600 shadow-sm">⚖️ নিয়ম ও ফরম্যাট</Link>
+              <Link href="/records" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-amber-600 shadow-sm">🏆 হল অব ফেম</Link>
+              <Link href="/players" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-blue-600 shadow-sm">👥 খেলোয়াড়বৃন্দ</Link>
+              <Link href="/memories" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-pink-600 shadow-sm">📖 স্মৃতিচারণ</Link>
+            </div>
+          </nav>
+        )}
+      </header>
+
+      {/* ================================================================
+          DESKTOP HERO — white theme structure with increased line spacing
+          ================================================================ */}
+      <section className="relative hidden min-h-[calc(100vh-76px)] overflow-hidden border-b border-slate-200 bg-slate-50/50 sm:block">
+        <div className="absolute inset-0 bg-slate-50/50" />
+        <div className="absolute inset-0 fcl-grid-bg" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_45%,rgba(37,99,235,0.08),transparent_34%)]" />
+        <div className="fcl-orb-a absolute right-[-15%] top-[-20%] h-[650px] w-[650px] rounded-full bg-purple-500/5 blur-[130px]" />
+        <div className="fcl-orb-b absolute left-[-20%] bottom-[-20%] h-[500px] w-[500px] rounded-full bg-blue-500/5 blur-[130px]" />
+
+        <div className="relative mx-auto min-h-[calc(100vh-76px)] max-w-[1500px] px-6 flex items-center">
+          <div className="grid w-full items-center lg:grid-cols-[0.85fr_1.15fr] gap-12 py-12">
+            <div ref={hero.ref} style={{ opacity: hero.visible ? 1 : 0, transform: hero.visible ? "translateY(0)" : "translateY(24px)" }} className="relative z-30 text-center transition-all duration-700 ease-out lg:text-left">
+              <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 backdrop-blur-xl shadow-sm">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-blue-600">এফসিএল • ডিজিটাল গেটওয়ে হাব</span>
+              </div>
+              <h2 className="text-5xl font-black leading-[1.15] tracking-[-0.03em] text-slate-900 sm:text-6xl md:text-7xl lg:text-[72px]">
+                <span className="block mb-2">মাঠের সীমানা পেরিয়ে</span>
+                <span className="fcl-gradient-text block bg-gradient-to-r from-blue-600 via-[#1877F2] to-purple-600 bg-clip-text text-transparent mb-3">খেলার উন্মাদনা সর্বত্র।</span>
+                <span className="mt-2 block text-[0.42em] font-bold leading-relaxed tracking-normal text-amber-600">একটি খেলা। একটি পরিবার। <span className="fcl-zoom-text text-[1.45em] font-black tracking-[-0.04em]">এফসিএল।</span></span>
+              </h2>
+              <p className="mx-auto mt-6 max-w-[540px] text-sm leading-8 text-slate-600 md:text-base lg:mx-0">ফেসবুক ক্রিকেট লিগের অফিসিয়াল পোর্টালে স্বাগতম। নিচের নির্দিষ্ট গেটওয়েগুলোর মাধ্যমে সহজেই র‍্যাঙ্কিং, ঐতিহাসিক রেকর্ড ক্যাবিনেট, স্মৃতি এবং রোমাঞ্চকর ম্যাচের সারাংশ উপভোগ করুন।</p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row lg:justify-start">
+                <a href="#gateways" className="group relative overflow-hidden rounded-xl bg-[#1877F2] px-7 py-3.5 text-center text-sm font-bold text-white shadow-lg shadow-[#1877F2]/25 transition hover:bg-blue-600"><span className="relative z-10">পোর্টালগুলো দেখুন ↓</span><span className="absolute inset-y-0 left-[-60%] w-1/2 -skew-x-12 bg-white/20 transition-transform duration-700 group-hover:translate-x-[280%]" /></a>
+                <Link href="/" className="rounded-xl border border-blue-200 bg-blue-50 px-7 py-3.5 text-center text-sm font-bold text-blue-600 transition hover:bg-[#1877F2] hover:text-white">🌙 Dark Version</Link>
+              </div>
             </div>
 
-            <div className="text-center md:text-left flex-1">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[#E7F3FF] px-3 py-1 text-xs font-bold text-[#1877F2]">
-                <span className="h-2 w-2 rounded-full bg-[#22c55e] animate-pulse" />
-                <span>অফিসিয়াল ফেসবুক ক্রিকেট লীগ (FCL) গ্রুপ হাব</span>
-              </div>
-              <h2 className="mt-3 text-3xl sm:text-4xl font-black text-slate-900">মাঠ পেরিয়ে ক্রিকেটের উন্মাদনা</h2>
-              <p className="mt-2 text-sm sm:text-base text-slate-600 leading-relaxed">
-                বাংলাদেশের বিভিন্ন জেলা থেকে শুরু করে পৃথিবীর নানা প্রান্তে থাকা ক্রিকেটপ্রেমীদের এক সুতোয় বাঁধার গল্প। দূরত্ব যাই হোক, খেলা আমাদের এক করে রেখেছে।
-              </p>
+            <div ref={heroArt.ref} style={{ opacity: heroArt.visible ? 1 : 0, transform: heroArt.visible ? "translateY(0) scale(1)" : "translateY(32px) scale(0.97)" }} className="relative h-[420px] sm:h-[480px] lg:h-[550px] w-full transition-all duration-700 ease-out">
+              <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] sm:rounded-[3rem] border border-slate-200 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.08)] flex items-center justify-center p-4"><img src="/fcl-room.png" alt="FCL Room" className="h-full w-full object-contain object-center" /></div>
+              <div className="fcl-chip absolute -left-2 sm:-left-6 top-6 sm:top-10 flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-xl"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" /><div><span className="text-[10px] sm:text-xs font-bold text-slate-900 block">এফসিএল লাইভ</span><span className="text-[9px] sm:text-[10px] text-blue-600">টিম ফিনিক্স · ১৪/২</span></div></div>
+              <div className="fcl-chip fcl-chip-delay absolute -right-2 sm:-right-4 top-24 sm:top-36 flex items-center gap-2 rounded-2xl border border-rose-200 bg-white/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-xl"><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500 text-white font-black text-xs shadow-sm">৬</div><div><span className="text-[10px] sm:text-xs font-black text-rose-600 block tracking-wider">আউট</span><span className="text-[9px] sm:text-[10px] text-slate-500">বল ১</span></div></div>
+              <div className="fcl-chip absolute -left-2 sm:-left-6 bottom-16 sm:bottom-20 flex items-center gap-2 rounded-2xl border border-blue-200 bg-white/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-xl"><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1877F2] text-white font-black text-xs shadow-sm">৪</div><div><span className="text-[10px] sm:text-xs font-bold text-blue-600 block">+৪ রান</span><span className="text-[9px] sm:text-[10px] text-slate-500">বল ২</span></div></div>
+              <div className="fcl-chip fcl-chip-delay absolute -right-2 sm:-right-4 bottom-4 sm:bottom-8 flex flex-col gap-0.5 rounded-2xl border border-amber-200 bg-white/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-xl"><div className="flex items-center gap-1.5"><span className="text-xs sm:text-sm">🎯</span><span className="text-[11px] sm:text-xs font-bold text-amber-600">২৪ বলে ৫৬ রান প্রয়োজন</span></div><span className="text-[10px] sm:text-[11px] font-semibold text-slate-500">টার্গেট ৭০</span></div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 🌟 অল-টাইম টপ ৩ MVP সেকশন */}
-      <section className="mx-auto max-w-5xl px-4 py-10">
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-          <div>
-            <span className="text-xs font-black uppercase tracking-wider text-[#1877F2]">FCL ঐতিহাসিক র‍্যাঙ্কিং</span>
-            <h3 className="mt-1 text-2xl sm:text-3xl font-black text-slate-900">👑 সর্বকালের শীর্ষ ৩ MVP তারকা</h3>
+      {/* ================================================================
+          MOBILE HOME APP — white theme structure
+          ================================================================ */}
+      <section className="relative overflow-hidden border-b border-slate-200 bg-slate-50/50 px-4 pb-7 pt-5 sm:hidden">
+        <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-blue-500/10 blur-[90px] fcl-mobile-glow" />
+        <div className="pointer-events-none absolute -left-28 bottom-0 h-64 w-64 rounded-full bg-purple-500/5 blur-[90px]" />
+
+        <div className="relative rounded-[25px] border border-blue-100 bg-gradient-to-b from-blue-50/60 to-white p-4 shadow-[0_10px_30px_rgba(0,0,0,0.04)]">
+          <div className="flex items-center justify-between">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-50 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.16em] text-amber-600">✨ ডিজিটাল এফসিএল এরেনা</span>
+            <Link href="/rules" className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[8px] font-bold text-slate-600 shadow-sm">ⓘ এফসিএল নিয়মাবলী</Link>
           </div>
-          <Link href="/rankings" className="text-xs sm:text-sm font-bold text-[#1877F2] hover:underline shrink-0">
-            সম্পূর্ণ MVP তালিকা দেখুন →
-          </Link>
+          <p className="mt-3 text-[11px] font-medium leading-5 text-slate-700">অফিসিয়াল ফেসবুক ক্রিকেট লিগ ডিজিটাল প্ল্যাটফর্ম</p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <span className="rounded-lg bg-blue-50 px-2 py-1 text-[8px] font-bold text-blue-600">২ ওভার</span>
+            <span className="rounded-lg bg-emerald-50 px-2 py-1 text-[8px] font-bold text-emerald-600">৩ উইকেট</span>
+            <span className="rounded-lg bg-amber-50 px-2 py-1 text-[8px] font-bold text-amber-600">নং ৫</span>
+            <span className="rounded-lg bg-purple-50 px-2 py-1 text-[8px] font-bold text-purple-600">অটো আম্পায়ার</span>
+          </div>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-3">
-          {top3Mvp.map((player, idx) => {
-            const rank = idx + 1;
-            const points = calculateFclPoints(player);
-            const icon = rank === 1 ? "👑" : rank === 2 ? "🥈" : "🥉";
+        <div className="mt-5 px-1">
+          <span className="text-[9px] font-black uppercase tracking-[0.28em] text-sky-600">এফসিএল ডিজিটাল প্ল্যাটফর্ম</span>
+          <h2 className="mt-2 text-[28px] font-black leading-[1.3] tracking-[-0.03em] text-slate-900">মাঠের সীমানা পেরিয়ে<br /><span className="bg-gradient-to-r from-blue-600 via-[#1877F2] to-purple-600 bg-clip-text text-transparent">খেলার উন্মাদনা সর্বত্র।</span></h2>
+          <p className="mt-3 max-w-[340px] text-[11px] leading-6 text-slate-600">অফিসিয়াল এফসিএল আর্কাইভ, খেলোয়াড়, র‍্যাঙ্কিং, রেকর্ড, স্মৃতি এবং অনলাইন গেমটি অন্বেষণ করুন।</p>
+        </div>
 
-            return (
-              <div
-                key={player.name + idx}
-                onClick={() => setSelectedPlayer(player)}
-                className="cursor-pointer overflow-hidden rounded-2xl bg-white p-5 border border-slate-200 shadow-sm hover:shadow-md transition hover:-translate-y-1"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-3xl">
-                    {icon}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="font-black text-slate-900 break-words leading-tight">{player.name}</h4>
-                    <p className="text-xs text-[#1877F2] mt-0.5">@{player.nickName}</p>
-                  </div>
-                </div>
+        <div className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_15px_40px_rgba(0,0,0,0.06)]">
+          <img src="/fcl-room.png" alt="FCL Online" className="h-[185px] w-full object-cover object-center" />
+        </div>
+      </section>
 
-                <div className="mt-4 rounded-xl bg-slate-50 p-3 text-center border border-slate-100">
-                  <p className="text-[10px] text-slate-500 uppercase font-bold">MVP পয়েন্ট</p>
-                  <p className="text-2xl font-black text-[#d97706]">{points.toLocaleString()}</p>
+      {/* ================================================================
+          DESKTOP PORTALS — white background theme
+          ================================================================ */}
+      <section id="gateways" className="relative hidden overflow-hidden bg-white px-6 py-28 sm:block">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-blue-500/5 blur-[150px]" />
+        <div className="mx-auto max-w-7xl relative z-10">
+          <div ref={sectionHead.ref} style={{ opacity: sectionHead.visible ? 1 : 0, transform: sectionHead.visible ? "translateY(0)" : "translateY(24px)" }} className="text-center max-w-3xl mx-auto mb-16 transition-all duration-700 ease-out">
+            <span className="text-xs font-bold uppercase tracking-[0.35em] text-sky-600">এফসিএল নেভিগেশন পোর্টাল</span>
+            <h3 className="mt-3 text-4xl sm:text-5xl font-black tracking-tight text-slate-900">আপনার গন্তব্য বেছে নিন</h3>
+            <p className="mt-3 text-sm sm:text-base text-slate-600">সরাসরি নির্দিষ্ট বিভাগে প্রবেশ করতে নিচের যেকোনো গেটওয়েতে ক্লিক করুন।</p>
+          </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {cards.map((card, i) => <GatewayCard key={card.title} {...card} delay={i * 90} />)}
+          </div>
+        </div>
+      </section>
+
+      {/* ================================================================
+          MOBILE PORTALS — white background compact app cards
+          ================================================================ */}
+      <section id="mobile-gateways" className="relative overflow-hidden bg-white px-4 pb-8 pt-6 sm:hidden">
+        <div className="mb-4 flex items-end justify-between px-1">
+          <div>
+            <span className="text-[8px] font-black uppercase tracking-[0.28em] text-sky-600">এফসিএল নেভিগেশন</span>
+            <h3 className="mt-1 text-[24px] font-black tracking-tight text-slate-900">আপনার গন্তব্য বেছে নিন</h3>
+          </div>
+          <span className="text-[9px] font-semibold text-slate-500">৭টি পোর্টাল</span>
+        </div>
+
+        <div className="space-y-3">
+          {cards.map((card, i) => {
+            const colors = ["#d97706", "#1877F2", "#db2777", "#16a34a", "#0284c7", "#1877F2", "#9333ea"];
+            const color = colors[i];
+            const content = (
+              <div className="relative flex min-h-[112px] items-center gap-3.5 overflow-hidden rounded-[21px] border bg-slate-50/70 p-3.5 shadow-sm" style={{ borderColor: `${color}40` }}>
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[17px] border shadow-xs" style={{ borderColor: `${color}40`, backgroundColor: `${color}12` }}>
+                  <span className="text-[26px]">{card.badgeIcon}</span>
                 </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="rounded-md border px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide" style={{ borderColor: `${color}40`, backgroundColor: `${color}10`, color }}>{card.badgeText}</span>
+                    {card.comingSoon && <span className="rounded-md bg-purple-100 px-1.5 py-0.5 text-[7px] font-black text-purple-700">শীঘ্রই আসছে</span>}
+                  </div>
+                  <h4 className="mt-1.5 truncate text-[16px] font-black text-slate-900">{card.title}</h4>
+                  <p className="mt-1 line-clamp-2 text-[9px] leading-4 text-slate-600">{card.description}</p>
+                </div>
+                <span className="shrink-0 text-lg font-black" style={{ color }}>{card.comingSoon ? "⚡" : "→"}</span>
               </div>
             );
+            return card.comingSoon ? <div key={card.title}>{content}</div> : <Link key={card.title} href={card.href as string}>{content}</Link>;
           })}
         </div>
       </section>
 
-      {/* 🏆 ৮টি পূর্ণাঙ্গ সিমেট্রিক্যাল রেকর্ড কর্নার গ্রিড */}
-      <section className="mx-auto max-w-5xl px-4 py-8">
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-          <div>
-            <span className="text-xs font-black uppercase tracking-wider text-[#1877F2]">এফসিএল ইতিহাস ও মাইলফলক</span>
-            <h3 className="mt-1 text-2xl sm:text-3xl font-black text-slate-900">🏆 এফসিএল রেকর্ড কর্নার</h3>
-            <p className="text-xs sm:text-sm text-slate-500">এক নজরে সর্বকালের সেরা রেকর্ডধারী ও ঐতিহাসিক পরিসংখ্যান।</p>
-          </div>
-          <Link href="/records" className="text-xs sm:text-sm font-bold text-[#1877F2] hover:underline shrink-0">
-            হল অফ ফেম দেখুন →
-          </Link>
+      {/* Footer — white theme */}
+      <footer className="border-t border-slate-200 bg-white px-4 py-7 sm:px-6 sm:py-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 text-center md:flex-row md:text-left">
+          <p className="font-bold text-slate-900">Facebook Cricket League (FCL)</p>
+          <p className="text-[10px] text-slate-500 sm:text-xs">© ২০২৬ ফেসবুক ক্রিকেট লিগ | আরিফ জিয়াদ | সর্বস্বত্ব সংরক্ষিত।</p>
         </div>
-
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* 1. Champion */}
-          <div onClick={() => setSelectedPlayer(mostChampionshipPlayer)} className="cursor-pointer rounded-2xl border border-amber-200 bg-white p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between hover:-translate-y-1">
-            <div>
-              <span className="rounded-lg bg-amber-50 px-2.5 py-0.5 text-[10px] font-black text-[#d97706] border border-amber-200">🏆 সর্বাধিক শিরোপা</span>
-              <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-500">TITLES WON</p>
-                <p className="text-3xl font-black text-[#d97706] mt-0.5">{mostChampionshipPlayer?.champion || 6}টি</p>
-                <p className="text-[11px] text-slate-500">৬ বার শিরোপা জয়ী</p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-xl border border-amber-200">⭐</div>
-                <div className="min-w-0">
-                  <p className="text-[9px] uppercase font-bold text-slate-400">RECORD HOLDER</p>
-                  <h5 className="text-xs sm:text-sm font-black text-slate-900 break-words leading-tight">{mostChampionshipPlayer?.name || "আরিফ জিয়াদ"}</h5>
-                </div>
-              </div>
-              <span className="text-xs text-[#1877F2] font-bold shrink-0">Open Card →</span>
-            </div>
-          </div>
-
-          {/* 2. All-Time Runs */}
-          <div onClick={() => setSelectedPlayer(topRunScorer)} className="cursor-pointer rounded-2xl border border-blue-200 bg-white p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between hover:-translate-y-1">
-            <div>
-              <span className="rounded-lg bg-blue-50 px-2.5 py-0.5 text-[10px] font-black text-[#1877F2] border border-blue-200">🏏 সর্বোচ্চ রান</span>
-              <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-500">CAREER RECORD RUNS</p>
-                <p className="text-3xl font-black text-[#1877F2] mt-0.5">{topRunScorer?.runs?.toLocaleString() || "৩,৩১৭"}</p>
-                <p className="text-[11px] text-slate-500">গড়: {topRunScorer?.runAvg || "১৫.২২"}</p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xl border border-blue-200">👑</div>
-                <div className="min-w-0">
-                  <p className="text-[9px] uppercase font-bold text-slate-400">RECORD HOLDER</p>
-                  <h5 className="text-xs sm:text-sm font-black text-slate-900 break-words leading-tight">{topRunScorer?.name || "জাহিন শাহরিয়ার চৌধুরী"}</h5>
-                </div>
-              </div>
-              <span className="text-xs text-[#1877F2] font-bold shrink-0">Open Card →</span>
-            </div>
-          </div>
-
-          {/* 3. All-Time Wickets */}
-          <div onClick={() => setSelectedPlayer(topWicketTaker)} className="cursor-pointer rounded-2xl border border-red-200 bg-white p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between hover:-translate-y-1">
-            <div>
-              <span className="rounded-lg bg-red-50 px-2.5 py-0.5 text-[10px] font-black text-red-600 border border-red-200">🎯 সর্বোচ্চ উইকেট</span>
-              <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-500">CAREER RECORD WICKETS</p>
-                <p className="text-3xl font-black text-red-600 mt-0.5">{topWicketTaker?.wickets || 332}টি</p>
-                <p className="text-[11px] text-slate-500">বোলিং গড়: {topWicketTaker?.wkAvg || "১.৯৯"}</p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-xl border border-red-200">⚡</div>
-                <div className="min-w-0">
-                  <p className="text-[9px] uppercase font-bold text-slate-400">RECORD HOLDER</p>
-                  <h5 className="text-xs sm:text-sm font-black text-slate-900 break-words leading-tight">{topWicketTaker?.name || "জাহিদ হাসান"}</h5>
-                </div>
-              </div>
-              <span className="text-xs text-[#1877F2] font-bold shrink-0">Open Card →</span>
-            </div>
-          </div>
-
-          {/* 4. Total Finals */}
-          <div onClick={() => setSelectedPlayer(mostFinalsPlayer)} className="cursor-pointer rounded-2xl border border-sky-200 bg-white p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between hover:-translate-y-1">
-            <div>
-              <span className="rounded-lg bg-sky-50 px-2.5 py-0.5 text-[10px] font-black text-[#0284c7] border border-sky-200">⚔️ সর্বাধিক ফাইনাল</span>
-              <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-500">FINAL APPEARANCES</p>
-                <p className="text-3xl font-black text-[#0284c7] mt-0.5">{mostFinalsPlayer?.totalFinal || 9}টি</p>
-                <p className="text-[11px] text-slate-500">৫ বার চ্যাম্পিয়ন • ৪ বার রানার্স-আপ</p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-xl border border-sky-200">🛡️</div>
-                <div className="min-w-0">
-                  <p className="text-[9px] uppercase font-bold text-slate-400">RECORD HOLDER</p>
-                  <h5 className="text-xs sm:text-sm font-black text-slate-900 break-words leading-tight">{mostFinalsPlayer?.name || "তানভীর শাকিব"}</h5>
-                </div>
-              </div>
-              <span className="text-xs text-[#1877F2] font-bold shrink-0">Open Card →</span>
-            </div>
-          </div>
-
-          {/* 5. Most Matches */}
-          <div onClick={() => setSelectedPlayer(mostMatchesPlayer)} className="cursor-pointer rounded-2xl border border-emerald-200 bg-white p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between hover:-translate-y-1">
-            <div>
-              <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-[10px] font-black text-emerald-600 border border-emerald-200">⚡ সর্বাধিক ম্যাচ</span>
-              <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-500">CAPS PLAYED</p>
-                <p className="text-3xl font-black text-emerald-600 mt-0.5">{mostMatchesPlayer?.matches || 171}টি</p>
-                <p className="text-[11px] text-slate-500">২৬১ টি ক্যারিয়ার উইকেট</p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-xl border border-emerald-200">🛡️</div>
-                <div className="min-w-0">
-                  <p className="text-[9px] uppercase font-bold text-slate-400">RECORD HOLDER</p>
-                  <h5 className="text-xs sm:text-sm font-black text-slate-900 break-words leading-tight">{mostMatchesPlayer?.name || "সাদরুল আনাম"}</h5>
-                </div>
-              </div>
-              <span className="text-xs text-[#1877F2] font-bold shrink-0">Open Card →</span>
-            </div>
-          </div>
-
-          {/* 6. Six Machine */}
-          <div onClick={() => setSelectedPlayer(mostSixesPlayer)} className="cursor-pointer rounded-2xl border border-purple-200 bg-white p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between hover:-translate-y-1">
-            <div>
-              <span className="rounded-lg bg-purple-50 px-2.5 py-0.5 text-[10px] font-black text-purple-600 border border-purple-200">💥 ছক্কার মেশিন</span>
-              <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-500">TOTAL SIXES CLEARED</p>
-                <p className="text-3xl font-black text-purple-600 mt-0.5">{mostSixesPlayer?.sixes || 176}টি</p>
-                <p className="text-[11px] text-slate-500">{mostSixesPlayer?.runs || 2745} ক্যারিয়ার রান</p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-xl border border-purple-200">💣</div>
-                <div className="min-w-0">
-                  <p className="text-[9px] uppercase font-bold text-slate-400">RECORD HOLDER</p>
-                  <h5 className="text-xs sm:text-sm font-black text-slate-900 break-words leading-tight">{mostSixesPlayer?.name || "শাহরিয়ার খোকন"}</h5>
-                </div>
-              </div>
-              <span className="text-xs text-[#1877F2] font-bold shrink-0">Open Card →</span>
-            </div>
-          </div>
-
-          {/* 7. Hat-Tricks */}
-          <div onClick={() => setSelectedPlayer(topHatTrickPlayer)} className="cursor-pointer rounded-2xl border border-pink-200 bg-white p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between hover:-translate-y-1">
-            <div>
-              <span className="rounded-lg bg-pink-50 px-2.5 py-0.5 text-[10px] font-black text-pink-600 border border-pink-200">🔥 হ্যাটট্রিক মাস্টার</span>
-              <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-500">CAREER HAT-TRICKS</p>
-                <p className="text-3xl font-black text-pink-600 mt-0.5">{topHatTrickPlayer?.hatTricks || 12} বার</p>
-                <p className="text-[11px] text-slate-500">সর্বকালের সর্বোচ্চ হ্যাটট্রিক রেকর্ড</p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-pink-50 text-xl border border-pink-200">🎯</div>
-                <div className="min-w-0">
-                  <p className="text-[9px] uppercase font-bold text-slate-400">RECORD HOLDER</p>
-                  <h5 className="text-xs sm:text-sm font-black text-slate-900 break-words leading-tight">{topHatTrickPlayer?.name || "জাহিদ হাসান"}</h5>
-                </div>
-              </div>
-              <span className="text-xs text-[#1877F2] font-bold shrink-0">Open Card →</span>
-            </div>
-          </div>
-
-          {/* 8. MOT / CPOT */}
-          <div onClick={() => setSelectedPlayer(mostMotPlayer)} className="cursor-pointer rounded-2xl border border-amber-200 bg-white p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between hover:-translate-y-1">
-            <div>
-              <span className="rounded-lg bg-amber-50 px-2.5 py-0.5 text-[10px] font-black text-amber-700 border border-amber-200">⭐ সেরা খেলোয়াড়</span>
-              <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-3 text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-500">TOURNAMENT BEST</p>
-                <p className="text-3xl font-black text-amber-600 mt-0.5">{(mostMotPlayer?.mot || 0) + (mostMotPlayer?.cpot || 0)} বার</p>
-                <p className="text-[11px] text-slate-500">টুর্নামেন্ট সেরা পুরস্কার</p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-xl border border-amber-200">🎖️</div>
-                <div className="min-w-0">
-                  <p className="text-[9px] uppercase font-bold text-slate-400">RECORD HOLDER</p>
-                  <h5 className="text-xs sm:text-sm font-black text-slate-900 break-words leading-tight">{mostMotPlayer?.name || "তৌফিক আহমেদ অভি"}</h5>
-                </div>
-              </div>
-              <span className="text-xs text-[#1877F2] font-bold shrink-0">Open Card →</span>
-            </div>
-          </div>
-        </div>
-
-        {/* ব্যানার */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl bg-[#1877F2] p-6 text-white shadow-lg">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-[#bfdbfe]">সামগ্রিক ইতিহাস</span>
-            <h4 className="mt-1 text-2xl font-black">{totalCommunityRuns ? `${totalCommunityRuns.toLocaleString()}+ রান` : "১,২৭,৩৮৭+ রান"}</h4>
-            <p className="text-xs text-[#dbeafe] mt-1">২০১৩ সাল থেকে এ পর্যন্ত এফসিএলে নিবন্ধিত খেলোয়াড়দের সম্মিলিত অর্জনের ভাণ্ডার।</p>
-          </div>
-          <div className="rounded-xl bg-white/10 px-6 py-3 text-center shrink-0 border border-white/20">
-            <p className="text-[10px] uppercase font-bold text-white/80">মোট উইকেট</p>
-            <p className="text-2xl sm:text-3xl font-black text-white">{totalCommunityWickets ? `${totalCommunityWickets.toLocaleString()}` : "১০,৩০৩"}টি</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white px-6 py-8 mt-12 text-center text-xs text-slate-500">
-        <p className="font-bold text-slate-900">ফেসবুক ক্রিকেট লীগ (FCL) • ২০১৩–২০২৬</p>
-        <p className="mt-1">© ২০২৬ সর্বস্বত্ব সংরক্ষিত | আরিফ জিয়াদ ও এফসিএল পরিবার</p>
       </footer>
 
-      {/* 🌟 CENTRALIZED PLAYER CARD MODAL */}
-      <PlayerCardModal
-        selectedPlayer={selectedPlayer}
-        onClose={() => setSelectedPlayer(null)}
-        tournamentsData={tournamentsData || []}
-        allPlayers={playersData || []}
-      />
+      {/* ================================================================
+          MOBILE FIXED BOTTOM NAV — white theme
+          ================================================================ */}
+      <nav className="fixed bottom-0 left-0 right-0 z-[60] border-t border-slate-200 bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 backdrop-blur-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.06)] sm:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-5">
+          <Link href="/bn" className="flex flex-col items-center gap-1 py-1 text-blue-600">
+            <span className="flex h-7 items-center text-[20px]">⌂</span>
+            <span className="text-[8px] font-bold">হোম</span>
+          </Link>
+          <Link href="/play" className="flex flex-col items-center gap-1 py-1 text-slate-500 transition hover:text-blue-600">
+            <span className="flex h-7 items-center text-[18px]">🎮</span>
+            <span className="text-[8px] font-semibold">গেম</span>
+          </Link>
+          <Link href="/players" className="flex flex-col items-center gap-1 py-1 text-slate-500 transition hover:text-blue-600">
+            <span className="flex h-7 items-center text-[18px]">👥</span>
+            <span className="text-[8px] font-semibold">খেলোয়াড়</span>
+          </Link>
+          <Link href="/rankings" className="flex flex-col items-center gap-1 py-1 text-slate-500 transition hover:text-amber-600">
+            <span className="flex h-7 items-center text-[18px]">🏆</span>
+            <span className="text-[8px] font-semibold">র‍্যাঙ্কিং</span>
+          </Link>
+          <Link href="/memories" className="flex flex-col items-center gap-1 py-1 text-slate-500 transition hover:text-pink-600">
+            <span className="flex h-7 items-center text-[18px]">📖</span>
+            <span className="text-[8px] font-semibold">স্মৃতি</span>
+          </Link>
+        </div>
+      </nav>
     </main>
   );
 }
