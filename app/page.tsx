@@ -159,7 +159,7 @@ function GatewayCard({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Page                                                                */
+/*  Page                                                               */
 /* ------------------------------------------------------------------ */
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -167,7 +167,6 @@ export default function Home() {
 
   const hero = useReveal<HTMLDivElement>(0.05);
   const heroArt = useReveal<HTMLDivElement>(0.05);
-  const heroMobile = useReveal<HTMLDivElement>(0.05);
   const sectionHead = useReveal<HTMLDivElement>(0.2);
 
   useEffect(() => {
@@ -370,30 +369,35 @@ export default function Home() {
         <div className="fcl-orb-b absolute left-[-20%] bottom-[-20%] h-[500px] w-[500px] rounded-full bg-[#1877F2]/10 blur-[130px]" />
 
         <div className="relative mx-auto min-h-[calc(100vh-76px)] max-w-[1500px] px-6 flex items-center">
-          {/* ---------- DESKTOP / TABLET LAYOUT (lg and up) ---------- */}
-          <div className="hidden w-full items-center lg:grid lg:grid-cols-[0.85fr_1.15fr] gap-12 py-12">
+          <div className="grid w-full items-center lg:grid-cols-[0.85fr_1.15fr] gap-12 py-12">
             <div
               ref={hero.ref}
               style={{
                 opacity: hero.visible ? 1 : 0,
                 transform: hero.visible ? "translateY(0)" : "translateY(24px)",
               }}
-              className="relative z-30 text-left transition-all duration-700 ease-out"
+              className="relative z-30 text-center transition-all duration-700 ease-out lg:text-left"
             >
               <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-4 py-2 backdrop-blur-xl">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e] shadow-[0_0_14px_rgba(34,197,94,0.8)]" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#93c5fd]">FCL • DIGITAL GATEWAY HUB</span>
               </div>
-              <h2 className="text-6xl font-black leading-[0.93] tracking-[-0.05em] text-white md:text-7xl lg:text-[76px]">
+              <h2 className="text-5xl font-black leading-[0.93] tracking-[-0.05em] text-white sm:text-6xl md:text-7xl lg:text-[76px]">
                 <span className="block">THE GAME LIVES</span>
                 <span className="fcl-gradient-text block bg-gradient-to-r from-[#60a5fa] via-[#1877F2] to-[#8b5cf6] bg-clip-text text-transparent">
                   BEYOND THE FIELD.
                 </span>
+                <span className="mt-4 block text-[0.42em] font-bold leading-tight tracking-[-0.02em] text-[#f59e0b]">
+                  One Game. One Community.{" "}
+                  <span className="inline-block text-[1.45em] font-black tracking-[-0.04em] text-transparent bg-gradient-to-r from-[#60a5fa] via-[#22d3ee] to-[#8b5cf6] bg-clip-text drop-shadow-[0_0_18px_rgba(34,211,238,0.45)]">
+                    FCL.
+                  </span>
+                </span>
               </h2>
-              <p className="mt-6 max-w-[540px] text-base leading-7 text-[#94a3b8]">
+              <p className="mx-auto mt-6 max-w-[540px] text-sm leading-7 text-[#94a3b8] md:text-base lg:mx-0">
                 Welcome to the official portal of Facebook Cricket League. Explore rankings, historical record cabinets, memories, and high-voltage match summaries through our dedicated gateways below.
               </p>
-              <div className="mt-8 flex justify-start gap-3">
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row lg:justify-start">
                 <a href="#gateways" className="group relative overflow-hidden rounded-xl bg-[#1877F2] px-7 py-3.5 text-center text-sm font-bold text-white shadow-[0_12px_40px_rgba(24,119,242,0.25)] transition hover:bg-[#0d6fe8] hover:shadow-[0_18px_55px_rgba(24,119,242,0.4)]">
                   <span className="relative z-10">Explore Portals ↓</span>
                   <span className="absolute inset-y-0 left-[-60%] w-1/2 -skew-x-12 bg-white/20 transition-transform duration-700 group-hover:translate-x-[280%]" />
@@ -410,109 +414,51 @@ export default function Home() {
                 opacity: heroArt.visible ? 1 : 0,
                 transform: heroArt.visible ? "translateY(0) scale(1)" : "translateY(32px) scale(0.97)",
               }}
-              className="relative h-[550px] w-full transition-all duration-700 ease-out"
+              className="relative h-[420px] sm:h-[480px] lg:h-[550px] w-full transition-all duration-700 ease-out"
             >
-              <div className="absolute inset-0 overflow-hidden rounded-[3rem] border border-white/[0.08] bg-[#080d17] shadow-[0_40px_120px_rgba(0,0,0,0.7)] flex items-center justify-center p-4">
+              <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] sm:rounded-[3rem] border border-white/[0.08] bg-[#080d17] shadow-[0_40px_120px_rgba(0,0,0,0.7)] flex items-center justify-center p-4">
                 <img src="/fcl-room.png" alt="FCL Room" className="h-full w-full object-contain object-center" />
               </div>
 
-              <div className="fcl-chip absolute -left-6 top-10 flex flex-col gap-0.5 rounded-2xl border border-white/10 bg-[#0b1220]/85 px-4 py-2.5 backdrop-blur-xl shadow-2xl">
-                <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e] shadow-[0_0_10px_rgba(34,197,94,0.8)]" />
-                  <span className="text-xs font-bold text-white">Team Phoenix</span>
+              {/* 🌟 ফ্লোটিং চিপ ১: FCL LIVE */}
+              <div className="fcl-chip absolute -left-2 sm:-left-6 top-6 sm:top-10 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-[#0b1220]/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-2xl">
+                <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.8)]" />
+                <div>
+                  <span className="text-[10px] sm:text-xs font-bold text-white block">FCL LIVE</span>
+                  <span className="text-[9px] sm:text-[10px] text-[#93c5fd]">Team Phoenix · 14/2</span>
                 </div>
-                <span className="text-[11px] font-semibold text-[#93c5fd]">
-                  14/2 <span className="text-[#64748b]">· 1.0 OV</span>
-                </span>
               </div>
-                            {/* 🌟 নতুন এনিমেটেড "OUT!" চিপ (ছবির বামে নিচে) */}
-              <div className="fcl-chip absolute -left-6 bottom-16 hidden items-center gap-3 rounded-2xl border border-rose-500/40 bg-[#0b1220]/90 px-4 py-3 backdrop-blur-xl shadow-2xl lg:flex animate-bounce">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/20 border border-rose-500/50 text-rose-400 text-lg shadow-[0_0_15px_rgba(244,63,94,0.5)]">
-                  ⚡
+
+              {/* 🌟 ফ্লোটিং চিপ ২: 6 OUT */}
+              <div className="fcl-chip fcl-chip-delay absolute -right-2 sm:-right-4 top-24 sm:top-36 flex items-center gap-2 rounded-2xl border border-rose-500/40 bg-[#0b1220]/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-2xl">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500 text-white font-black text-xs shadow-[0_0_10px_rgba(244,63,94,0.6)]">
+                  6
                 </div>
                 <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-black tracking-wider text-rose-400">WICKET!</span>
-                    <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-ping" />
-                  </div>
-                  <p className="text-xs font-extrabold text-white">OUT! Bowled & Caught</p>
+                  <span className="text-[10px] sm:text-xs font-black text-rose-400 block tracking-wider">OUT</span>
+                  <span className="text-[9px] sm:text-[10px] text-[#94a3b8]">Ball 1</span>
                 </div>
               </div>
-{/* মিডল রাইট টার্গেট চিপ */}
-              <div className="fcl-chip fcl-chip-delay absolute -right-4 top-36 hidden flex-col gap-0.5 rounded-2xl border border-[#f59e0b]/30 bg-[#0b1220]/85 px-4 py-2.5 backdrop-blur-xl shadow-2xl lg:flex">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">🎯</span>
-                  <span className="text-xs font-bold text-[#fbbf24]">Best Match</span>
-                </div>
-                <span className="text-[11px] font-semibold text-[#94a3b8]">Live</span>
-              </div>
 
-              <div className="fcl-chip fcl-chip-delay absolute -right-4 bottom-16 flex flex-col gap-0.5 rounded-2xl border border-[#f59e0b]/30 bg-[#0b1220]/85 px-4 py-2.5 backdrop-blur-xl shadow-2xl">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">🎯</span>
-                  <span className="text-xs font-bold text-[#fbbf24]">Need 56 off 24</span>
+              {/* 🌟 ফ্লোটিং চিপ ৩: +4 RUN */}
+              <div className="fcl-chip absolute -left-2 sm:-left-6 bottom-16 sm:bottom-20 flex items-center gap-2 rounded-2xl border border-blue-500/40 bg-[#0b1220]/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-2xl">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1877F2] text-white font-black text-xs shadow-[0_0_10px_rgba(24,119,242,0.6)]">
+                  4
                 </div>
-                <span className="text-[11px] font-semibold text-[#94a3b8]">Target 70</span>
-              </div>
-            </div>
-          </div>
-
-          {/* ---------- MOBILE LAYOUT (below lg): image + heading side by side ---------- */}
-          <div className="w-full py-10 lg:hidden">
-            <div
-              ref={heroMobile.ref}
-              style={{
-                opacity: heroMobile.visible ? 1 : 0,
-                transform: heroMobile.visible ? "translateY(0)" : "translateY(20px)",
-              }}
-              className="grid grid-cols-2 items-center gap-4 transition-all duration-700 ease-out"
-            >
-              <div className="text-left">
-                <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-2.5 py-1 backdrop-blur-xl">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#22c55e] shadow-[0_0_10px_rgba(34,197,94,0.8)]" />
-                  <span className="text-[8px] font-bold uppercase tracking-[0.2em] text-[#93c5fd]">FCL HUB</span>
-                </div>
-                <h2 className="text-3xl font-black leading-[0.95] tracking-[-0.03em] text-white sm:text-4xl">
-                  <span className="block">THE GAME LIVES</span>
-                  <span className="fcl-gradient-text block bg-gradient-to-r from-[#60a5fa] via-[#1877F2] to-[#8b5cf6] bg-clip-text text-transparent">
-                    BEYOND THE FIELD.
-                  </span>
-                </h2>
-              </div>
-
-              <div className="relative aspect-[4/5] w-full">
-                <div className="absolute inset-0 overflow-hidden rounded-[2rem] border border-white/[0.08] bg-[#080d17] shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex items-center justify-center p-2">
-                  <img src="/fcl-room.png" alt="FCL Room" className="h-full w-full object-contain object-center" />
-                </div>
-
-                <div className="fcl-chip absolute -left-2 top-3 flex flex-col gap-0.5 rounded-xl border border-white/10 bg-[#0b1220]/90 px-2 py-1.5 backdrop-blur-xl shadow-xl">
-                  <div className="flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#22c55e]" />
-                    <span className="text-[8px] font-bold text-white">Phoenix CC</span>
-                  </div>
-                  <span className="text-[8px] font-semibold text-[#93c5fd]">142/3 · 16.2 OV</span>
-                </div>
-
-                <div className="fcl-chip fcl-chip-delay absolute -right-2 bottom-4 flex flex-col gap-0.5 rounded-xl border border-[#f59e0b]/30 bg-[#0b1220]/90 px-2 py-1.5 backdrop-blur-xl shadow-xl">
-                  <div className="flex items-center gap-1">
-                    <span className="text-[9px]">🎯</span>
-                    <span className="text-[8px] font-bold text-[#fbbf24]">Need 36/24</span>
-                  </div>
+                <div>
+                  <span className="text-[10px] sm:text-xs font-bold text-[#60a5fa] block">+4 RUN</span>
+                  <span className="text-[9px] sm:text-[10px] text-[#94a3b8]">Ball 2</span>
                 </div>
               </div>
-            </div>
 
-            <p className="mt-6 text-sm leading-7 text-[#94a3b8]">
-              Welcome to the official portal of Facebook Cricket League. Explore rankings, historical record cabinets, memories, and high-voltage match summaries through our dedicated gateways below.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <a href="#gateways" className="group relative overflow-hidden rounded-xl bg-[#1877F2] px-7 py-3.5 text-center text-sm font-bold text-white shadow-[0_12px_40px_rgba(24,119,242,0.25)] transition hover:bg-[#0d6fe8]">
-                <span className="relative z-10">Explore Portals ↓</span>
-                <span className="absolute inset-y-0 left-[-60%] w-1/2 -skew-x-12 bg-white/20 transition-transform duration-700 group-hover:translate-x-[280%]" />
-              </a>
-              <Link href="/bn" className="rounded-xl border border-[#1877F2]/40 bg-[#1877F2]/15 px-7 py-3.5 text-center text-sm font-bold text-[#60a5fa] transition hover:bg-[#1877F2] hover:text-white">
-                💙 বাংলা ভার্সন
-              </Link>
+              {/* 🌟 ফ্লোটিং চিপ ৪: Target / Need */}
+              <div className="fcl-chip fcl-chip-delay absolute -right-2 sm:-right-4 bottom-4 sm:bottom-8 flex flex-col gap-0.5 rounded-2xl border border-[#f59e0b]/30 bg-[#0b1220]/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-2xl">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs sm:text-sm">🎯</span>
+                  <span className="text-[11px] sm:text-xs font-bold text-[#fbbf24]">Need 56 off 24</span>
+                </div>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-[#94a3b8]">Target 70</span>
+              </div>
             </div>
           </div>
         </div>
@@ -548,7 +494,7 @@ export default function Home() {
       <footer className="border-t border-[#1e293b] bg-[#020617] px-6 py-8">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
           <p className="font-bold text-white">Facebook Cricket League (FCL)</p>
-          <p className="text-xs text-[#94a3b8]">© 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.</p>
+          <p className="text-xs text-[#94a3b8]">© 2026 Facebook Cricket League | Arif Md. Jiad | All rights reserved.</p>
         </div>
       </footer>
     </main>
