@@ -275,6 +275,15 @@ export default function Home() {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-10px); }
         }
+        @keyframes fcl-zoom-pulse {
+          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(34,211,238,0.5)); }
+          50% { transform: scale(1.18); filter: drop-shadow(0 0 25px rgba(34,211,238,0.9)); }
+        }
+        @keyframes fcl-color-shift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
         .fcl-orb-a { animation: float-a 11s ease-in-out infinite; }
         .fcl-orb-b { animation: float-b 13s ease-in-out infinite; }
         .fcl-gradient-text {
@@ -290,6 +299,14 @@ export default function Home() {
           background-size: 56px 56px;
           -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 90%);
           mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 90%);
+        }
+        .fcl-zoom-text {
+          background: linear-gradient(90deg, #60a5fa, #22d3ee, #f59e0b, #8b5cf6, #60a5fa);
+          background-size: 300% auto;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: fcl-color-shift 4s ease infinite, fcl-zoom-pulse 2.5s ease-in-out infinite;
+          display: inline-block;
         }
       `}</style>
 
@@ -387,9 +404,9 @@ export default function Home() {
                 <span className="fcl-gradient-text block bg-gradient-to-r from-[#60a5fa] via-[#1877F2] to-[#8b5cf6] bg-clip-text text-transparent">
                   BEYOND THE FIELD.
                 </span>
-                <span className="mt-4 block text-[0.42em] font-bold leading-tight tracking-[-0.02em] text-[#f59e0b]">
+               <span className="mt-4 block text-[0.42em] font-bold leading-tight tracking-[-0.02em] text-[#f59e0b]">
                   One Game. One Community.{" "}
-                  <span className="inline-block text-[1.45em] font-black tracking-[-0.04em] text-transparent bg-gradient-to-r from-[#60a5fa] via-[#22d3ee] to-[#8b5cf6] bg-clip-text drop-shadow-[0_0_18px_rgba(34,211,238,0.45)]">
+                  <span className="fcl-zoom-text text-[1.45em] font-black tracking-[-0.04em]">
                     FCL.
                   </span>
                 </span>
@@ -494,7 +511,7 @@ export default function Home() {
       <footer className="border-t border-[#1e293b] bg-[#020617] px-6 py-8">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
           <p className="font-bold text-white">Facebook Cricket League (FCL)</p>
-          <p className="text-xs text-[#94a3b8]">© 2026 Facebook Cricket League | Arif Md. Jiad | All rights reserved.</p>
+          <p className="text-xs text-[#94a3b8]">© 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.</p>
         </div>
       </footer>
     </main>
