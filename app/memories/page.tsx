@@ -111,16 +111,38 @@ export default function MemoriesPage() {
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/fcl-memories")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && Array.isArray(data.memories)) {
-          setMemories(data.memories);
+    // একসাথে মেমোরিজ এবং পাবলিক ফোল্ডারের fcl-series-data.xlsx ফাইল থেকে ডেটা ফেচ করা
+    Promise.all([
+      fetch("/api/fcl-memories").then((res) => res.json()),
+      fetch("/api/fcl-series").then((res) => res.json()).catch(() => [])
+    ])
+      .then(([memoriesData, seriesData]) => {
+        let allItems: Memory[] = [];
+
+        if (memoriesData && Array.isArray(memoriesData.memories)) {
+          allItems = [...memoriesData.memories];
         }
+
+        // এক্সেল ফাইল থেকে আসা সিরিজ ডেটাকে মেমোরিজ ফরম্যাটে রূপান্তর করা
+        if (Array.isArray(seriesData)) {
+          const formattedSeries = seriesData.map((item: any, idx: number) => ({
+            id: 9000 + idx,
+            category: "ধারাবাহিক সিরিজ", // এই ক্যাটাগরির মাধ্যমে ফিল্টার ট্যাবে শো করবে
+            title: `${item.series_name || "সিরিজ"} — ${item.episode_title || "পর্ব " + item.episode_no}`,
+            author: item.Author || "Unknown",
+            date: String(item.publish_date || ""),
+            fbPostUrl: item.facebook_link || "",
+            content: `সারসংক্ষেপ: ${item.summary || ""}\n\n${item.Content || ""}`
+          }));
+
+          allItems = [...allItems, ...formattedSeries];
+        }
+
+        setMemories(allItems);
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Error fetching memories:", err);
+        console.error("Error fetching data:", err);
         setLoading(false);
       });
   }, []);
