@@ -159,22 +159,12 @@ function GatewayCard({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Page                                                              */
+/*  Page                                                             */
 /* ------------------------------------------------------------------ */
-export default function Home() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-
+export default function BanglaHome() {
   const hero = useReveal<HTMLDivElement>(0.05);
   const heroArt = useReveal<HTMLDivElement>(0.05);
   const sectionHead = useReveal<HTMLDivElement>(0.2);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   const cards: GatewayCardProps[] = [
     {
@@ -183,9 +173,9 @@ export default function Home() {
       badgeText: "লিডারবোর্ড",
       badgeIcon: "👑",
       cornerIcon: "⭐",
-      title: "র‍্যাঙ্কিং ও সেরা খেলোয়াড়",
+      title: "র‍্যাঙ্কিং ও সেরা খেলোয়াড়",
       description:
-        "সর্বকালের সেরা খেলোয়াড়দের র‍্যাঙ্কিং, এমভিপি রেটিং এবং জমজমাট চ্যাম্পিয়নশিপ লিডারবোর্ড দেখুন।",
+        "সর্বকালের সেরা খেলোয়াড়দের র‍্যাঙ্কিং, এমভিপি রেটিং এবং জমজমাট চ্যাম্পিয়নশিপ লিডারবোর্ড দেখুন।",
       footerText: "প্রবেশ করুন",
     },
     {
@@ -207,7 +197,7 @@ export default function Home() {
       cornerIcon: "🎞️",
       title: "এফসিএল স্মৃতি ও আড্ডা",
       description:
-        "সোনালী দিনগুলো, মজার মুহূর্ত, কমিউনিটির গল্প এবং নস্টালজিক ছবির গ্যালাভারি পুনরায় উপভোগ করুন।",
+        "সোনালী দিনগুলো, মজার মুহূর্ত, কমিউনিটির গল্প এবং নস্টালজিক ছবির গ্যালাভারি পুনরায় উপভোগ করুন।",
       footerText: "প্রবেশ করুন",
     },
     {
@@ -216,9 +206,9 @@ export default function Home() {
       badgeText: "স্কোয়াড ডিরেক্টরি",
       badgeIcon: "👥",
       cornerIcon: "🏏",
-      title: "খেলোয়াড় ও স্ট্যাট কার্ড",
+      title: "খেলোয়াড় ও স্ট্যাট কার্ড",
       description:
-        "নিবন্ধিত সকল খেলোয়াড়দের ব্রাউজ করুন, অফিসিয়াল খেলোয়াড় স্ট্যাট কার্ড দেখুন এবং পিএনজি কার্ড ডাউনলোড করুন।",
+        "নিবন্ধিত সকল খেলোয়াড়দের ব্রাউজ করুন, অফিসিয়াল খেলোয়াড় স্ট্যাট কার্ড দেখুন এবং পিএনজি কার্ড ডাউনলোড করুন।",
       footerText: "প্রবেশ করুন",
     },
     {
@@ -227,9 +217,9 @@ export default function Home() {
       badgeText: "রুলবুক",
       badgeIcon: "📜",
       cornerIcon: "⚖️",
-      title: "নিয়মাবলী ও ম্যাচের ফরম্যাট",
+      title: "নিয়মাবলী ও ম্যাচের ফরম্যাট",
       description:
-        "অফিসিয়াল টুর্নামেন্ট নির্দেশিকা, টি-টোয়েন্টি/ওয়ানডে/টেস্ট সিস্টেম এবং পাওয়ার-প্লে প্রবিধানগুলো পড়ুন।",
+        "অফিসিয়াল টুর্নামেন্ট নির্দেশিকা, টি-টোয়েন্টি/ওয়ানডে/টেস্ট সিস্টেম এবং পাওয়ার-প্লে প্রবিধানগুলো পড়ুন।",
       footerText: "প্রবেশ করুন",
     },
     {
@@ -250,7 +240,7 @@ export default function Home() {
       cornerIcon: "🔥",
       title: "উত্তেজনাপূর্ণ ম্যাচসমূহ",
       description:
-        "সবচেয়ে তীব্র ও রোমাঞ্চকর ফিনিশিং এবং মহাকাব্যিক টুর্নামেন্ট যুদ্ধের ম্যাচগুলো পুনরায় উপভোগ করুন। (শীঘ্রই আসছে)",
+        "সবচেয়ে তীব্র ও রোমাঞ্চকর ফিনিশিং এবং মহাকাব্যিক টুর্নামেন্ট যুদ্ধের ম্যাচগুলো পুনরায় উপভোগ করুন। (শীঘ্রই আসছে)",
       footerText: "শীঘ্রই আসছে",
       comingSoon: true,
     },
@@ -319,108 +309,8 @@ export default function Home() {
       `}</style>
 
       {/* ================================================================
-          DESKTOP / TABLET HEADER — white background theme
-          ================================================================ */}
-      <header
-        className={`hidden sm:block sticky top-0 z-40 border-b transition-all duration-500 ${
-          scrolled
-            ? "border-slate-200 bg-white/90 backdrop-blur-xl py-1 shadow-[0_4px_20px_rgba(0,0,0,0.05)]"
-            : "border-slate-200 bg-white/70 backdrop-blur-md py-0"
-        }`}
-      >
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-          <Link href="/bn" className="flex items-center gap-3">
-            <div className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center overflow-hidden rounded-xl border border-[#1877F2]/30 bg-blue-50 shadow-md shadow-[#1877F2]/10 transition-transform duration-300 hover:scale-105 hover:rotate-3">
-              <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain p-1" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-xl font-bold tracking-tight text-slate-900">
-                  Facebook <span className="text-[#1877F2]">Cricket League</span>
-                </h1>
-                <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-amber-600">FCL</span>
-              </div>
-              <p className="text-[10px] sm:text-xs text-slate-500">অফিসিয়াল এফসিএল ডিজিটাল প্ল্যাটফর্ম</p>
-            </div>
-          </Link>
-
-          <nav className="hidden items-center gap-6 lg:flex">
-            <Link href="/bn" className="text-sm font-semibold text-[#1877F2] transition hover:text-[#1877F2]">হোম</Link>
-            <Link href="#gateways" className="text-sm font-medium text-slate-600 transition hover:text-[#1877F2]">পোর্টালসমূহ</Link>
-            <Link href="/rules" className="text-sm font-medium text-sky-600 transition hover:text-slate-900">নিয়ম ও ফরম্যাট</Link>
-            <Link href="/players" className="text-sm font-medium text-slate-600 transition hover:text-[#1877F2]">খেলোয়াড়বৃন্দ</Link>
-            <Link href="/rankings" className="text-sm font-medium text-amber-600 transition hover:text-slate-900">র‍্যাঙ্কিং</Link>
-            <Link href="/records" className="text-sm font-medium text-amber-600 transition hover:text-slate-900">হল অব ফেম</Link>
-            <Link href="/memories" className="text-sm font-bold text-pink-600 transition hover:text-slate-900 flex items-center gap-1">স্মৃতিচারণ 📖</Link>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-1.5 rounded-full border border-[#1877F2]/40 bg-gradient-to-r from-[#1877F2] to-[#166fe5] px-3.5 py-1.5 text-xs font-bold text-white shadow-lg shadow-[#1877F2]/20 transition hover:brightness-110 active:scale-95">
-              <span>🌙</span>
-              <span>Dark Version</span>
-            </Link>
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="hidden h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-900 transition hover:border-[#1877F2]/50">
-              {mobileMenuOpen ? <span className="text-xl font-bold">✕</span> : <span className="text-xl">☰</span>}
-            </button>
-          </div>
-        </div>
-
-        {mobileMenuOpen && (
-          <div className="border-t border-slate-200 bg-white px-6 py-5 lg:hidden animate-in fade-in slide-in-from-top-2 duration-200 shadow-xl">
-            <nav className="flex flex-col gap-4">
-              <Link href="/bn" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-slate-900 hover:bg-blue-50">🏠 হোম</Link>
-              <Link href="/" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-sm font-bold text-blue-600">🌙 Dark Version</Link>
-              <Link href="/players" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50">👥 খেলোয়াড় ডিরেক্টরি</Link>
-              <Link href="/rankings" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-amber-600 hover:bg-amber-50">👑 র‍্যাঙ্কিং ও এমভিপি</Link>
-              <Link href="/records" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-medium text-amber-600 hover:bg-amber-50">🏆 রেকর্ড ও হল অব ফেম</Link>
-              <Link href="/memories" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-bold text-pink-600 hover:bg-pink-50">📖 এফসিএল স্মৃতি ও নস্টালজিয়া</Link>
-            </nav>
-          </div>
-        )}
-      </header>
-
-      {/* ================================================================
-          MOBILE APP HEADER — only below 640px
-          ================================================================ */}
-      <header className="sm:hidden sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-xl">
-        <div className="flex h-[68px] items-center justify-between px-4">
-          <Link href="/bn" className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-blue-200 bg-blue-50 shadow-sm">
-              <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain p-1" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="truncate text-[14px] font-extrabold tracking-tight text-slate-900">Facebook Cricket League</span>
-                <span className="rounded border border-amber-500/40 bg-amber-50 px-1 py-0.5 text-[7px] font-black text-amber-600">FCL</span>
-              </div>
-              <p className="text-[8px] font-medium text-slate-500">অফিসিয়াল এফসিএল ডিজিটাল প্ল্যাটফর্ম</p>
-            </div>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link href="/" aria-label="Dark Version" className="flex h-9 items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2.5 text-[9px] font-bold text-blue-600">
-              <span>🌙</span>
-              <span>Dark</span>
-            </Link>
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label="Menu" className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-900">
-              {mobileMenuOpen ? <span className="text-base font-bold">✕</span> : <span className="text-lg">☰</span>}
-            </button>
-          </div>
-        </div>
-        {mobileMenuOpen && (
-          <nav className="border-t border-slate-200 bg-slate-50 px-4 py-3 shadow-xl">
-            <div className="grid grid-cols-2 gap-2">
-              <Link href="/rules" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-sky-600 shadow-sm">⚖️ নিয়ম ও ফরম্যাট</Link>
-              <Link href="/records" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-amber-600 shadow-sm">🏆 হল অব ফেম</Link>
-              <Link href="/players" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-blue-600 shadow-sm">👥 খেলোয়াড়বৃন্দ</Link>
-              <Link href="/memories" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[11px] font-semibold text-pink-600 shadow-sm">📖 স্মৃতিচারণ</Link>
-            </div>
-          </nav>
-        )}
-      </header>
-
-      {/* ================================================================
-          DESKTOP HERO — white theme structure with increased line spacing
-          ================================================================ */}
+          DESKTOP HERO — white theme structure
+         ================================================================ */}
       <section className="relative hidden min-h-[calc(100vh-76px)] overflow-hidden border-b border-slate-200 bg-slate-50/50 sm:block">
         <div className="absolute inset-0 bg-slate-50/50" />
         <div className="absolute inset-0 fcl-grid-bg" />
@@ -433,14 +323,14 @@ export default function Home() {
             <div ref={hero.ref} style={{ opacity: hero.visible ? 1 : 0, transform: hero.visible ? "translateY(0)" : "translateY(24px)" }} className="relative z-30 text-center transition-all duration-700 ease-out lg:text-left">
               <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 backdrop-blur-xl shadow-sm">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-blue-600">এফসিএল • ডিজিটাল গেটওয়ে হাব</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-blue-600">এফসিএল • ডিজিটাল গেটওয়ে হাব</span>
               </div>
               <h2 className="text-5xl font-black leading-[1.15] tracking-[-0.03em] text-slate-900 sm:text-6xl md:text-7xl lg:text-[72px]">
-                <span className="block mb-2">মাঠের সীমানা পেরিয়ে</span>
+                <span className="block mb-2">মাঠের সীমানা পেরিয়ে</span>
                 <span className="fcl-gradient-text block bg-gradient-to-r from-blue-600 via-[#1877F2] to-purple-600 bg-clip-text text-transparent mb-3">খেলার উন্মাদনা সর্বত্র।</span>
                 <span className="mt-2 block text-[0.42em] font-bold leading-relaxed tracking-normal text-amber-600">একটি খেলা। একটি পরিবার। <span className="fcl-zoom-text text-[1.45em] font-black tracking-[-0.04em]">এফসিএল।</span></span>
               </h2>
-              <p className="mx-auto mt-6 max-w-[540px] text-sm leading-8 text-slate-600 md:text-base lg:mx-0">ফেসবুক ক্রিকেট লিগের অফিসিয়াল পোর্টালে স্বাগতম। নিচের নির্দিষ্ট গেটওয়েগুলোর মাধ্যমে সহজেই র‍্যাঙ্কিং, ঐতিহাসিক রেকর্ড ক্যাবিনেট, স্মৃতি এবং রোমাঞ্চকর ম্যাচের সারাংশ উপভোগ করুন।</p>
+              <p className="mx-auto mt-6 max-w-[540px] text-sm leading-8 text-slate-600 md:text-base lg:mx-0">ফেসবুক ক্রিকেট লিগের অফিসিয়াল পোর্টালে স্বাগতম। নিচের নির্দিষ্ট গেটওয়েগুলোর মাধ্যমে সহজেই র‍্যাঙ্কিং, ঐতিহাসিক রেকর্ড ক্যাবিনেট, স্মৃতি এবং রোমাঞ্চকর ম্যাচের সারাংশ উপভোগ করুন।</p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row lg:justify-start">
                 <a href="#gateways" className="group relative overflow-hidden rounded-xl bg-[#1877F2] px-7 py-3.5 text-center text-sm font-bold text-white shadow-lg shadow-[#1877F2]/25 transition hover:bg-blue-600"><span className="relative z-10">পোর্টালগুলো দেখুন ↓</span><span className="absolute inset-y-0 left-[-60%] w-1/2 -skew-x-12 bg-white/20 transition-transform duration-700 group-hover:translate-x-[280%]" /></a>
                 <Link href="/" className="rounded-xl border border-blue-200 bg-blue-50 px-7 py-3.5 text-center text-sm font-bold text-blue-600 transition hover:bg-[#1877F2] hover:text-white">🌙 Dark Version</Link>
@@ -452,7 +342,7 @@ export default function Home() {
               <div className="fcl-chip absolute -left-2 sm:-left-6 top-6 sm:top-10 flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-white/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-xl"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" /><div><span className="text-[10px] sm:text-xs font-bold text-slate-900 block">এফসিএল লাইভ</span><span className="text-[9px] sm:text-[10px] text-blue-600">টিম ফিনিক্স · ১৪/২</span></div></div>
               <div className="fcl-chip fcl-chip-delay absolute -right-2 sm:-right-4 top-24 sm:top-36 flex items-center gap-2 rounded-2xl border border-rose-200 bg-white/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-xl"><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500 text-white font-black text-xs shadow-sm">৬</div><div><span className="text-[10px] sm:text-xs font-black text-rose-600 block tracking-wider">আউট</span><span className="text-[9px] sm:text-[10px] text-slate-500">বল ১</span></div></div>
               <div className="fcl-chip absolute -left-2 sm:-left-6 bottom-16 sm:bottom-20 flex items-center gap-2 rounded-2xl border border-blue-200 bg-white/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-xl"><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1877F2] text-white font-black text-xs shadow-sm">৪</div><div><span className="text-[10px] sm:text-xs font-bold text-blue-600 block">+৪ রান</span><span className="text-[9px] sm:text-[10px] text-slate-500">বল ২</span></div></div>
-              <div className="fcl-chip fcl-chip-delay absolute -right-2 sm:-right-4 bottom-4 sm:bottom-8 flex flex-col gap-0.5 rounded-2xl border border-amber-200 bg-white/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-xl"><div className="flex items-center gap-1.5"><span className="text-xs sm:text-sm">🎯</span><span className="text-[11px] sm:text-xs font-bold text-amber-600">২৪ বলে ৫৬ রান প্রয়োজন</span></div><span className="text-[10px] sm:text-[11px] font-semibold text-slate-500">টার্গেট ৭০</span></div>
+              <div className="fcl-chip fcl-chip-delay absolute -right-2 sm:-right-4 bottom-4 sm:bottom-8 flex flex-col gap-0.5 rounded-2xl border border-amber-200 bg-white/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-xl"><div className="flex items-center gap-1.5"><span className="text-xs sm:text-sm">🎯</span><span className="text-[11px] sm:text-xs font-bold text-amber-600">২৪ বলে ৫৬ রান প্রয়োজন</span></div><span className="text-[10px] sm:text-[11px] font-semibold text-slate-500">টার্গেট ৭০</span></div>
             </div>
           </div>
         </div>
@@ -460,7 +350,7 @@ export default function Home() {
 
       {/* ================================================================
           MOBILE HOME APP — white theme structure
-          ================================================================ */}
+         ================================================================ */}
       <section className="relative overflow-hidden border-b border-slate-200 bg-slate-50/50 px-4 pb-7 pt-5 sm:hidden">
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-blue-500/10 blur-[90px] fcl-mobile-glow" />
         <div className="pointer-events-none absolute -left-28 bottom-0 h-64 w-64 rounded-full bg-purple-500/5 blur-[90px]" />
@@ -468,21 +358,21 @@ export default function Home() {
         <div className="relative rounded-[25px] border border-blue-100 bg-gradient-to-b from-blue-50/60 to-white p-4 shadow-[0_10px_30px_rgba(0,0,0,0.04)]">
           <div className="flex items-center justify-between">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-50 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.16em] text-amber-600">✨ ডিজিটাল এফসিএল এরেনা</span>
-            <Link href="/rules" className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[8px] font-bold text-slate-600 shadow-sm">ⓘ এফসিএল নিয়মাবলী</Link>
+            <Link href="/rules" className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[8px] font-bold text-slate-600 shadow-sm">ⓘ এফসিএল নিয়মাবলী</Link>
           </div>
-          <p className="mt-3 text-[11px] font-medium leading-5 text-slate-700">অফিসিয়াল ফেসবুক ক্রিকেট লিগ ডিজিটাল প্ল্যাটফর্ম</p>
+          <p className="mt-3 text-[11px] font-medium leading-5 text-slate-700">অফিসিয়াল ফেসবুক ক্রিকেট লিগ ডিজিটাল প্ল্যাটফর্ম</p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             <span className="rounded-lg bg-blue-50 px-2 py-1 text-[8px] font-bold text-blue-600">২ ওভার</span>
             <span className="rounded-lg bg-emerald-50 px-2 py-1 text-[8px] font-bold text-emerald-600">৩ উইকেট</span>
             <span className="rounded-lg bg-amber-50 px-2 py-1 text-[8px] font-bold text-amber-600">নং ৫</span>
-            <span className="rounded-lg bg-purple-50 px-2 py-1 text-[8px] font-bold text-purple-600">অটো আম্পায়ার</span>
+            <span className="rounded-lg bg-purple-50 px-2 py-1 text-[8px] font-bold text-purple-600">অটো আম্পায়ার</span>
           </div>
         </div>
 
         <div className="mt-5 px-1">
           <span className="text-[9px] font-black uppercase tracking-[0.28em] text-sky-600">এফসিএল ডিজিটাল প্ল্যাটফর্ম</span>
-          <h2 className="mt-2 text-[28px] font-black leading-[1.3] tracking-[-0.03em] text-slate-900">মাঠের সীমানা পেরিয়ে<br /><span className="bg-gradient-to-r from-blue-600 via-[#1877F2] to-purple-600 bg-clip-text text-transparent">খেলার উন্মাদনা সর্বত্র।</span></h2>
-          <p className="mt-3 max-w-[340px] text-[11px] leading-6 text-slate-600">অফিসিয়াল এফসিএল আর্কাইভ, খেলোয়াড়, র‍্যাঙ্কিং, রেকর্ড, স্মৃতি এবং অনলাইন গেমটি অন্বেষণ করুন।</p>
+          <h2 className="mt-2 text-[28px] font-black leading-[1.3] tracking-[-0.03em] text-slate-900">মাঠের সীমানা পেরিয়ে<br /><span className="bg-gradient-to-r from-blue-600 via-[#1877F2] to-purple-600 bg-clip-text text-transparent">খেলার উন্মাদনা সর্বত্র।</span></h2>
+          <p className="mt-3 max-w-[340px] text-[11px] leading-6 text-slate-600">অফিসিয়াল এফসিএল আর্কাইভ, খেলোয়াড়, র‍্যাঙ্কিং, রেকর্ড, স্মৃতি এবং অনলাইন গেমটি অন্বেষণ করুন।</p>
         </div>
 
         <div className="mt-5 overflow-hidden rounded-[22px] border border-slate-200 bg-white shadow-[0_15px_40px_rgba(0,0,0,0.06)]">
@@ -492,14 +382,14 @@ export default function Home() {
 
       {/* ================================================================
           DESKTOP PORTALS — white background theme
-          ================================================================ */}
+         ================================================================ */}
       <section id="gateways" className="relative hidden overflow-hidden bg-white px-6 py-28 sm:block">
         <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-blue-500/5 blur-[150px]" />
         <div className="mx-auto max-w-7xl relative z-10">
           <div ref={sectionHead.ref} style={{ opacity: sectionHead.visible ? 1 : 0, transform: sectionHead.visible ? "translateY(0)" : "translateY(24px)" }} className="text-center max-w-3xl mx-auto mb-16 transition-all duration-700 ease-out">
             <span className="text-xs font-bold uppercase tracking-[0.35em] text-sky-600">এফসিএল নেভিগেশন পোর্টাল</span>
             <h3 className="mt-3 text-4xl sm:text-5xl font-black tracking-tight text-slate-900">আপনার গন্তব্য বেছে নিন</h3>
-            <p className="mt-3 text-sm sm:text-base text-slate-600">সরাসরি নির্দিষ্ট বিভাগে প্রবেশ করতে নিচের যেকোনো গেটওয়েতে ক্লিক করুন।</p>
+            <p className="mt-3 text-sm sm:text-base text-slate-600">সরাসরি নির্দিষ্ট বিভাগে প্রবেশ করতে নিচের যেকোনো গেটওয়েতে ক্লিক করুন।</p>
           </div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {cards.map((card, i) => <GatewayCard key={card.title} {...card} delay={i * 90} />)}
@@ -509,7 +399,7 @@ export default function Home() {
 
       {/* ================================================================
           MOBILE PORTALS — white background compact app cards
-          ================================================================ */}
+         ================================================================ */}
       <section id="mobile-gateways" className="relative overflow-hidden bg-white px-4 pb-8 pt-6 sm:hidden">
         <div className="mb-4 flex items-end justify-between px-1">
           <div>
@@ -543,42 +433,6 @@ export default function Home() {
           })}
         </div>
       </section>
-
-      {/* Footer — white theme */}
-      <footer className="border-t border-slate-200 bg-white px-4 py-7 sm:px-6 sm:py-8">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 text-center md:flex-row md:text-left">
-          <p className="font-bold text-slate-900">Facebook Cricket League (FCL)</p>
-          <p className="text-[10px] text-slate-500 sm:text-xs">© ২০২৬ ফেসবুক ক্রিকেট লিগ | আরিফ জিয়াদ | সর্বস্বত্ব সংরক্ষিত।</p>
-        </div>
-      </footer>
-
-      {/* ================================================================
-          MOBILE FIXED BOTTOM NAV — white theme
-          ================================================================ */}
-      <nav className="fixed bottom-0 left-0 right-0 z-[60] border-t border-slate-200 bg-white/95 px-2 pb-[calc(8px+env(safe-area-inset-bottom))] pt-2 backdrop-blur-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.06)] sm:hidden">
-        <div className="mx-auto grid max-w-md grid-cols-5">
-          <Link href="/bn" className="flex flex-col items-center gap-1 py-1 text-blue-600">
-            <span className="flex h-7 items-center text-[20px]">⌂</span>
-            <span className="text-[8px] font-bold">হোম</span>
-          </Link>
-          <Link href="/play" className="flex flex-col items-center gap-1 py-1 text-slate-500 transition hover:text-blue-600">
-            <span className="flex h-7 items-center text-[18px]">🎮</span>
-            <span className="text-[8px] font-semibold">গেম</span>
-          </Link>
-          <Link href="/players" className="flex flex-col items-center gap-1 py-1 text-slate-500 transition hover:text-blue-600">
-            <span className="flex h-7 items-center text-[18px]">👥</span>
-            <span className="text-[8px] font-semibold">খেলোয়াড়</span>
-          </Link>
-          <Link href="/rankings" className="flex flex-col items-center gap-1 py-1 text-slate-500 transition hover:text-amber-600">
-            <span className="flex h-7 items-center text-[18px]">🏆</span>
-            <span className="text-[8px] font-semibold">র‍্যাঙ্কিং</span>
-          </Link>
-          <Link href="/memories" className="flex flex-col items-center gap-1 py-1 text-slate-500 transition hover:text-pink-600">
-            <span className="flex h-7 items-center text-[18px]">📖</span>
-            <span className="text-[8px] font-semibold">স্মৃতি</span>
-          </Link>
-        </div>
-      </nav>
     </main>
   );
 }

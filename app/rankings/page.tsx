@@ -137,42 +137,6 @@ export default function RankingsPage() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-white selection:bg-[#1877F2]/30 selection:text-white">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-[#1e293b] bg-[#020617]/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center overflow-hidden rounded-xl border border-[#1877F2]/40 bg-[#111936]">
-              <img
-                src="/fcl-logo.png"
-                alt="FCL Logo"
-                className="h-full w-full object-contain p-1"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                  e.currentTarget.parentElement!.innerHTML = '<span class="text-xl">📊</span>';
-                }}
-              />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-xl font-bold tracking-tight text-white">
-                  Facebook <span className="text-[#1877F2]">Cricket League</span>
-                </h1>
-                <span className="rounded-md border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-[#f59e0b]">
-                  ALL RANKINGS
-                </span>
-              </div>
-              <p className="text-[10px] sm:text-xs text-[#94a3b8]">Complete Official Leaderboard & MVP</p>
-            </div>
-          </Link>
-
-          <Link
-            href="/records"
-            className="rounded-xl border border-[#1e293b] bg-[#0b1220] px-3.5 py-1.5 text-xs font-semibold text-[#94a3b8] transition hover:text-white"
-          >
-            ← Back to Records
-          </Link>
-        </div>
-      </header>
 
       {/* Main Container */}
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -477,19 +441,6 @@ export default function RankingsPage() {
           </div>
         )}
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-[#1e293b] bg-[#020617] px-6 py-8 mt-12">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
-          <div>
-            <p className="font-bold text-white">Facebook Cricket League (FCL)</p>
-            <p className="mt-1 text-xs text-[#64748b]">Official All-Time Player Rankings & MVP Index</p>
-          </div>
-          <p className="text-xs text-[#94a3b8]">
-            © 2026 Facebook Cricket League | Arif Md. Jiad | All rights reserved.
-          </p>
-        </div>
-      </footer>
 
       {/* 🌟 CENTRALIZED PLAYER CARD MODAL */}
       <PlayerCardModal

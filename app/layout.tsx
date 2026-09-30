@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -62,11 +64,22 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="bn"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#020617] text-white" suppressHydrationWarning>
-        {children}
+      <body className="min-h-full flex flex-col justify-between bg-[#020617] text-white" suppressHydrationWarning>
+        
+        {/* ১. সেন্ট্রাল হেডার (সব পেজে অটো থাকবে) */}
+        <Navbar />
+
+        {/* ২. মূল পেজের কন্টেন্ট */}
+        <div className="flex-grow">
+          {children}
+        </div>
+
+        {/* ৩. সেন্ট্রাল ফুটার ও মোবাইল বটম নেভবার */}
+        <Footer />
+
       </body>
     </html>
   );
