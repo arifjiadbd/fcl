@@ -72,7 +72,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col justify-between bg-white dark:bg-[#020617] text-slate-900 dark:text-white transition-colors duration-300">
         <ThemeProvider>
           
-          {/* ১. সেন্ট্রাল হেডার (সব পেজে অটো থাকবে) */}
+          {/* ১. সেন্ট্রাল হেডার */}
           <Navbar />
 
           {/* ২. মূল পেজের কন্টেন্ট */}
@@ -80,7 +80,7 @@ export default function RootLayout({
             {children}
           </div>
 
-          {/* ৩. সেন্ট্রাল ফুটার ও মোবাইল বটম নেভবার */}
+          {/* ৩. সেন্ট্রাল ফুটার */}
           <Footer />
 
         </ThemeProvider>
