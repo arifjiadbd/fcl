@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useTheme } from "next-themes";
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
   
   // শুধুমাত্র হোমপেজের বাংলা ভার্সন (/bn) এর জন্য সাদা ব্যাকগ্রাউন্ড ও বাংলা হেডার কাজ করবে
   const isBanglaHome = pathname === "/bn";
@@ -40,19 +42,19 @@ export default function Navbar() {
                 </span>
               </div>
               <p className={`text-[10px] sm:text-xs ${isBanglaHome ? "text-slate-500" : "text-[#94a3b8]"}`}>
-                {isBanglaHome ? "অফিশিয়াল এফসিএল ডিজিটাল প্ল্যাটফর্ম" : "Official FCL Digital Platform"}
+                {isBanglaHome ? "অফিসিয়াল এফসিএল ডিজিটাল প্ল্যাটফর্ম" : "Official FCL Digital Platform"}
               </p>
             </div>
           </Link>
 
-          {/* ডেস্কটপ নেভিগেশন মেনু (বাংলা হোমপেজে বাংলা, বাকি সব পেজে ইংরেজি ও মূল লিংকে যাবে) */}
+          {/* ডেস্কটপ নেভিগেশন মেনু */}
           <nav className="hidden items-center gap-5 lg:flex">
             {isBanglaHome ? (
               <>
                 <Link href="/bn" className="text-sm font-semibold text-blue-600 transition hover:text-blue-800">হোম</Link>
                 <Link href="/bn/#gateways" className="text-sm font-medium text-slate-600 transition hover:text-blue-600">পোর্টালসমূহ</Link>
-                <Link href="/rules" className="text-sm font-medium text-slate-600 transition hover:text-blue-600">নিয়ম ও ফরম্যাট</Link>
-                <Link href="/players" className="text-sm font-medium text-slate-600 transition hover:text-blue-600">খেলোয়াড়বৃন্দ</Link>
+                <Link href="/rules" className="text-sm font-medium text-slate-600 transition hover:text-blue-600">নিয়ম ও ফরম্যাট</Link>
+                <Link href="/players" className="text-sm font-medium text-slate-600 transition hover:text-blue-600">খেলোয়াড়বৃন্দ</Link>
                 <Link href="/rankings" className="text-sm font-medium text-slate-600 transition hover:text-blue-600">র‌্যাঙ্কিং</Link>
                 <Link href="/records" className="text-sm font-medium text-slate-600 transition hover:text-blue-600">হল অব ফেম</Link>
                 <Link href="/memories" className="text-sm font-bold text-pink-600 transition hover:text-pink-800 flex items-center gap-1">স্মৃতিচারণ 📖</Link>
@@ -70,10 +72,11 @@ export default function Navbar() {
             )}
           </nav>
 
-          {/* ডানপাশের ল্যাঙ্গুয়েজ সুইচ বাটন */}
+          {/* ডানপাশের ল্যাঙ্গুয়েজ ও থিম সুইচ বাটন */}
           <div className="flex items-center gap-3">
             <Link
               href={isBanglaHome ? "/" : "/bn"}
+              onClick={() => setTheme(isBanglaHome ? "dark" : "light")}
               className={`flex items-center gap-1.5 rounded-full border px-4 py-2 text-xs font-bold shadow-md transition active:scale-95 ${
                 isBanglaHome 
                   ? "border-slate-300 bg-slate-900 text-white hover:bg-slate-800" 
@@ -106,8 +109,8 @@ export default function Navbar() {
               {isBanglaHome ? (
                 <>
                   <Link href="/bn" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-900">হোম</Link>
-                  <Link href="/rules" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-600">নিয়ম ও ফরম্যাট</Link>
-                  <Link href="/players" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-600">খেলোয়াড়বৃন্দ</Link>
+                  <Link href="/rules" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-600">নিয়ম ও ফরম্যাট</Link>
+                  <Link href="/players" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-600">খেলোয়াড়বৃন্দ</Link>
                   <Link href="/rankings" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-600">র‌্যাঙ্কিং</Link>
                   <Link href="/records" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-600">হল অব ফেম</Link>
                   <Link href="/memories" onClick={() => setMobileMenuOpen(false)} className="text-sm font-bold text-pink-600">স্মৃতিচারণ 📖</Link>
@@ -146,15 +149,20 @@ export default function Navbar() {
                 <span className="rounded border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-1 py-0.5 text-[7px] font-black text-[#f59e0b]">FCL</span>
               </div>
               <p className={`text-[8px] font-medium ${isBanglaHome ? "text-slate-500" : "text-[#64748b]"}`}>
-                {isBanglaHome ? "অফিশিয়াল ডিজিটাল প্ল্যাটফর্ম" : "Official FCL Digital Platform"}
+                {isBanglaHome ? "অফিসিয়াল ডিজিটাল প্ল্যাটফর্ম" : "Official FCL Digital Platform"}
               </p>
             </div>
           </Link>
 
           <div className="flex items-center gap-2">
-            <Link href={isBanglaHome ? "/" : "/bn"} aria-label="Language Switch" className={`flex h-9 items-center gap-1 rounded-full border px-2.5 text-[9px] font-bold ${
-              isBanglaHome ? "border-slate-300 bg-slate-900 text-white" : "border-[#1877F2]/40 bg-[#1877F2]/15 text-[#60a5fa]"
-            }`}>
+            <Link 
+              href={isBanglaHome ? "/" : "/bn"} 
+              onClick={() => setTheme(isBanglaHome ? "dark" : "light")}
+              aria-label="Language Switch" 
+              className={`flex h-9 items-center gap-1 rounded-full border px-2.5 text-[9px] font-bold ${
+                isBanglaHome ? "border-slate-300 bg-slate-900 text-white" : "border-[#1877F2]/40 bg-[#1877F2]/15 text-[#60a5fa]"
+              }`}
+            >
               <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-black ${isBanglaHome ? "bg-white text-slate-900" : "bg-[#1877F2] text-white"}`}>
                 {isBanglaHome ? "EN" : "f"}
               </span>
@@ -179,9 +187,9 @@ export default function Navbar() {
             <div className="grid grid-cols-2 gap-2">
               {isBanglaHome ? (
                 <>
-                  <Link href="/rules" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-semibold text-slate-700">⚖️ নিয়ম ও ফরম্যাট</Link>
+                  <Link href="/rules" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-semibold text-slate-700">⚖️ নিয়ম ও ফরম্যাট</Link>
                   <Link href="/records" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-semibold text-slate-700">🏆 হল অব ফেম</Link>
-                  <Link href="/players" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-semibold text-slate-700">👥 খেলোয়াড়বৃন্দ</Link>
+                  <Link href="/players" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-semibold text-slate-700">👥 খেলোয়াড়বৃন্দ</Link>
                   <Link href="/memories" onClick={() => setMobileMenuOpen(false)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[11px] font-semibold text-pink-600">📖 স্মৃতিচারণ</Link>
                 </>
               ) : (
