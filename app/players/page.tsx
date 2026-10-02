@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import PlayerCardModal from "../../components/PlayerCardModal";
 
 interface Player {
@@ -361,6 +362,36 @@ export default function PlayersPage() {
             </div>
           </div>
         </header>
+
+        {/* 🌟 Player Comparison Highlight Banner with Pulse Animation */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-3xl border border-amber-400/40 bg-gradient-to-r from-amber-400/10 via-[#1877F2]/10 to-transparent p-4 sm:p-5 shadow-lg backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/20 text-xl sm:text-2xl animate-bounce">
+              ⚔️
+            </span>
+            <div>
+              <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                অকশনের আগে খেলোয়াড়দের পারফরম্যান্স তুলনা করুন!
+              </h2>
+              <p className="text-xs text-slate-600 dark:text-[#94a3b8]">
+                একাধিক খেলোয়াড়ের স্ট্যাটস পাশাপাশি যাচাই করে সেরা স্কোয়াড গড়ে তুলুন।
+              </p>
+            </div>
+          </div>
+
+          <Link
+            href="/players/compare"
+            className="relative inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1877F2] px-5 py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-[#1877F2]/30 transition hover:bg-blue-600 hover:scale-105 shrink-0"
+          >
+            {/* পালসিং অ্যানিমেশন ডট */}
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500"></span>
+            </span>
+
+            <span>তুলনা শুরু করুন →</span>
+          </Link>
+        </div>
 
         {/* Role Criteria Info Box */}
         {showCriteria && (
