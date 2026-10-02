@@ -51,12 +51,12 @@ function calculateAutomaticRole(runAvg: number, wkAvg: number, matches: number):
   if (runAvg >= 15 && wkAvg >= 1.5) {
     return "VIP All-Rounder";
   } 
-  // ২. Bowling All-Rounder (রান গড় ১২+, উইকেট গড় ১.৫+)
-  else if (runAvg >= 12 && wkAvg >= 1.5) {
+  // ২. Bowling All-Rounder (রান গড় ১১+, উইকেট গড় ১.৫+)
+  else if (runAvg >= 11 && wkAvg >= 1.5) {
     return "Bowling All-Rounder";
   } 
-  // ৩. All-Rounder (রান গড় ১২ থেকে ১৫ এর ভেতরে, উইকেট গড় ১.৫ এর নিচে)
-  else if (runAvg >= 12 && runAvg < 15 && wkAvg < 1.5 && wkAvg >= 0.8) {
+  // ৩. All-Rounder (রান গড় ১১ থেকে ১৫ এর ভেতরে, উইকেট গড় ১.৫ এর নিচে)
+  else if (runAvg >= 11 && runAvg < 15 && wkAvg < 1.5 && wkAvg >= 0.8) {
     return "All-Rounder";
   } 
   // ৪. Batsman (রান গড় ১০ এর বেশি এবং উইকেট গড় ০.৮ এর কম)

@@ -195,7 +195,7 @@ export default function MemoriesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#020617] text-slate-900 dark:text-white selection:bg-[#f59e0b]/30 selection:text-white transition-colors duration-300">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-white selection:bg-[#f59e0b]/30 selection:text-white transition-colors duration-300">
 
       {/* Hero Banner */}
       <section className="relative overflow-hidden border-b border-slate-200 dark:border-[#172033] bg-slate-50 dark:bg-[#02050b] py-12 sm:py-16">

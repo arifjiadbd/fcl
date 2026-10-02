@@ -69,7 +69,6 @@ export const getAutomaticRole = (player: Player): string => {
   const innings = Number(player.innings || 0);
   const notOut = Number(player.notOut || 0);
 
-  // সঠিক ব্যাটিং এভারেজ: total run / (total innings - not out innings)
   const dismissals = innings - notOut;
   const runAvg = dismissals > 0 ? runs / dismissals : innings > 0 ? runs / innings : 0;
   const wkAvg = wickets / matches;
@@ -78,12 +77,12 @@ export const getAutomaticRole = (player: Player): string => {
   if (runAvg >= 15 && wkAvg >= 1.5) {
     return "VIP All-Rounder";
   }
-  // ২. Bowling All-Rounder (রান গড় ১২+, উইকেট গড় ১.৫+)
-  else if (runAvg >= 12 && wkAvg >= 1.5) {
+  // ২. Bowling All-Rounder (রান গড় ১১+, উইকেট গড় ১.৫+)
+  else if (runAvg >= 11 && wkAvg >= 1.5) {
     return "Bowling All-Rounder";
   }
-  // ৩. All-Rounder (রান গড় ১২ থেকে ১৫ এর ভেতরে, উইকেট গড় ১.৫ এর নিচে)
-  else if (runAvg >= 12 && runAvg < 15 && wkAvg < 1.5 && wkAvg >= 0.8) {
+  // ৩. All-Rounder (রান গড় ১১ থেকে ১৫ এর ভেতরে, উইকেট গড় ১.৫ এর নিচে)
+  else if (runAvg >= 11 && runAvg < 15 && wkAvg < 1.5 && wkAvg >= 0.8) {
     return "All-Rounder";
   }
   // ৪. Batsman (রান গড় ১০ এর বেশি এবং উইকেট গড় ০.৮ এর কম)
@@ -99,7 +98,6 @@ export const getAutomaticRole = (player: Player): string => {
     return "Promising Player";
   }
 };
-
 export const calculateFclPoints = (p: Player): number => {
   const runs = Number(p.runs) || 0;
   const sixes = Number(p.sixes) || 0;
@@ -125,10 +123,6 @@ export const calculateFclPoints = (p: Player): number => {
       topWickets * 30
   );
 };
-
-/* ------------------------------------------------------------------ */
-/*  UI helpers                                                        */
-/* ------------------------------------------------------------------ */
 
 const PAGE_SIZE = 12;
 
@@ -233,10 +227,6 @@ function RoleBadge({ role }: { role: string }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Page                                                              */
-/* ------------------------------------------------------------------ */
-
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [tournamentsData, setTournamentsData] = useState<TournamentRecord[]>([]);
@@ -338,11 +328,11 @@ export default function PlayersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 transition-colors duration-300 dark:bg-[#020617] dark:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-[#020617] dark:text-white">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,rgba(24,119,242,0.14),transparent_65%)]" />
 
       <main className="relative mx-auto max-w-7xl px-4 pb-20 pt-10 sm:px-6 lg:px-8">
-        {/* ---------------- Header ---------------- */}
+        {/* Header */}
         <header className="mb-6 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
             <span className="inline-flex items-center gap-2 rounded-full border border-[#1877F2]/40 bg-[#1877F2]/10 px-3 py-1 text-xs font-semibold text-[#60a5fa]">
@@ -355,8 +345,7 @@ export default function PlayersPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Toggle Criteria Info Button */}
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => setShowCriteria(!showCriteria)}
               className="rounded-2xl border border-[#1877F2]/40 bg-[#1877F2]/10 px-4 py-3 text-xs font-bold text-[#60a5fa] transition hover:bg-[#1877F2]/20"
@@ -364,7 +353,7 @@ export default function PlayersPage() {
               {showCriteria ? "Hide Role Criteria ✕" : "ℹ️ How Roles Are Determined?"}
             </button>
 
-            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-5 py-3 backdrop-blur dark:border-[#1e293b] dark:bg-[#0b1220]/80">
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm backdrop-blur dark:border-[#1e293b] dark:bg-[#0b1220]/80">
               <div>
                 <p className="text-2xl font-black leading-none">{players.length}</p>
                 <p className="mt-1 text-[11px] text-slate-500 dark:text-[#94a3b8]">Registered players</p>
@@ -373,9 +362,9 @@ export default function PlayersPage() {
           </div>
         </header>
 
-        {/* 🌟 Role Determination Criteria Info Box */}
+        {/* Role Criteria Info Box */}
         {showCriteria && (
-          <div className="mb-6 rounded-3xl border border-[#1877F2]/30 bg-slate-50 p-5 shadow-lg dark:bg-[#0b1220]/90 animate-fadeIn">
+          <div className="mb-6 rounded-3xl border border-[#1877F2]/30 bg-white p-5 shadow-lg dark:bg-[#0b1220]/90 animate-fadeIn">
             <h3 className="text-sm font-black text-[#60a5fa] mb-3 uppercase tracking-wider">
               🏏 Automated Player Role Determination Criteria
             </h3>
@@ -386,7 +375,7 @@ export default function PlayersPage() {
               </div>
               <div className="rounded-xl border border-violet-400/30 bg-violet-400/5 p-3">
                 <p className="font-bold text-violet-600 dark:text-violet-300">⚡ Bowling All-Rounder</p>
-                <p className="mt-1 text-[11px] text-slate-500 dark:text-[#94a3b8]">Batting Avg ≥ 12 AND Wicket Avg ≥ 1.5</p>
+                <p className="mt-1 text-[11px] text-slate-500 dark:text-[#94a3b8]">Batting Avg ≥ 11 AND Wicket Avg ≥ 1.5</p>
               </div>
               <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3">
                 <p className="font-bold text-emerald-600 dark:text-emerald-300">⭐ All-Rounder</p>
@@ -411,11 +400,10 @@ export default function PlayersPage() {
           </div>
         )}
 
-        {/* ---------------- Toolbar ---------------- */}
+        {/* Toolbar */}
         <div className="sticky top-0 z-20 -mx-4 mb-6 border-b border-slate-200/70 bg-white/85 px-4 py-4 backdrop-blur-xl dark:border-[#1e293b]/70 dark:bg-[#020617]/85 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              {/* Search */}
               <div className="relative w-full lg:max-w-sm">
                 <svg
                   className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-[#64748b]"
@@ -433,7 +421,7 @@ export default function PlayersPage() {
                   placeholder="Search by name or nickname"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-900 placeholder-slate-400 transition focus:border-[#1877F2] focus:outline-none focus:ring-1 focus:ring-[#1877F2] dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-white dark:placeholder-[#64748b]"
+                  className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-[#1877F2] focus:outline-none focus:ring-1 focus:ring-[#1877F2] dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-white dark:placeholder-[#64748b]"
                 />
                 {searchQuery && (
                   <button
@@ -446,13 +434,12 @@ export default function PlayersPage() {
                 )}
               </div>
 
-              {/* Sort + view */}
               <div className="flex items-center justify-between lg:justify-end gap-2.5">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortKey)}
                   aria-label="Sort players"
-                  className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 focus:border-[#1877F2] focus:outline-none dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-slate-200 sm:text-[13px]"
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm focus:border-[#1877F2] focus:outline-none dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-slate-200 sm:text-[13px]"
                 >
                   {SORTS.map((s) => (
                     <option key={s.key} value={s.key}>
@@ -461,7 +448,7 @@ export default function PlayersPage() {
                   ))}
                 </select>
 
-                <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-0.5 dark:border-[#1e293b] dark:bg-[#0b1220]">
+                <div className="flex rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]">
                   {(["grid", "list"] as const).map((v) => (
                     <button
                       key={v}
@@ -490,8 +477,8 @@ export default function PlayersPage() {
               </div>
             </div>
 
-            {/* Role chips in 2 lines / wrapping */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100 dark:border-[#172033]">
+            {/* Role chips */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-200/60 dark:border-[#172033]">
               {ROLES.map((role) => {
                 const active = selectedRole === role;
                 return (
@@ -501,13 +488,13 @@ export default function PlayersPage() {
                     className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1877F2] sm:text-[13px] ${
                       active
                         ? "bg-[#1877F2] text-white shadow-lg shadow-[#1877F2]/25"
-                        : "border border-slate-200 bg-slate-50 text-slate-600 hover:border-[#1877F2]/40 hover:text-slate-900 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8] dark:hover:text-white"
+                        : "border border-slate-200 bg-white text-slate-600 shadow-sm hover:border-[#1877F2]/40 hover:text-slate-900 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8] dark:hover:text-white"
                     }`}
                   >
                     {role}
                     <span
                       className={`rounded-full px-1.5 text-[10px] font-bold ${
-                        active ? "bg-white/20 text-white" : "bg-slate-200 text-slate-500 dark:bg-[#172033] dark:text-[#94a3b8]"
+                        active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500 dark:bg-[#172033] dark:text-[#94a3b8]"
                       }`}
                     >
                       {roleCounts[role] ?? 0}
@@ -519,7 +506,7 @@ export default function PlayersPage() {
           </div>
         </div>
 
-        {/* ---------------- Result summary ---------------- */}
+        {/* Result summary */}
         {!loading && filteredPlayers.length > 0 && (
           <p className="mb-4 text-xs text-slate-500 dark:text-[#94a3b8]">
             Showing <span className="font-bold text-slate-900 dark:text-white">{visiblePlayers.length}</span> of{" "}
@@ -532,18 +519,18 @@ export default function PlayersPage() {
           </p>
         )}
 
-        {/* ---------------- Content ---------------- */}
+        {/* Content */}
         {loading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
-                className="h-44 animate-pulse rounded-3xl border border-slate-200 bg-slate-50 dark:border-[#1e293b] dark:bg-[#0b1220]"
+                className="h-44 animate-pulse rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]"
               />
             ))}
           </div>
         ) : filteredPlayers.length === 0 ? (
-          <div className="flex h-64 flex-col items-center justify-center rounded-3xl border border-slate-200 bg-slate-50 p-8 text-center dark:border-[#1e293b] dark:bg-[#0b1220]">
+          <div className="flex h-64 flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]">
             <span className="mb-3 text-4xl">🏏</span>
             <p className="text-base font-semibold">No players match your search</p>
             <p className="mt-1 text-xs text-slate-500 dark:text-[#94a3b8]">Try a different name or remove the role filter.</p>
@@ -555,7 +542,6 @@ export default function PlayersPage() {
             </button>
           </div>
         ) : view === "grid" ? (
-          /* ---------- GRID VIEW ---------- */
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {visiblePlayers.map((player, idx) => {
               const style = getRoleStyle(player.role);
@@ -594,8 +580,7 @@ export default function PlayersPage() {
             })}
           </div>
         ) : (
-          /* ---------- LIST VIEW ---------- */
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-[#1e293b] dark:bg-[#0b1220]">
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]">
             <div className="hidden grid-cols-[minmax(0,2.2fr)_1.3fr_repeat(4,0.7fr)] items-center gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold text-slate-500 dark:border-[#1e293b] dark:bg-[#0a1020] dark:text-[#64748b] md:grid">
               <span>Player</span>
               <span>Role</span>
@@ -651,7 +636,7 @@ export default function PlayersPage() {
           </div>
         )}
 
-        {/* ---------------- Load more ---------------- */}
+        {/* Load more */}
         {!loading && remaining > 0 && (
           <div className="mt-8 flex flex-col items-center gap-3">
             <div className="h-1 w-48 overflow-hidden rounded-full bg-slate-200 dark:bg-[#172033]">
@@ -669,7 +654,7 @@ export default function PlayersPage() {
               </button>
               <button
                 onClick={() => setVisibleCount(filteredPlayers.length)}
-                className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-[#1877F2]/40 hover:text-slate-900 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8] dark:hover:text-white"
+                className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-[#1877F2]/40 hover:text-slate-900 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8] dark:hover:text-white"
               >
                 Show all ({remaining} left)
               </button>
@@ -678,7 +663,6 @@ export default function PlayersPage() {
         )}
       </main>
 
-      {/* 🌟 CENTRALIZED PLAYER CARD MODAL */}
       <PlayerCardModal
         selectedPlayer={selectedPlayer}
         onClose={() => setSelectedPlayer(null)}
