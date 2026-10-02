@@ -310,7 +310,7 @@ export default function RankingsPage() {
         {loading ? (
           <div className="flex h-64 items-center justify-center">
             <div className="text-sm font-semibold text-[#60a5fa] animate-pulse">
-              Calculating full rankings & MVP points from database...
+              Calculating full rankings & MVP points from database, please be patient...
             </div>
           </div>
         ) : (

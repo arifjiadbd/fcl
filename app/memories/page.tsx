@@ -260,7 +260,7 @@ export default function MemoriesPage() {
         {loading ? (
           <div className="flex h-64 items-center justify-center">
             <div className="text-sm font-semibold text-amber-600 dark:text-[#fbbf24] animate-pulse">
-              Loading FCL Memories Archive from Excel...
+              Loading FCL Memories Archive, please be patient...
             </div>
           </div>
         ) : filteredMemories.length === 0 ? (

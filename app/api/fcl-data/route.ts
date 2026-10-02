@@ -43,6 +43,36 @@ function getRowValue(row: any, ...targetKeys: string[]): string {
   return "";
 }
 
+// 🌟 সঠিক ফর্মুলা অনুযায়ী রোল এবং এভারেজ ডিটেকশন ফাংশন
+function calculateAutomaticRole(runAvg: number, wkAvg: number, matches: number): string {
+  if (matches === 0) return "Promising Player";
+
+  // ১. VIP All-Rounder (রান গড় ১৫+, উইকেট গড় ১.৫+)
+  if (runAvg >= 15 && wkAvg >= 1.5) {
+    return "VIP All-Rounder";
+  } 
+  // ২. Bowling All-Rounder (রান গড় ১২+, উইকেট গড় ১.৫+)
+  else if (runAvg >= 12 && wkAvg >= 1.5) {
+    return "Bowling All-Rounder";
+  } 
+  // ৩. All-Rounder (রান গড় ১২ থেকে ১৫ এর ভেতরে, উইকেট গড় ১.৫ এর নিচে)
+  else if (runAvg >= 12 && runAvg < 15 && wkAvg < 1.5 && wkAvg >= 0.8) {
+    return "All-Rounder";
+  } 
+  // ৪. Batsman (রান গড় ১০ এর বেশি এবং উইকেট গড় ০.৮ এর কম)
+  else if (runAvg > 10 && wkAvg < 0.8) {
+    return "Batsman";
+  } 
+  // ৫. Bowler (উইকেট গড় ১.০ বা তার বেশি, কিন্তু রান গড় ১০ এর কম)
+  else if (runAvg < 10 && wkAvg >= 1.0) {
+    return "Bowler";
+  } 
+  // ৬. বাকিরা প্রতিশ্রুতিশীল খেলোয়াড়
+  else {
+    return "Promising Player";
+  }
+}
+
 export async function GET() {
   try {
     const filePath = path.join(process.cwd(), "public", "fcl-data.xlsx");
@@ -68,30 +98,35 @@ export async function GET() {
         const innings = Number(row["Innings"]) || 0;
         const notOut = Number(row["Not Out"]) || 0;
 
-        // 🌟 বোলিং এভারেজ স্মার্ট কনভার্সন (কখনোই 0.00 হবে না)
+        // বোলিং এভারেজ (উইকেট প্রতি ম্যাচ বা এক্সেলের মান)
         const rawWk = getRowValue(row, "Wk Avg.", "Wk Avg", "Bowling Avg", "Wicket Avg");
-        let wkAvg = "0.00";
+        let wkAvgNum = 0;
         if (rawWk && !isNaN(Number(rawWk)) && Number(rawWk) > 0) {
-          wkAvg = Number(rawWk).toFixed(2);
+          wkAvgNum = Number(rawWk);
         } else if (matches > 0 && wickets > 0) {
-          wkAvg = (wickets / matches).toFixed(2);
+          wkAvgNum = wickets / matches;
         }
+        const wkAvg = wkAvgNum.toFixed(2);
 
-        // ব্যাটিং এভারেজ
+        // ব্যাটিং এভারেজ: total run / (total innings - not out inngs)
         const rawRun = getRowValue(row, "Run Avg.", "Run Avg", "Batting Avg");
-        let runAvg = "0.00";
+        let runAvgNum = 0;
         if (rawRun && !isNaN(Number(rawRun)) && Number(rawRun) > 0) {
-          runAvg = Number(rawRun).toFixed(2);
+          runAvgNum = Number(rawRun);
         } else if (runs > 0) {
           const dismissals = innings - notOut;
-          runAvg = (dismissals > 0 ? runs / dismissals : runs / (innings || 1)).toFixed(2);
+          runAvgNum = dismissals > 0 ? runs / dismissals : (innings > 0 ? runs / innings : 0);
         }
+        const runAvg = runAvgNum.toFixed(2);
+
+        // 🌟 সঠিক এভারেজ দিয়ে রোল ক্যালকুলেট করা হলো
+        const role = calculateAutomaticRole(runAvgNum, wkAvgNum, matches);
 
         return {
           id: index + 1,
           name: String(row["Full Name"] || "").trim(),
           nickName: String(row["FCL Player Nick Name"] || "").trim(),
-          role: String(row["Player Role"] || "All-Rounder").trim(),
+          role,
           totalTournament: Number(row["Total Tournament"]) || 0,
           matches,
           runs,

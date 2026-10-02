@@ -518,7 +518,7 @@ export default function RecordsPage() {
         {loading ? (
           <div className="flex h-64 items-center justify-center">
             <div className="text-sm font-semibold text-[#f59e0b] animate-pulse">
-              Compiling FCL All-Time Records from Database...
+              Compiling FCL All-Time Records from Database, please be patient...
             </div>
           </div>
         ) : (
