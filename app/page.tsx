@@ -357,15 +357,6 @@ export default function Home() {
 
         <div className="relative rounded-[25px] border border-[#25345a] bg-gradient-to-b from-[#101a36] to-[#080f20] p-4 shadow-[0_22px_70px_rgba(0,0,0,.45)]">
           <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#f59e0b]/30 bg-[#f59e0b]/10 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.16em] text-[#fbbf24]">✨ Digital FCL Arena</span>
-            <Link href="/rules" className="rounded-full border border-[#64748b]/30 bg-[#0b1220]/80 px-2.5 py-1 text-[8px] font-bold text-[#94a3b8]">ⓘ FCL Rules</Link>
-          </div>
-          <p className="mt-3 text-[11px] font-medium leading-5 text-[#cbd5e1]">Official Facebook Cricket League digital platform</p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <span className="rounded-lg bg-[#1877F2]/10 px-2 py-1 text-[8px] font-bold text-[#60a5fa]">2 Overs</span>
-            <span className="rounded-lg bg-[#22c55e]/10 px-2 py-1 text-[8px] font-bold text-[#4ade80]">3 Wickets</span>
-            <span className="rounded-lg bg-[#f59e0b]/10 px-2 py-1 text-[8px] font-bold text-[#fbbf24]">No. 5</span>
-            <span className="rounded-lg bg-[#a855f7]/10 px-2 py-1 text-[8px] font-bold text-[#c084fc]">Auto Umpire</span>
           </div>
         </div>
 
