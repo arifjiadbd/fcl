@@ -354,12 +354,6 @@ export default function Home() {
       <section className="relative overflow-hidden border-b border-[#172033] bg-[#02050b] px-4 pb-7 pt-5 sm:hidden">
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-[#1877F2]/15 blur-[90px] fcl-mobile-glow" />
         <div className="pointer-events-none absolute -left-28 bottom-0 h-64 w-64 rounded-full bg-[#7c3aed]/10 blur-[90px]" />
-
-        <div className="relative rounded-[25px] border border-[#25345a] bg-gradient-to-b from-[#101a36] to-[#080f20] p-4 shadow-[0_22px_70px_rgba(0,0,0,.45)]">
-          <div className="flex items-center justify-between">
-          </div>
-        </div>
-
         <div className="mt-5 px-1">
           <span className="text-[9px] font-black uppercase tracking-[0.28em] text-[#38bdf8]">FCL Digital Platform</span>
           <h2 className="mt-2 text-[31px] font-black leading-[.98] tracking-[-0.045em] text-white">THE GAME LIVES<br /><span className="bg-gradient-to-r from-[#60a5fa] via-[#1877F2] to-[#a78bfa] bg-clip-text text-transparent">BEYOND THE FIELD.</span></h2>

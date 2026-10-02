@@ -354,21 +354,8 @@ export default function BanglaHome() {
       <section className="relative overflow-hidden border-b border-slate-200 bg-slate-50/50 px-4 pb-7 pt-5 sm:hidden">
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-blue-500/10 blur-[90px] fcl-mobile-glow" />
         <div className="pointer-events-none absolute -left-28 bottom-0 h-64 w-64 rounded-full bg-purple-500/5 blur-[90px]" />
-
-        <div className="relative rounded-[25px] border border-blue-100 bg-gradient-to-b from-blue-50/60 to-white p-4 shadow-[0_10px_30px_rgba(0,0,0,0.04)]">
-          <div className="flex items-center justify-between">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-50 px-2.5 py-1 text-[8px] font-black uppercase tracking-[0.16em] text-amber-600">✨ ডিজিটাল এফসিএল এরেনা</span>
-            <Link href="/rules" className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[8px] font-bold text-slate-600 shadow-sm">ⓘ এফসিএল নিয়মাবলী</Link>
-          </div>
-          <p className="mt-3 text-[11px] font-medium leading-5 text-slate-700">অফিসিয়াল ফেসবুক ক্রিকেট লিগ ডিজিটাল প্ল্যাটফর্ম</p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <span className="rounded-lg bg-blue-50 px-2 py-1 text-[8px] font-bold text-blue-600">২ ওভার</span>
-            <span className="rounded-lg bg-emerald-50 px-2 py-1 text-[8px] font-bold text-emerald-600">৩ উইকেট</span>
-            <span className="rounded-lg bg-amber-50 px-2 py-1 text-[8px] font-bold text-amber-600">নং ৫</span>
-            <span className="rounded-lg bg-purple-50 px-2 py-1 text-[8px] font-bold text-purple-600">অটো আম্পায়ার</span>
           </div>
         </div>
-
         <div className="mt-5 px-1">
           <span className="text-[9px] font-black uppercase tracking-[0.28em] text-sky-600">এফসিএল ডিজিটাল প্ল্যাটফর্ম</span>
           <h2 className="mt-2 text-[28px] font-black leading-[1.3] tracking-[-0.03em] text-slate-900">মাঠের সীমানা পেরিয়ে<br /><span className="bg-gradient-to-r from-blue-600 via-[#1877F2] to-purple-600 bg-clip-text text-transparent">খেলার উন্মাদনা সর্বত্র।</span></h2>
