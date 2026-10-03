@@ -90,7 +90,7 @@ export default function RecordsPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [tournamentsData, setTournamentsData] = useState<TournamentRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "batting" | "bowling" | "honors">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "batting" | "bowling" | "honors" | "clubs">("all");
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
 
   useEffect(() => {
@@ -127,7 +127,7 @@ export default function RecordsPage() {
   const mostFinalsPlayer = [...players].sort((a, b) => (b.totalFinal || 0) - (a.totalFinal || 0))[0];
   const mostMatchesPlayer = [...players].sort((a, b) => b.matches - a.matches)[0];
   const mostSixesPlayer = [...players].sort((a, b) => (b.sixes || 0) - (a.sixes || 0))[0];
-  const topHatTrickPlayer = [...players].sort((a, b) => (b.hatTricks || 0) - (a.hatTricks || 0))[0];
+  const topHatTrickPlayer = [...players].sort((a, b) => (b.hatTricks || 0) - (b.hatTricks || 0))[0];
 
   // Detailed Leaderboard Arrays
   const mostRuns = [...players].sort((a, b) => b.runs - a.runs).slice(0, 5);
@@ -150,17 +150,26 @@ export default function RecordsPage() {
     .sort((a, b) => (b.highestRunScorer || 0) - (a.highestRunScorer || 0))
     .slice(0, 5);
   const mostTournamentWicketKing = [...players]
-    .sort((a, b) => (b.topWicketTaker || 0) - (a.topWicketTaker || 0))
+    .sort((a, b) => (b.topWicketTaker || 0) - (b.topWicketTaker || 0))
     .slice(0, 5);
 
-  const totalRuns = players.reduce((sum, p) => sum + (p.runs || 0), 0);
-  const totalWkts = players.reduce((sum, p) => sum + (p.wickets || 0), 0);
-  const totalSixes = players.reduce((sum, p) => sum + (p.sixes || 0), 0);
+  // 🌟 আপনার নির্ধারিত স্ল্যাব অনুযায়ী এলিট ক্লাব ফিল্টারিং লজিক
+  // জোন ১: ৫৫০–১০০০ রান এবং ৫০–১০০ উইকেট
+  const tier1Clubs = players.filter((p) => p.runs >= 500 && p.runs < 1000 && p.wickets >= 50 && p.wickets < 100);
+  
+  // জোন ২: ১০০০–২০০০ রান এবং ৫০–১০০ উইকেট
+  const tier2Clubs = players.filter((p) => p.runs >= 1000 && p.runs < 2000 && p.wickets >= 50 && p.wickets < 100);
+  
+  // জোন ৩: ২০০০–২৫০০ রান এবং ১০০–১৫০ উইকেট
+  const tier3Clubs = players.filter((p) => p.runs >= 2000 && p.runs < 2500 && p.wickets >= 100 && p.wickets < 150);
+  
+  // জোন ৪: ২৫০০+ রান এবং ১৫০+ উইকেট
+  const tier4Clubs = players.filter((p) => p.runs >= 2500 && p.wickets >= 150);
 
   return (
     <div className="min-h-screen bg-[#020617] text-white selection:bg-[#f59e0b]/30 selection:text-white">
 
-      {/* 🌟 FCL RECORD CORNER (PREMIUM MVP CARD STYLE - 7 MAJOR RECORDS) */}
+      {/* FCL RECORD CORNER */}
       <section id="records" className="relative overflow-hidden bg-[#02050b] px-6 py-16">
         <div className="mx-auto max-w-7xl">
           <div className="relative mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
@@ -184,7 +193,6 @@ export default function RecordsPage() {
             </Link>
           </div>
 
-          {/* Grid Layout: 7 Major Records */}
           <div className="relative grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             
             {/* 1. Champion Record */}
@@ -497,6 +505,7 @@ export default function RecordsPage() {
             { id: "batting", label: "🏏 Batting Records" },
             { id: "bowling", label: "🎯 Bowling Records" },
             { id: "honors", label: "🏆 Trophies & Honors" },
+            { id: "clubs", label: "🛡️ Elite Milestone Clubs" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -523,6 +532,154 @@ export default function RecordsPage() {
           </div>
         ) : (
           <div className="space-y-12">
+            
+            {/* 🌟 SLAB-BASED ELITE MILESTONE CLUBS TAB */}
+            {activeTab === "clubs" && (
+              <div className="space-y-8">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/40 bg-amber-500/10 text-xl">
+                    🛡️
+                  </div>
+                  <div>
+                    <h3 className="text-xl sm:text-2xl font-black text-white">FCL Elite & Milestone Clubs</h3>
+                    <p className="text-xs text-slate-400">নির্দিষ্ট রান ও উইকেটের স্ল্যাব অনুযায়ী অলরাউন্ডারদের বিশেষ ক্লাবসমূহ</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                  
+                  {/* ১. Tier 1: 500-1000 Runs & 50-100 Wickets */}
+                  <div className="rounded-3xl border border-slate-500/40 bg-gradient-to-b from-slate-500/10 via-[#0b1220] to-[#0b1220] p-6 shadow-lg">
+                    <div className="flex items-center justify-between border-b border-slate-500/20 pb-4">
+                      <div>
+                        <span className="rounded-lg bg-slate-500/20 border border-slate-500/40 px-3 py-1 text-xs font-black text-slate-300">
+                          🛡️ Bronze All-Rounder Club
+                        </span>
+                        <h4 className="mt-2 text-base font-black text-white">৫০০–১০০০ রান এবং ৫০–১০০ উইকেট</h4>
+                      </div>
+                      <span className="text-2xl">🥉</span>
+                    </div>
+                    <div className="mt-4 divide-y divide-[#172033]">
+                      {tier1Clubs.length === 0 ? (
+                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
+                      ) : (
+                        tier1Clubs.map((p, i) => (
+                          <div key={i} onClick={() => setSelectedPlayer(p)} className="flex items-center justify-between py-3 cursor-pointer hover:bg-white/5 px-2 rounded-xl transition">
+                            <div>
+                              <p className="text-sm font-bold text-white hover:text-slate-300">{p.name}</p>
+                              <p className="text-[11px] text-slate-400">@{p.nickName || "Player"} • {p.matches} Matches</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs font-black text-blue-400">{p.runs} Runs</span>
+                              <span className="mx-1.5 text-slate-600">|</span>
+                              <span className="text-xs font-black text-rose-400">{p.wickets} Wkts</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ২. Tier 2: 1000-2000 Runs & 50-100 Wickets */}
+                  <div className="rounded-3xl border border-amber-500/40 bg-gradient-to-b from-amber-500/10 via-[#0b1220] to-[#0b1220] p-6 shadow-lg">
+                    <div className="flex items-center justify-between border-b border-amber-500/20 pb-4">
+                      <div>
+                        <span className="rounded-lg bg-amber-500/20 border border-amber-500/40 px-3 py-1 text-xs font-black text-amber-300">
+                          🥈 Silver All-Rounder Club
+                        </span>
+                        <h4 className="mt-2 text-base font-black text-white">১০০০–২০০০ রান এবং ৫০–১০০ উইকেট</h4>
+                      </div>
+                      <span className="text-2xl">🥈</span>
+                    </div>
+                    <div className="mt-4 divide-y divide-[#172033]">
+                      {tier2Clubs.length === 0 ? (
+                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
+                      ) : (
+                        tier2Clubs.map((p, i) => (
+                          <div key={i} onClick={() => setSelectedPlayer(p)} className="flex items-center justify-between py-3 cursor-pointer hover:bg-white/5 px-2 rounded-xl transition">
+                            <div>
+                              <p className="text-sm font-bold text-white hover:text-amber-400">{p.name}</p>
+                              <p className="text-[11px] text-slate-400">@{p.nickName || "Player"} • {p.matches} Matches</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs font-black text-blue-400">{p.runs} Runs</span>
+                              <span className="mx-1.5 text-slate-600">|</span>
+                              <span className="text-xs font-black text-rose-400">{p.wickets} Wkts</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ৩. Tier 3: 2000-2500 Runs & 100-150 Wickets */}
+                  <div className="rounded-3xl border border-blue-500/40 bg-gradient-to-b from-blue-500/10 via-[#0b1220] to-[#0b1220] p-6 shadow-lg">
+                    <div className="flex items-center justify-between border-b border-blue-500/20 pb-4">
+                      <div>
+                        <span className="rounded-lg bg-blue-500/20 border border-blue-500/40 px-3 py-1 text-xs font-black text-blue-300">
+                          🥇 Gold All-Rounder Club
+                        </span>
+                        <h4 className="mt-2 text-base font-black text-white">২০s০০–২৫০০ রান এবং ১০০–১৫০ উইকেট</h4>
+                      </div>
+                      <span className="text-2xl">🥇</span>
+                    </div>
+                    <div className="mt-4 divide-y divide-[#172033]">
+                      {tier3Clubs.length === 0 ? (
+                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
+                      ) : (
+                        tier3Clubs.map((p, i) => (
+                          <div key={i} onClick={() => setSelectedPlayer(p)} className="flex items-center justify-between py-3 cursor-pointer hover:bg-white/5 px-2 rounded-xl transition">
+                            <div>
+                              <p className="text-sm font-bold text-white hover:text-blue-400">{p.name}</p>
+                              <p className="text-[11px] text-slate-400">@{p.nickName || "Player"} • {p.matches} Matches</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs font-black text-blue-400">{p.runs} Runs</span>
+                              <span className="mx-1.5 text-slate-600">|</span>
+                              <span className="text-xs font-black text-rose-400">{p.wickets} Wkts</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ৪. Tier 4: 2500+ Runs & 150+ Wickets */}
+                  <div className="rounded-3xl border border-purple-500/40 bg-gradient-to-b from-purple-500/10 via-[#0b1220] to-[#0b1220] p-6 shadow-lg">
+                    <div className="flex items-center justify-between border-b border-purple-500/20 pb-4">
+                      <div>
+                        <span className="rounded-lg bg-purple-500/20 border border-purple-500/40 px-3 py-1 text-xs font-black text-purple-300">
+                          💎 Diamond All-Rounder Club
+                        </span>
+                        <h4 className="mt-2 text-base font-black text-white">২৫০০+ রান এবং ১৫০+ উইকেট</h4>
+                      </div>
+                      <span className="text-2xl">💎</span>
+                    </div>
+                    <div className="mt-4 divide-y divide-[#172033]">
+                      {tier4Clubs.length === 0 ? (
+                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
+                      ) : (
+                        tier4Clubs.map((p, i) => (
+                          <div key={i} onClick={() => setSelectedPlayer(p)} className="flex items-center justify-between py-3 cursor-pointer hover:bg-white/5 px-2 rounded-xl transition">
+                            <div>
+                              <p className="text-sm font-bold text-white hover:text-purple-400">{p.name}</p>
+                              <p className="text-[11px] text-slate-400">@{p.nickName || "Player"} • {p.matches} Matches</p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-xs font-black text-blue-400">{p.runs} Runs</span>
+                              <span className="mx-1.5 text-slate-600">|</span>
+                              <span className="text-xs font-black text-rose-400">{p.wickets} Wkts</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            )}
+
             {/* 1. BATTING LEADERS */}
             {(activeTab === "all" || activeTab === "batting") && (
               <div>
@@ -881,7 +1038,7 @@ export default function RecordsPage() {
         )}
       </main>
 
-      {/* 🌟 CENTRALIZED PLAYER CARD MODAL */}
+      {/* CENTRALIZED PLAYER CARD MODAL */}
       <PlayerCardModal
         selectedPlayer={selectedPlayer}
         onClose={() => setSelectedPlayer(null)}

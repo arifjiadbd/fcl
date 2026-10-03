@@ -65,12 +65,6 @@ interface Props {
   allPlayers: Player[];
 }
 
-/* ------------------------------------------------------------------ */
-/*  THEME TOKENS                                                       */
-/*  Dark  : গাঢ় নেভি ব্যাকগ্রাউন্ড + উজ্জ্বল (400-level) অ্যাক্সেন্ট      */
-/*  Light : সাদা/স্লেট ব্যাকগ্রাউন্ড + গাঢ় (600/700-level) অ্যাক্সেন্ট    */
-/*  (Tailwind-এর জন্য সব ক্লাস পুরো স্ট্রিং হিসেবে রাখা হয়েছে)          */
-/* ------------------------------------------------------------------ */
 const THEMES = {
   dark: {
     modal: "border-sky-400/30 bg-[#0B1220] text-slate-100",
@@ -230,6 +224,26 @@ export const calculateFclPoints = (p: Player): number => {
   );
 };
 
+// 🌟 খেলোয়াড় কোন এলিট ক্লাবের সদস্য তা নির্ধারণ করার ফাংশন
+function getPlayerEliteClub(p: Player) {
+  const runs = Number(p.runs) || 0;
+  const wickets = Number(p.wickets) || 0;
+
+  if (runs >= 2500 && wickets >= 150) {
+    return { name: "💎 Diamond All-Rounder Club", badge: "bg-purple-500/20 text-purple-300 border-purple-500/40" };
+  }
+  if (runs >= 2000 && wickets >= 100) {
+    return { name: "🥇 Gold All-Rounder Club", badge: "bg-blue-500/20 text-blue-300 border-blue-500/40" };
+  }
+  if (runs >= 1000 && wickets >= 50) {
+    return { name: "🥈 Silver All-Rounder Club", badge: "bg-amber-500/20 text-amber-300 border-amber-500/40" };
+  }
+  if (runs >= 500 && wickets >= 50) {
+    return { name: "🥉 Bronze All-Rounder Club", badge: "bg-slate-500/20 text-slate-300 border-slate-500/40" };
+  }
+  return null;
+}
+
 export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsData, allPlayers }: Props) {
   const [cardTheme, setCardTheme] = useState<"dark" | "light">("dark");
   const [cardModalTab, setCardModalTab] = useState<"card" | "history" | "combined">("card");
@@ -241,6 +255,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
   if (!selectedPlayer) return null;
 
   const T = THEMES[cardTheme];
+  const eliteClub = getPlayerEliteClub(selectedPlayer);
 
   const handleDownloadCard = async () => {
     if (!cardRef.current) return;
@@ -325,7 +340,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     return "0.00";
   };
 
-  /* ---------- Small helpers (theme-aware) ---------- */
   const tabCls = (active: boolean, gradient = false) =>
     `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
       active
@@ -335,12 +349,10 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
         : T.segIdle
     }`;
 
-  // Stat Card: ছোট লেবেল
   const Lbl = ({ children }: { children: ReactNode }) => (
     <p className={`text-[10px] uppercase font-bold tracking-wider ${T.label}`}>{children}</p>
   );
 
-  // Stat Card: লাইন (label ... value)
   const Line = ({ k, children, last }: { k: string; children: ReactNode; last?: boolean }) => (
     <div className={`flex justify-between gap-2 ${last ? "" : `border-b pb-1.5 ${T.divider}`}`}>
       <span className={`font-semibold ${T.label}`}>{k}</span>
@@ -348,7 +360,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     </div>
   );
 
-  // Combined: ৪-সেলের টেবিল রো
   const kv = (k1: string, v1: ReactNode, k2: string, v2: ReactNode, keyCls: string, last = false) => (
     <tr className={last ? "" : `border-b ${T.rowLine}`}>
       <td className={`w-[18%] px-4 py-3 font-bold ${keyCls}`}>{k1}</td>
@@ -434,6 +445,16 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                   <Lbl>Player Name</Lbl>
                   <h4 className={`mt-1 break-words text-base sm:text-lg font-black leading-tight ${T.text}`}>{selectedPlayer.name}</h4>
                   {selectedPlayer.nickName && <p className={`mt-0.5 text-xs font-bold ${T.blue}`}>@{selectedPlayer.nickName}</p>}
+                  
+                  {/* 🌟 এলিট ক্লাব মেম্বারশিপ ব্যাজ কার্ডে যুক্ত করা হলো */}
+                  {eliteClub && (
+                    <div className="mt-2">
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black ${eliteClub.badge}`}>
+                        {eliteClub.name}
+                      </span>
+                    </div>
+                  )}
+
                   <div className={`mt-2 flex items-center justify-between border-t pt-2 ${T.divider}`}>
                     <span className={`text-[10px] font-bold uppercase ${T.label}`}>Role:</span>
                     <span className={`truncate text-xs font-extrabold ${T.amber}`}>{selectedPlayer.role}</span>
