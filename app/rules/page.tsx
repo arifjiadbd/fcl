@@ -185,7 +185,7 @@ export default function RulesPage() {
             </div>
           </div>
           <h1 className="mt-8 max-w-3xl text-5xl font-black leading-[1.05] tracking-[-0.04em] sm:text-7xl">
-            {bn ? "খেলার " : "Master the "}
+            {bn ? "খেলার " : "All About "}
             <span className="bg-gradient-to-r from-[#60a5fa] via-[#1877F2] to-[#8b5cf6] bg-clip-text text-transparent">
               {bn ? "নিয়মকানুন" : "FCL Game."}
             </span>

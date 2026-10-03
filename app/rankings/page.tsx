@@ -59,7 +59,6 @@ interface TournamentRecord {
   topWicket: number;
 }
 
-// 🎯 FCL 100% Authentic Tournament Data-based MVP Point Formula
 export const calculateFclPoints = (p: Player): number => {
   const runs = Number(p.runs) || 0;
   const sixes = Number(p.sixes) || 0;
@@ -94,6 +93,9 @@ export default function RankingsPage() {
   const [search, setSearch] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [showFormula, setShowFormula] = useState(false);
+
+  // 🌟 পেজিনেশন বা প্রতি ধাপে ৫০ জন করে দেখানোর স্টেট
+  const [visibleCount, setVisibleCount] = useState(50);
 
   useEffect(() => {
     fetch("/api/fcl-data")
@@ -135,6 +137,20 @@ export default function RankingsPage() {
     return !q || p.name.toLowerCase().includes(q) || (p.nickName && p.nickName.toLowerCase().includes(q));
   });
 
+  // বর্তমান দৃশ্যমান প্লেয়ারদের তালিকা (প্রথমত ৫০ জন)
+  const displayedPlayers = filteredRankings.slice(0, visibleCount);
+
+  // ক্যাটেগরি বা সার্চ পরিবর্তন হলে পেজিনেশন আবার ৫০ থেকে শুরু হবে
+  const handleCategoryChange = (newCat: any) => {
+    setCategory(newCat);
+    setVisibleCount(50);
+  };
+
+  const handleSearchChange = (val: string) => {
+    setSearch(val);
+    setVisibleCount(50);
+  };
+
   return (
     <div className="min-h-screen bg-[#020617] text-white selection:bg-[#1877F2]/30 selection:text-white">
 
@@ -171,14 +187,45 @@ export default function RankingsPage() {
                 type="text"
                 placeholder="Search player name or nickname..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 className="w-full rounded-xl border border-[#1e293b] bg-[#0b1220] px-4 py-2 text-xs text-white placeholder-[#64748b] focus:border-[#1877F2] focus:outline-none"
               />
             </div>
           </div>
         </div>
 
-        {/* 🌟 ALL-TIME TOP 3 MVP LEGENDS PODIUM (SHOWN AT THE TOP) */}
+        {/* 🌟 MVP Formula Dropdown Details */}
+        {showFormula && (
+          <div className="mb-6 rounded-2xl border border-[#f59e0b]/30 bg-gradient-to-r from-[#171103] via-[#211603] to-[#171103] p-4 text-xs animate-in fade-in duration-200 shadow-xl">
+            <h4 className="font-bold text-[#fbbf24] text-sm">🎯 FCL 100% Authentic Tournament Point Formula:</h4>
+            <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] text-[#cbd5e1]">
+              <div className="rounded-lg bg-black/40 p-2.5 border border-[#f59e0b]/20">
+                <strong className="text-[#22c55e]">🏏 Batting Points:</strong>
+                <p className="mt-1">1 Run = 1 Pt</p>
+                <p>1 Six (6) = 2 Pts</p>
+                <p>1 Four (4) = 1 Pt</p>
+              </div>
+              <div className="rounded-lg bg-black/40 p-2.5 border border-[#f59e0b]/20">
+                <strong className="text-[#f59e0b]">🎯 Bowling Points:</strong>
+                <p className="mt-1">1 Wicket = 20 Pts</p>
+              </div>
+              <div className="rounded-lg bg-black/40 p-2.5 border border-[#f59e0b]/20">
+                <strong className="text-[#c084fc]">🏆 Honors Bonus:</strong>
+                <p className="mt-1">Champion = 100 Pts</p>
+                <p>Runner-Up = 40 Pts</p>
+                <p>MOT / CPOT = 60 Pts</p>
+              </div>
+              <div className="rounded-lg bg-black/40 p-2.5 border border-[#f59e0b]/20">
+                <strong className="text-[#38bdf8]">👑 Tournament Caps:</strong>
+                <p className="mt-1">Tour. Run King = 30 Pts</p>
+                <p>Tour. Wkt King = 30 Pts</p>
+                <p>Each Match = 2 Pts</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 🌟 ALL-TIME TOP 3 MVP LEGENDS PODIUM */}
         {!loading && top3Mvp.length > 0 && (
           <div className="mb-12">
             <div className="mb-6 flex items-center gap-3">
@@ -249,37 +296,6 @@ export default function RankingsPage() {
           </div>
         )}
 
-        {/* 🌟 MVP Formula Dropdown Details */}
-        {showFormula && (
-          <div className="mb-6 rounded-2xl border border-[#f59e0b]/30 bg-gradient-to-r from-[#171103] via-[#211603] to-[#171103] p-4 text-xs animate-in fade-in duration-200">
-            <h4 className="font-bold text-[#fbbf24] text-sm">🎯 FCL 100% Authentic Tournament Point Formula:</h4>
-            <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px] text-[#cbd5e1]">
-              <div className="rounded-lg bg-black/40 p-2 border border-[#f59e0b]/20">
-                <strong className="text-[#22c55e]">🏏 Batting Points:</strong>
-                <p>1 Run = 1 Pt</p>
-                <p>1 Six (6) = 2 Pts</p>
-                <p>1 Four (4) = 1 Pt</p>
-              </div>
-              <div className="rounded-lg bg-black/40 p-2 border border-[#f59e0b]/20">
-                <strong className="text-[#f59e0b]">🎯 Bowling Points:</strong>
-                <p>1 Wicket = 20 Pts</p>
-              </div>
-              <div className="rounded-lg bg-black/40 p-2 border border-[#f59e0b]/20">
-                <strong className="text-[#c084fc]">🏆 Honors Bonus:</strong>
-                <p>Champion = 100 Pts</p>
-                <p>Runner-Up = 40 Pts</p>
-                <p>MOT / CPOT = 60 Pts</p>
-              </div>
-              <div className="rounded-lg bg-black/40 p-2 border border-[#f59e0b]/20">
-                <strong className="text-[#38bdf8]">👑 Tournament Caps:</strong>
-                <p>Tour. Run King = 30 Pts</p>
-                <p>Tour. Wkt King = 30 Pts</p>
-                <p>Each Match = 2 Pts</p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Category Tabs */}
         <div className="mb-6 flex flex-wrap gap-2">
           {[
@@ -292,7 +308,7 @@ export default function RankingsPage() {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setCategory(tab.id as any)}
+              onClick={() => handleCategoryChange(tab.id)}
               className={`rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition ${
                 category === tab.id
                   ? tab.id === "mvp"
@@ -314,135 +330,149 @@ export default function RankingsPage() {
             </div>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] shadow-2xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs sm:text-sm">
-                <thead className="border-b border-[#1e293b] bg-[#070d19] text-[10px] sm:text-xs uppercase tracking-wider text-[#64748b]">
-                  <tr>
-                    <th className="py-3.5 px-4 text-center w-16">Rank</th>
-                    <th className="py-3.5 px-4">Player</th>
-                    <th className="py-3.5 px-4">Role</th>
-                    <th className="py-3.5 px-4 text-center">Matches</th>
-                    <th className="py-3.5 px-4 text-center">Runs</th>
-                    <th className="py-3.5 px-4 text-center">Wickets</th>
-                    <th className="py-3.5 px-4 text-center">6s / 4s</th>
-                    <th className="py-3.5 px-4 text-center">Trophies</th>
-                    <th className="py-3.5 px-4 text-right">
-                      {category === "mvp" ? "MVP Rating Points" : "Primary Stat"}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#172033]/60">
-                  {filteredRankings.map((player, index) => {
-                    const rankNum = index + 1;
-                    const isTop1 = rankNum === 1;
-                    const isTop2 = rankNum === 2;
-                    const isTop3 = rankNum === 3;
-                    const mvpPoints = calculateFclPoints(player);
+          <div className="space-y-6">
+            <div className="overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220] shadow-2xl">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs sm:text-sm">
+                  <thead className="border-b border-[#1e293b] bg-[#070d19] text-[10px] sm:text-xs uppercase tracking-wider text-[#64748b]">
+                    <tr>
+                      <th className="py-3.5 px-4 text-center w-16">Rank</th>
+                      <th className="py-3.5 px-4">Player</th>
+                      <th className="py-3.5 px-4">Role</th>
+                      <th className="py-3.5 px-4 text-center">Matches</th>
+                      <th className="py-3.5 px-4 text-center">Runs</th>
+                      <th className="py-3.5 px-4 text-center">Wickets</th>
+                      <th className="py-3.5 px-4 text-center">6s / 4s</th>
+                      <th className="py-3.5 px-4 text-center">Trophies</th>
+                      <th className="py-3.5 px-4 text-right">
+                        {category === "mvp" ? "MVP Rating Points" : "Primary Stat"}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#172033]/60">
+                    {displayedPlayers.map((player, index) => {
+                      const rankNum = index + 1;
+                      const isTop1 = rankNum === 1;
+                      const isTop2 = rankNum === 2;
+                      const isTop3 = rankNum === 3;
+                      const mvpPoints = calculateFclPoints(player);
 
-                    return (
-                      <tr
-                        key={player.name + index}
-                        onClick={() => setSelectedPlayer(player)}
-                        className={`group cursor-pointer transition ${
-                          category === "mvp" && isTop1
-                            ? "bg-[#f59e0b]/5 hover:bg-[#f59e0b]/15"
-                            : "hover:bg-[#1877F2]/10"
-                        }`}
-                      >
-                        {/* Rank Badge */}
-                        <td className="py-3.5 px-4 text-center font-black">
-                          <span
-                            className={`inline-flex h-7 w-7 items-center justify-center rounded-xl text-xs font-black ${
-                              isTop1
-                                ? "bg-[#f59e0b] text-black shadow-md shadow-[#f59e0b]/30"
-                                : isTop2
-                                ? "bg-[#cbd5e1] text-black"
-                                : isTop3
-                                ? "bg-[#b45309] text-white"
-                                : "bg-[#030712] text-[#64748b]"
-                            }`}
-                          >
-                            {rankNum}
-                          </span>
-                        </td>
-
-                        {/* Player Info */}
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg overflow-hidden border border-[#1e293b] bg-[#030712] shrink-0">
-                              <img
-                                src={`/players/${(player.nickName || "").toLowerCase().trim()}.jpg`}
-                                alt=""
-                                className="h-full w-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = "none";
-                                  e.currentTarget.parentElement!.innerHTML = '<div class="flex h-full w-full items-center justify-center text-xs">🏏</div>';
-                                }}
-                              />
-                            </div>
-                            <div>
-                              <p className="font-bold text-white group-hover:text-[#60a5fa] transition line-clamp-1">
-                                {player.name}
-                              </p>
-                              {player.nickName && (
-                                <span className="text-[11px] text-[#64748b]">@{player.nickName}</span>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Role */}
-                        <td className="py-3.5 px-4 text-xs text-[#94a3b8]">
-                          <span className="rounded-md border border-[#1e293b] bg-[#030712] px-2 py-0.5 text-[10px]">
-                            {player.role || "Player"}
-                          </span>
-                        </td>
-
-                        {/* Matches */}
-                        <td className="py-3.5 px-4 text-center font-bold text-white">{player.matches}</td>
-
-                        {/* Runs */}
-                        <td className="py-3.5 px-4 text-center font-bold text-[#22c55e]">{player.runs}</td>
-
-                        {/* Wickets */}
-                        <td className="py-3.5 px-4 text-center font-bold text-[#f59e0b]">{player.wickets}</td>
-
-                        {/* Boundaries */}
-                        <td className="py-3.5 px-4 text-center text-xs text-[#cbd5e1]">
-                          <span className="text-[#c084fc] font-bold">{player.sixes ?? 0}</span> /{" "}
-                          <span className="text-[#38bdf8] font-bold">{player.fours ?? 0}</span>
-                        </td>
-
-                        {/* Trophies */}
-                        <td className="py-3.5 px-4 text-center text-xs">
-                          🏆 <span className="font-bold text-[#f59e0b]">{player.champion ?? 0}</span>
-                        </td>
-
-                        {/* Target Value / MVP Points */}
-                        <td className="py-3.5 px-4 text-right font-black text-sm">
-                          {category === "mvp" && (
-                            <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-3 py-1 text-sm font-black text-[#fbbf24] shadow-sm">
-                              ⭐ {mvpPoints.toLocaleString()} Pts
+                      return (
+                        <tr
+                          key={player.name + index}
+                          onClick={() => setSelectedPlayer(player)}
+                          className={`group cursor-pointer transition ${
+                            category === "mvp" && isTop1
+                              ? "bg-[#f59e0b]/5 hover:bg-[#f59e0b]/15"
+                              : "hover:bg-[#1877F2]/10"
+                          }`}
+                        >
+                          {/* Rank Badge */}
+                          <td className="py-3.5 px-4 text-center font-black">
+                            <span
+                              className={`inline-flex h-7 w-7 items-center justify-center rounded-xl text-xs font-black ${
+                                isTop1
+                                  ? "bg-[#f59e0b] text-black shadow-md shadow-[#f59e0b]/30"
+                                  : isTop2
+                                  ? "bg-[#cbd5e1] text-black"
+                                  : isTop3
+                                  ? "bg-[#b45309] text-white"
+                                  : "bg-[#030712] text-[#64748b]"
+                              }`}
+                            >
+                              {rankNum}
                             </span>
-                          )}
-                          {category === "runs" && <span className="text-[#22c55e]">{player.runs} Runs</span>}
-                          {category === "wickets" && <span className="text-[#f59e0b]">{player.wickets} Wkts</span>}
-                          {category === "matches" && <span className="text-white">{player.matches} Matches</span>}
-                          {category === "sixes" && <span className="text-[#c084fc]">{player.sixes ?? 0} 6s</span>}
-                          {category === "champion" && <span className="text-[#f59e0b]">{player.champion ?? 0} Titles</span>}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+
+                          {/* Player Info */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-lg overflow-hidden border border-[#1e293b] bg-[#030712] shrink-0">
+                                <img
+                                  src={`/players/${(player.nickName || "").toLowerCase().trim()}.jpg`}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                    e.currentTarget.parentElement!.innerHTML = '<div class="flex h-full w-full items-center justify-center text-xs">🏏</div>';
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <p className="font-bold text-white group-hover:text-[#60a5fa] transition line-clamp-1">
+                                  {player.name}
+                                </p>
+                                {player.nickName && (
+                                  <span className="text-[11px] text-[#64748b]">@{player.nickName}</span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Role */}
+                          <td className="py-3.5 px-4 text-xs text-[#94a3b8]">
+                            <span className="rounded-md border border-[#1e293b] bg-[#030712] px-2 py-0.5 text-[10px]">
+                              {player.role || "Player"}
+                            </span>
+                          </td>
+
+                          {/* Matches */}
+                          <td className="py-3.5 px-4 text-center font-bold text-white">{player.matches}</td>
+
+                          {/* Runs */}
+                          <td className="py-3.5 px-4 text-center font-bold text-[#22c55e]">{player.runs}</td>
+
+                          {/* Wickets */}
+                          <td className="py-3.5 px-4 text-center font-bold text-[#f59e0b]">{player.wickets}</td>
+
+                          {/* Boundaries */}
+                          <td className="py-3.5 px-4 text-center text-xs text-[#cbd5e1]">
+                            <span className="text-[#c084fc] font-bold">{player.sixes ?? 0}</span> /{" "}
+                            <span className="text-[#38bdf8] font-bold">{player.fours ?? 0}</span>
+                          </td>
+
+                          {/* Trophies */}
+                          <td className="py-3.5 px-4 text-center text-xs">
+                            🏆 <span className="font-bold text-[#f59e0b]">{player.champion ?? 0}</span>
+                          </td>
+
+                          {/* Target Value / MVP Points */}
+                          <td className="py-3.5 px-4 text-right font-black text-sm">
+                            {category === "mvp" && (
+                              <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#f59e0b]/40 bg-[#f59e0b]/10 px-3 py-1 text-sm font-black text-[#fbbf24] shadow-sm">
+                                ⭐ {mvpPoints.toLocaleString()} Pts
+                              </span>
+                            )}
+                            {category === "runs" && <span className="text-[#22c55e]">{player.runs} Runs</span>}
+                            {category === "wickets" && <span className="text-[#f59e0b]">{player.wickets} Wkts</span>}
+                            {category === "matches" && <span className="text-white">{player.matches} Matches</span>}
+                            {category === "sixes" && <span className="text-[#c084fc]">{player.sixes ?? 0} 6s</span>}
+                            {category === "champion" && <span className="text-[#f59e0b]">{player.champion ?? 0} Titles</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
+
+            {/* 🌟 LOAD MORE BUTTON */}
+            {visibleCount < filteredRankings.length && (
+              <div className="flex justify-center pt-4">
+                <button
+                  onClick={() => setVisibleCount((prev) => prev + 50)}
+                  className="rounded-2xl border border-[#1877F2]/40 bg-[#1877F2]/10 px-8 py-3 text-xs sm:text-sm font-black text-[#60a5fa] shadow-lg transition hover:bg-[#1877F2] hover:text-white"
+                >
+                  আরও ৫০ জন লোড করুন ({filteredRankings.length - visibleCount} জন বাকি আছে) ↓
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
 
-      {/* 🌟 CENTRALIZED PLAYER CARD MODAL */}
+      {/* CENTRALIZED PLAYER CARD MODAL */}
       <PlayerCardModal
         selectedPlayer={selectedPlayer}
         onClose={() => setSelectedPlayer(null)}
