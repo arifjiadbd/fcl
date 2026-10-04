@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import PlayerCardModal from "../../components/PlayerCardModal";
 
@@ -86,6 +86,354 @@ export const calculateFclPoints = (p: Player): number => {
   );
 };
 
+/* =====================================================================
+   📱 MOBILE LAYOUT (শুধু ফোনে দেখাবে — md এর নিচে)
+   নতুন ক্যাটাগরি যোগ করতে চাইলে নিচের MOBILE_TABS এ একটা লাইন
+   আর MOBILE_CFG এ একটা লাইন যোগ করলেই হবে।
+   ===================================================================== */
+type MTabId = string;
+
+const MOBILE_TABS: { id: MTabId; label: string; icon: string }[] = [
+  { id: "records", label: "Record Holders", icon: "🌟" },
+  { id: "points", label: "FCL Points", icon: "💯" },
+  { id: "runs", label: "Most Runs", icon: "🏏" },
+  { id: "wickets", label: "Most Wickets", icon: "🎯" },
+  { id: "sixes", label: "Six Machine", icon: "💥" },
+  { id: "fours", label: "Boundary Kings", icon: "🔷" },
+  { id: "hattricks", label: "Hat-Tricks", icon: "🎩" },
+  { id: "champions", label: "Champions", icon: "🏆" },
+  { id: "runnersup", label: "Runners-Up", icon: "🥈" },
+  { id: "finals", label: "Total Finals", icon: "⚔️" },
+  { id: "motcpot", label: "MOT / CPOT", icon: "⭐" },
+  { id: "runking", label: "Tour. Run King", icon: "👑" },
+  { id: "wicketking", label: "Tour. Wicket King", icon: "🛡️" },
+  { id: "matches", label: "Most Matches", icon: "⚡" },
+  { id: "mom", label: "Man of Match", icon: "🎖️" },
+  { id: "cpom", label: "CP of Match", icon: "🏅" },
+  { id: "innings", label: "Most Innings", icon: "📋" },
+  { id: "notout", label: "Most Not Outs", icon: "🧱" },
+  { id: "maxruns", label: "Highest Score", icon: "🚀" },
+  { id: "maxwickets", label: "Best Bowling", icon: "🔥" },
+  { id: "tournaments", label: "Tournaments", icon: "🗓️" },
+  { id: "clubs", label: "Elite Clubs", icon: "💎" },
+];
+
+const TIERS = [
+  { key: "Bronze", icon: "🥉", title: "Bronze All-Rounder", range: "500–1000 Runs • 50–100 Wkts", test: (p: Player) => p.runs >= 500 && p.runs < 1000 && p.wickets >= 50 && p.wickets < 100 },
+  { key: "Silver", icon: "🥈", title: "Silver All-Rounder", range: "1000–2000 Runs • 50–100 Wkts", test: (p: Player) => p.runs >= 1000 && p.runs < 2000 && p.wickets >= 50 && p.wickets < 100 },
+  { key: "Gold", icon: "🥇", title: "Gold All-Rounder", range: "2000–2500 Runs • 100–150 Wkts", test: (p: Player) => p.runs >= 2000 && p.runs < 2500 && p.wickets >= 100 && p.wickets < 150 },
+  { key: "Diamond", icon: "💎", title: "Diamond All-Rounder", range: "2500+ Runs • 150+ Wkts", test: (p: Player) => p.runs >= 2500 && p.wickets >= 150 },
+];
+
+const COUNT_CHIPS = ["Top 5", "Top 10", "Top 20", "Top 50", "All"];
+const CLUB_CHIPS = ["All", ...TIERS.map((t) => t.key)];
+
+interface MRow {
+  key: string;
+  player: Player;
+  badge: string;
+  meta: string;
+  value: string | number;
+  unit?: string;
+}
+
+const motTotal = (p: Player) => (Number(p.mot) || 0) + (Number(p.cpot) || 0);
+const safeWk = (p: Player) => {
+  if (p.wkAvg && p.wkAvg !== "0.00" && p.wkAvg !== "0") return p.wkAvg;
+  if (p.matches > 0 && p.wickets > 0) return (p.wickets / p.matches).toFixed(2);
+  return "0.00";
+};
+
+/* প্রতিটি ক্যাটাগরি: v = সর্ট/ভ্যালু, badge = উপরে-বামে ছোট লেখা, meta = উপরে-ডানে, unit = ভ্যালুর পাশের একক */
+const MOBILE_CFG: Record<string, { v: (p: Player) => number; badge: (p: Player) => string; meta: (p: Player) => string; unit: string }> = {
+  points: { v: (p) => calculateFclPoints(p), badge: (p) => `${p.runs} Runs • ${p.wickets} Wkts`, meta: (p) => `${p.matches} Matches`, unit: "Pts" },
+  runs: { v: (p) => p.runs, badge: (p) => `Avg ${p.runAvg ?? "0.00"}`, meta: (p) => `${p.matches} Matches`, unit: "Runs" },
+  wickets: { v: (p) => p.wickets, badge: (p) => `Wk Avg ${safeWk(p)}`, meta: (p) => `${p.matches} Matches`, unit: "Wkts" },
+  sixes: { v: (p) => p.sixes || 0, badge: (p) => `${p.runs} Runs`, meta: (p) => `${p.matches} Mat`, unit: "Sixes" },
+  fours: { v: (p) => p.fours || 0, badge: (p) => `${p.runs} Runs`, meta: (p) => `${p.matches} Mat`, unit: "Fours" },
+  hattricks: { v: (p) => p.hatTricks || 0, badge: (p) => `${p.wickets} Total Wkts`, meta: (p) => `${p.matches} Matches`, unit: "Hat-tricks" },
+  champions: { v: (p) => p.champion || 0, badge: (p) => `${p.totalFinal ?? 0} Finals`, meta: (p) => `${p.matches} Matches`, unit: "Titles" },
+  runnersup: { v: (p) => p.runnersUp || 0, badge: (p) => `${p.totalFinal ?? 0} Finals`, meta: (p) => `${p.matches} Matches`, unit: "Times" },
+  finals: { v: (p) => p.totalFinal || 0, badge: (p) => `${p.champion ?? 0}x Champion`, meta: (p) => `${p.runnersUp ?? 0}x Runner-Up`, unit: "Finals" },
+  motcpot: { v: motTotal, badge: (p) => `MOT ${p.mot ?? 0} | CPOT ${p.cpot ?? 0}`, meta: (p) => `${p.matches} Matches`, unit: "Awards" },
+  runking: { v: (p) => p.highestRunScorer || 0, badge: () => "Tournament Top Scorer", meta: (p) => `${p.runs} Runs`, unit: "Times" },
+  wicketking: { v: (p) => p.topWicketTaker || 0, badge: () => "Tournament Top Bowler", meta: (p) => `${p.wickets} Wkts`, unit: "Times" },
+  matches: { v: (p) => p.matches, badge: (p) => `${p.runs} Runs • ${p.wickets} Wkts`, meta: (p) => `@${p.nickName || "Player"}`, unit: "Matches" },
+  mom: { v: (p) => p.mom || 0, badge: () => "Man of the Match", meta: (p) => `${p.matches} Matches`, unit: "Awards" },
+  cpom: { v: (p) => p.cpom || 0, badge: () => "Champion Player of Match", meta: (p) => `${p.matches} Matches`, unit: "Awards" },
+  innings: { v: (p) => p.innings || 0, badge: (p) => `${p.runs} Runs`, meta: (p) => `${p.matches} Matches`, unit: "Inn" },
+  notout: { v: (p) => p.notOut || 0, badge: (p) => `${p.innings ?? 0} Innings`, meta: (p) => `${p.runs} Runs`, unit: "NO" },
+  maxruns: { v: (p) => p.maxRuns || 0, badge: () => "Best Batting Score", meta: (p) => `${p.runs} Career Runs`, unit: "Runs" },
+  maxwickets: { v: (p) => p.maxWickets || 0, badge: () => "Best Bowling Figure", meta: (p) => `${p.wickets} Career Wkts`, unit: "Wkts" },
+  tournaments: { v: (p) => p.totalTournament || 0, badge: (p) => `${p.matches} Matches`, meta: (p) => `@${p.nickName || "Player"}`, unit: "Tours" },
+};
+
+function MobileRecords({
+  players,
+  loading,
+  onSelect,
+}: {
+  players: Player[];
+  loading: boolean;
+  onSelect: (p: Player) => void;
+}) {
+  const [tab, setTab] = useState<MTabId>("records");
+  const [chip, setChip] = useState("Top 10");
+  const [expanded, setExpanded] = useState(true);
+  const [showSearch, setShowSearch] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const changeTab = (id: MTabId) => {
+    setTab(id);
+    setChip(id === "clubs" ? "All" : "Top 10");
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const chips = tab === "records" ? [] : tab === "clubs" ? CLUB_CHIPS : COUNT_CHIPS;
+
+  const rows: MRow[] = useMemo(() => {
+    const by = (fn: (p: Player) => number) => [...players].sort((a, b) => fn(b) - fn(a));
+
+    if (tab === "records") {
+      const defs: { label: string; p?: Player; value: (p: Player) => string | number; unit: string }[] = [
+        { label: "🏆 Most Titles", p: by((p) => p.champion || 0)[0], value: (p) => p.champion ?? 0, unit: "Titles" },
+        { label: "🏏 All-Time Runs", p: by((p) => p.runs)[0], value: (p) => p.runs.toLocaleString(), unit: "Runs" },
+        { label: "🎯 All-Time Wickets", p: by((p) => p.wickets)[0], value: (p) => p.wickets, unit: "Wkts" },
+        { label: "⚔️ Total Finals", p: by((p) => p.totalFinal || 0)[0], value: (p) => p.totalFinal ?? 0, unit: "Finals" },
+        { label: "⚡ Most Matches", p: by((p) => p.matches)[0], value: (p) => p.matches, unit: "Matches" },
+        { label: "💥 Six Machine", p: by((p) => p.sixes || 0)[0], value: (p) => p.sixes ?? 0, unit: "Sixes" },
+        { label: "🔥 Hat-Trick Master", p: by((p) => p.hatTricks || 0)[0], value: (p) => p.hatTricks ?? 0, unit: "Hat-tricks" },
+        { label: "⭐ Most MOT / CPOT", p: by(motTotal)[0], value: (p) => motTotal(p), unit: "Awards" },
+        { label: "👑 Tour. Run King", p: by((p) => p.highestRunScorer || 0)[0], value: (p) => p.highestRunScorer ?? 0, unit: "Times" },
+        { label: "🛡️ Tour. Wicket King", p: by((p) => p.topWicketTaker || 0)[0], value: (p) => p.topWicketTaker ?? 0, unit: "Times" },
+        { label: "💯 FCL Points Leader", p: by((p) => calculateFclPoints(p))[0], value: (p) => calculateFclPoints(p), unit: "Pts" },
+      ];
+      return defs
+        .filter((d) => d.p)
+        .map((d) => ({
+          key: d.label,
+          player: d.p as Player,
+          badge: d.label,
+          meta: `@${d.p!.nickName || "Player"}`,
+          value: d.value(d.p!),
+          unit: d.unit,
+        }));
+    }
+
+    if (tab === "clubs") {
+      const out: MRow[] = [];
+      TIERS.filter((t) => chip === "All" || chip === t.key).forEach((t) => {
+        players.filter(t.test).forEach((p, i) =>
+          out.push({
+            key: t.key + p.name + i,
+            player: p,
+            badge: `${t.icon} ${t.title}`,
+            meta: `@${p.nickName || "Player"} • ${p.matches} Mat`,
+            value: `${p.runs}R | ${p.wickets}W`,
+          })
+        );
+      });
+      return out;
+    }
+
+    const c = MOBILE_CFG[tab];
+    if (!c) return [];
+    const limit = chip === "All" ? Infinity : parseInt(chip.replace("Top ", "")) || 10;
+    const q = query.trim().toLowerCase();
+
+    return by(c.v)
+      .filter((p) => c.v(p) > 0)
+      .filter((p) => !q || p.name.toLowerCase().includes(q) || (p.nickName || "").toLowerCase().includes(q))
+      .slice(0, limit)
+      .map((p, i) => ({
+        key: (p.id ?? p.name) + "-" + i,
+        player: p,
+        badge: c.badge(p),
+        meta: c.meta(p),
+        value: c.v(p),
+        unit: c.unit,
+      }));
+  }, [players, tab, chip, query]);
+
+  const visibleTabs = expanded ? MOBILE_TABS : MOBILE_TABS.slice(0, 10);
+  const currentTab = MOBILE_TABS.find((t) => t.id === tab);
+
+  return (
+    <div className="min-h-screen bg-[#050b18] pb-28 text-white">
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-[#050b18]/95 px-4 pb-2 pt-4 backdrop-blur">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex h-9 w-9 items-center justify-center rounded-full text-2xl text-slate-300">
+            ‹
+          </Link>
+          <h1 className="flex-1 text-xl font-black tracking-tight">FCL Records</h1>
+          <div className="flex items-center gap-1.5 rounded-full border border-[#1e293b] bg-[#0b1220] px-3 py-1.5 text-sm font-black text-[#f59e0b]">
+            👥 {players.length}
+          </div>
+          <button
+            onClick={() => setShowSearch((s) => !s)}
+            aria-label="Search player"
+            className={`flex h-9 w-9 items-center justify-center rounded-full border text-base ${
+              showSearch ? "border-[#f59e0b] bg-[#f59e0b]/15" : "border-[#1e293b] bg-[#0b1220]"
+            }`}
+          >
+            🔍
+          </button>
+        </div>
+        {showSearch && (
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search player name..."
+            className="mt-3 w-full rounded-xl border border-[#1e293b] bg-[#0b1220] px-4 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-[#f59e0b]/60"
+          />
+        )}
+      </header>
+
+      {/* Tile grid + chips */}
+      <div className="mx-3 rounded-3xl bg-[#0a1324] p-3">
+        <div className="grid grid-cols-5 gap-2">
+          {visibleTabs.map((t) => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => changeTab(t.id)}
+                className={`flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition ${
+                  active
+                    ? "bg-[#f59e0b] text-black shadow-lg shadow-[#f59e0b]/25"
+                    : "border border-[#172033] bg-[#0f1b33] text-slate-200 active:scale-95"
+                }`}
+              >
+                <span className="text-2xl leading-none">{t.icon}</span>
+                <span className="text-[10.5px] font-bold leading-tight">{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <button onClick={() => setExpanded((e) => !e)} className="mx-auto mt-3 block text-sm font-black text-[#60a5fa]">
+          {expanded ? "See less ⌃" : "See more ⌄"}
+        </button>
+
+        {chips.length > 0 && (
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {chips.map((c) => (
+              <button
+                key={c}
+                onClick={() => setChip(c)}
+                className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${
+                  chip === c ? "bg-[#22c55e] text-white" : "border border-[#1e293b] bg-[#0b1220] text-slate-300"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* List */}
+      <main className="px-3 pt-4">
+        <p className="mb-2 px-1 text-xs font-semibold text-slate-500">
+          {currentTab?.icon} {currentTab?.label}
+        </p>
+
+        {loading ? (
+          <div className="flex h-48 items-center justify-center text-sm font-semibold text-[#f59e0b] animate-pulse">
+            Compiling FCL All-Time Records, please be patient...
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="rounded-2xl border border-[#1e293b] bg-[#0b1220] py-10 text-center text-xs text-slate-500">
+            {tab === "clubs" ? "এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই" : "কোনো ডাটা পাওয়া যায়নি"}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {tab === "clubs" && chip !== "All" && (
+              <div className="rounded-2xl border border-[#1e293b] bg-[#0b1220]/60 px-4 py-2 text-[11px] text-slate-400">
+                {TIERS.find((t) => t.key === chip)?.range}
+              </div>
+            )}
+            {rows.map((r, idx) => (
+              <button
+                key={r.key}
+                onClick={() => onSelect(r.player)}
+                className="block w-full rounded-2xl border border-[#1e293b] bg-[#0b1220] px-4 py-3 text-left transition active:scale-[0.98]"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="max-w-[62%] truncate rounded-lg bg-[#16223b] px-2.5 py-1 text-[11px] font-semibold text-slate-300">
+                    {r.badge}
+                  </span>
+                  <span className="truncate text-[11px] font-medium text-slate-500">{r.meta}</span>
+                </div>
+                <div className="mt-2.5 flex items-end justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    {tab !== "records" && (
+                      <span
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black ${
+                          idx === 0
+                            ? "bg-[#f59e0b] text-black"
+                            : idx === 1
+                            ? "bg-[#cbd5e1] text-black"
+                            : idx === 2
+                            ? "bg-[#b45309] text-white"
+                            : "bg-[#16223b] text-slate-400"
+                        }`}
+                      >
+                        {idx + 1}
+                      </span>
+                    )}
+                    <h3 className="truncate text-[17px] font-black leading-tight text-white">{r.player.name}</h3>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <span className="text-xl font-black text-[#fbbf24]">{r.value}</span>
+                    {r.unit && <span className="ml-1 text-[10px] font-bold text-slate-500">{r.unit}</span>}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Bottom nav */}
+      <nav className="fixed bottom-3 left-3 right-3 z-40">
+        <div className="relative flex items-center justify-between rounded-3xl border border-[#1e293b] bg-[#0b1220]/95 px-5 py-2 shadow-2xl backdrop-blur">
+          <Link href="/" className="flex w-14 flex-col items-center text-[11px] font-semibold text-slate-400">
+            <span className="text-lg">🏠</span>Home
+          </Link>
+          <button
+            onClick={() => changeTab("records")}
+            className="flex w-16 flex-col items-center rounded-2xl bg-[#f59e0b]/15 py-1 text-[11px] font-black text-[#f59e0b]"
+          >
+            <span className="text-lg">📊</span>Records
+          </button>
+          <button
+            onClick={() => {
+              setExpanded(true);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            aria-label="Scroll to menu"
+            className="-mt-9 flex h-14 w-14 items-center justify-center rounded-full border-4 border-[#050b18] bg-[#020617] text-xl shadow-lg ring-1 ring-[#1e293b]"
+          >
+            ▦
+          </button>
+          <Link href="/rankings" className="flex w-16 flex-col items-center text-[11px] font-semibold text-slate-400">
+            <span className="text-lg">🚀</span>Rankings
+          </Link>
+          <button onClick={() => changeTab("clubs")} className="flex w-14 flex-col items-center text-[11px] font-semibold text-slate-400">
+            <span className="text-lg">💎</span>Clubs
+          </button>
+        </div>
+      </nav>
+    </div>
+  );
+}
+
+/* =====================================================================
+   🖥️ MAIN PAGE — ডেস্কটপ (PC) লেআউট আগের মতোই, ফোনে MobileRecords দেখাবে
+   ===================================================================== */
 export default function RecordsPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [tournamentsData, setTournamentsData] = useState<TournamentRecord[]>([]);
@@ -127,7 +475,7 @@ export default function RecordsPage() {
   const mostFinalsPlayer = [...players].sort((a, b) => (b.totalFinal || 0) - (a.totalFinal || 0))[0];
   const mostMatchesPlayer = [...players].sort((a, b) => b.matches - a.matches)[0];
   const mostSixesPlayer = [...players].sort((a, b) => (b.sixes || 0) - (a.sixes || 0))[0];
-  const topHatTrickPlayer = [...players].sort((a, b) => (b.hatTricks || 0) - (b.hatTricks || 0))[0];
+  const topHatTrickPlayer = [...players].sort((a, b) => (b.hatTricks || 0) - (a.hatTricks || 0))[0];
 
   // Detailed Leaderboard Arrays
   const mostRuns = [...players].sort((a, b) => b.runs - a.runs).slice(0, 5);
@@ -150,24 +498,25 @@ export default function RecordsPage() {
     .sort((a, b) => (b.highestRunScorer || 0) - (a.highestRunScorer || 0))
     .slice(0, 5);
   const mostTournamentWicketKing = [...players]
-    .sort((a, b) => (b.topWicketTaker || 0) - (b.topWicketTaker || 0))
+    .sort((a, b) => (b.topWicketTaker || 0) - (a.topWicketTaker || 0))
     .slice(0, 5);
 
-  // 🌟 আপনার নির্ধারিত স্ল্যাব অনুযায়ী এলিট ক্লাব ফিল্টারিং লজিক
-  // জোন ১: ৫৫০–১০০০ রান এবং ৫০–১০০ উইকেট
+  // 🌟 আপনার নির্ধারিত স্ল্যাব অনুযায়ী এলিট ক্লাব ফিল্টারিং লজিক
   const tier1Clubs = players.filter((p) => p.runs >= 500 && p.runs < 1000 && p.wickets >= 50 && p.wickets < 100);
-  
-  // জোন ২: ১০০০–২০০০ রান এবং ৫০–১০০ উইকেট
   const tier2Clubs = players.filter((p) => p.runs >= 1000 && p.runs < 2000 && p.wickets >= 50 && p.wickets < 100);
-  
-  // জোন ৩: ২০০০–২৫০০ রান এবং ১০০–১৫০ উইকেট
   const tier3Clubs = players.filter((p) => p.runs >= 2000 && p.runs < 2500 && p.wickets >= 100 && p.wickets < 150);
-  
-  // জোন ৪: ২৫০০+ রান এবং ১৫০+ উইকেট
   const tier4Clubs = players.filter((p) => p.runs >= 2500 && p.wickets >= 150);
 
   return (
     <div className="min-h-screen bg-[#020617] text-white selection:bg-[#f59e0b]/30 selection:text-white">
+
+      {/* 📱 ফোন ভিউ (md এর নিচে) */}
+      <div className="md:hidden">
+        <MobileRecords players={players} loading={loading} onSelect={(p) => setSelectedPlayer(p)} />
+      </div>
+
+      {/* 🖥️ পিসি ভিউ (md এবং তার উপরে) — আগের কোড হুবহু */}
+      <div className="hidden md:block">
 
       {/* FCL RECORD CORNER */}
       <section id="records" className="relative overflow-hidden bg-[#02050b] px-6 py-16">
@@ -542,7 +891,7 @@ export default function RecordsPage() {
                   </div>
                   <div>
                     <h3 className="text-xl sm:text-2xl font-black text-white">FCL Elite & Milestone Clubs</h3>
-                    <p className="text-xs text-slate-400">নির্দিষ্ট রান ও উইকেটের স্ল্যাব অনুযায়ী অলরাউন্ডারদের বিশেষ ক্লাবসমূহ</p>
+                    <p className="text-xs text-slate-400">নির্দিষ্ট রান ও উইকেটের স্ল্যাব অনুযায়ী অলরাউন্ডারদের বিশেষ ক্লাবসমূহ</p>
                   </div>
                 </div>
 
@@ -561,7 +910,7 @@ export default function RecordsPage() {
                     </div>
                     <div className="mt-4 divide-y divide-[#172033]">
                       {tier1Clubs.length === 0 ? (
-                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
+                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
                       ) : (
                         tier1Clubs.map((p, i) => (
                           <div key={i} onClick={() => setSelectedPlayer(p)} className="flex items-center justify-between py-3 cursor-pointer hover:bg-white/5 px-2 rounded-xl transition">
@@ -593,7 +942,7 @@ export default function RecordsPage() {
                     </div>
                     <div className="mt-4 divide-y divide-[#172033]">
                       {tier2Clubs.length === 0 ? (
-                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
+                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
                       ) : (
                         tier2Clubs.map((p, i) => (
                           <div key={i} onClick={() => setSelectedPlayer(p)} className="flex items-center justify-between py-3 cursor-pointer hover:bg-white/5 px-2 rounded-xl transition">
@@ -619,13 +968,13 @@ export default function RecordsPage() {
                         <span className="rounded-lg bg-blue-500/20 border border-blue-500/40 px-3 py-1 text-xs font-black text-blue-300">
                           🥇 Gold All-Rounder Club
                         </span>
-                        <h4 className="mt-2 text-base font-black text-white">২০s০০–২৫০০ রান এবং ১০০–১৫০ উইকেট</h4>
+                        <h4 className="mt-2 text-base font-black text-white">২০০০–২৫০০ রান এবং ১০০–১৫০ উইকেট</h4>
                       </div>
                       <span className="text-2xl">🥇</span>
                     </div>
                     <div className="mt-4 divide-y divide-[#172033]">
                       {tier3Clubs.length === 0 ? (
-                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
+                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
                       ) : (
                         tier3Clubs.map((p, i) => (
                           <div key={i} onClick={() => setSelectedPlayer(p)} className="flex items-center justify-between py-3 cursor-pointer hover:bg-white/5 px-2 rounded-xl transition">
@@ -657,7 +1006,7 @@ export default function RecordsPage() {
                     </div>
                     <div className="mt-4 divide-y divide-[#172033]">
                       {tier4Clubs.length === 0 ? (
-                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
+                        <p className="py-4 text-xs text-slate-500 text-center">এই স্ল্যাবে এখনো কোনো খেলোয়াড় নেই</p>
                       ) : (
                         tier4Clubs.map((p, i) => (
                           <div key={i} onClick={() => setSelectedPlayer(p)} className="flex items-center justify-between py-3 cursor-pointer hover:bg-white/5 px-2 rounded-xl transition">
@@ -1038,7 +1387,10 @@ export default function RecordsPage() {
         )}
       </main>
 
-      {/* CENTRALIZED PLAYER CARD MODAL */}
+      </div>
+      {/* 🖥️ পিসি ভিউ শেষ */}
+
+      {/* CENTRALIZED PLAYER CARD MODAL (ফোন ও পিসি দুটোতেই কাজ করে) */}
       <PlayerCardModal
         selectedPlayer={selectedPlayer}
         onClose={() => setSelectedPlayer(null)}
