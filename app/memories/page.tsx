@@ -58,7 +58,7 @@ function renderFormattedContent(text: string) {
   return episodeBlocks.map((block, blockIdx) => {
     if (blockIdx === 0 && !block.includes("__EPISODE_END__")) {
       return (
-        <div key={blockIdx} className="space-y-3">
+        <div key={blockIdx} className="space-y-3 break-words">
           {renderTextWithHighlights(block)}
         </div>
       );
@@ -73,15 +73,15 @@ function renderFormattedContent(text: string) {
     return (
       <div
         key={blockIdx}
-        className="mt-7 first:mt-2 border-t border-slate-200 dark:border-[#1e293b]/70 pt-5"
+        className="mt-7 first:mt-2 border-t border-slate-200 dark:border-[#1e293b]/70 pt-5 break-words"
       >
         {episodeTitle && (
-          <div className="mb-3 text-xs font-black text-amber-600 dark:text-[#fbbf24]">
+          <div className="mb-3 text-xs font-black text-amber-600 dark:text-[#fbbf24] break-words">
             {episodeTitle.trim()}
           </div>
         )}
 
-        <div className="space-y-3 text-slate-700 dark:text-[#cbd5e1] leading-relaxed">
+        <div className="space-y-3 text-slate-700 dark:text-[#cbd5e1] leading-relaxed break-words">
           {renderTextWithHighlights(episodeContent)}
         </div>
       </div>
@@ -105,7 +105,7 @@ function renderHighlightedParts(text: string) {
       return (
         <span
           key={index}
-          className="font-extrabold text-amber-600 dark:text-[#fbbf24] bg-amber-500/15 px-1.5 py-0.5 rounded drop-shadow-[0_0_10px_rgba(251,191,36,0.45)]"
+          className="font-extrabold text-amber-600 dark:text-[#fbbf24] bg-amber-500/15 px-1.5 py-0.5 rounded drop-shadow-[0_0_10px_rgba(251,191,36,0.45)] inline-block my-0.5"
         >
           {clean}
         </span>
@@ -124,7 +124,7 @@ function renderHighlightedParts(text: string) {
       return (
         <span
           key={index}
-          className="font-extrabold text-amber-600 dark:text-[#fbbf24] bg-amber-500/15 px-1 py-0.5 rounded"
+          className="font-extrabold text-amber-600 dark:text-[#fbbf24] bg-amber-500/15 px-1 py-0.5 rounded inline-block my-0.5"
         >
           {clean}
         </span>
@@ -156,12 +156,12 @@ function renderTextWithHighlights(text: string) {
       const dialogue = trimmed.substring(colonIndex + 1);
 
       return (
-        <p key={lIdx} className="leading-relaxed my-1.5">
-          <strong className="font-extrabold text-amber-600 dark:text-[#fbbf24] bg-amber-500/10 px-1.5 py-0.5 rounded mr-1">
+        <p key={lIdx} className="leading-relaxed my-1.5 break-words">
+          <strong className="font-extrabold text-amber-600 dark:text-[#fbbf24] bg-amber-500/10 px-1.5 py-0.5 rounded mr-1 inline-block">
             {speaker}
           </strong>
 
-          <span>
+          <span className="break-words">
             {renderHighlightedParts(dialogue)}
           </span>
         </p>
@@ -170,7 +170,7 @@ function renderTextWithHighlights(text: string) {
 
     // 📖 Normal paragraph
     return (
-      <p key={lIdx} className="leading-relaxed">
+      <p key={lIdx} className="leading-relaxed break-words">
         {renderHighlightedParts(trimmed)}
       </p>
     );
@@ -189,7 +189,7 @@ export default function MemoriesPage() {
   const [selectedSeriesName, setSelectedSeriesName] =
     useState<string | null>(null);
 
-  // 🌟 একই সময়ে শুধুমাত্র ১টি Episode open থাকবে
+  // 🌟 একই সময়ে শুধুমাত্র ১টি Episode open থাকবে
   const [openEpisode, setOpenEpisode] =
     useState<number | null>(null);
 
@@ -425,7 +425,7 @@ export default function MemoriesPage() {
 
       {/* =========================
           Hero Banner
-      ========================== */}
+      ========================= */}
       <section className="relative overflow-hidden border-b border-slate-200 dark:border-[#172033] bg-slate-50 dark:bg-[#02050b] py-12 sm:py-16">
 
         <div className="absolute left-[15%] top-[-20%] h-[450px] w-[450px] rounded-full bg-[#f59e0b]/10 blur-[130px]" />
@@ -473,7 +473,7 @@ export default function MemoriesPage() {
 
       {/* =========================
           Filter & Search Bar
-      ========================== */}
+      ========================= */}
       <section className="mx-auto max-w-7xl px-4 pt-8 sm:px-6">
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-[#1e293b] pb-6">
@@ -526,7 +526,7 @@ export default function MemoriesPage() {
 
       {/* =========================
           Main Grid Content
-      ========================== */}
+      ========================= */}
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
 
         {loading ? (
@@ -544,8 +544,8 @@ export default function MemoriesPage() {
           !selectedSeriesName ? (
 
           /* =========================
-             Series List
-          ========================== */
+              Series List
+          ========================= */
           <div>
 
             <div className="mb-6 flex items-center justify-between">
@@ -612,11 +612,11 @@ export default function MemoriesPage() {
 
                         </div>
 
-                        <h4 className="mt-4 text-xl font-black group-hover:text-amber-600 dark:group-hover:text-[#fbbf24] transition leading-snug">
+                        <h4 className="mt-4 text-xl font-black group-hover:text-amber-600 dark:group-hover:text-[#fbbf24] transition leading-snug break-words">
                           {sName}
                         </h4>
 
-                        <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-[#94a3b8]">
+                        <p className="mt-2 text-xs font-semibold text-slate-500 dark:text-[#94a3b8] break-words">
                           লেখক:{" "}
                           <span className="text-slate-900 dark:text-white font-bold">
                             {author}
@@ -647,8 +647,8 @@ export default function MemoriesPage() {
           selectedSeriesName ? (
 
           /* =========================
-             Selected Series Episodes
-          ========================== */
+              Selected Series Episodes
+          ========================= */
           <div>
 
             <div className="mb-6 flex items-center justify-between">
@@ -668,7 +668,7 @@ export default function MemoriesPage() {
                   ← সকল সিরিজের তালিকায় ফিরে যান
                 </button>
 
-                <h3 className="text-2xl font-black text-amber-600 dark:text-[#fbbf24]">
+                <h3 className="text-2xl font-black text-amber-600 dark:text-[#fbbf24] break-words">
                   📖 {selectedSeriesName}
                 </h3>
 
@@ -679,7 +679,7 @@ export default function MemoriesPage() {
             {/* ==========================================
                 Episode Grid
                 ⭐ items-start = অন্য কার্ডের height
-                ⭐ openEpisode = একই সময়ে শুধু ১টি open
+                ⭐ openEpisode = একই সময়ে শুধু ১টি open
             =========================================== */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
 
@@ -702,7 +702,7 @@ export default function MemoriesPage() {
                         item.episode_no
                       );
 
-                    // ⭐ শুধু যেটাতে click করা হয়েছে সেটিই open
+                    // ⭐ শুধু যেটাতে click করা হয়েছে সেটিই open
                     const isOpen =
                       openEpisode ===
                       episodeNumber;
@@ -725,7 +725,7 @@ export default function MemoriesPage() {
 
                         {/* =========================
                             Episode Header
-                        ========================== */}
+                        ========================= */}
                         <button
                           onClick={() =>
                             toggleEpisode(
@@ -754,10 +754,10 @@ export default function MemoriesPage() {
 
                         {/* =========================
                             Episode Title
-                        ========================== */}
+                        ========================= */}
                         <div className="px-4 pb-3">
 
-                          <h4 className="text-sm font-black text-slate-900 dark:text-white truncate">
+                          <h4 className="text-sm font-black text-slate-900 dark:text-white break-words">
                             {
                               item.episode_title
                             }
@@ -767,13 +767,13 @@ export default function MemoriesPage() {
 
                         {/* =========================
                             ONLY Selected Episode Content
-                        ========================== */}
+                        ========================= */}
                         {isOpen && (
 
                           <div className="border-t border-slate-100 dark:border-[#172033] p-4 bg-slate-50/50 dark:bg-[#060a14] animate-fadeIn">
 
                             {/* Author */}
-                            <p className="text-[11px] font-semibold text-blue-600 dark:text-[#60a5fa] mb-2">
+                            <p className="text-[11px] font-semibold text-blue-600 dark:text-[#60a5fa] mb-2 break-words">
 
                               ✍ লেখক:{" "}
 
@@ -788,22 +788,24 @@ export default function MemoriesPage() {
                             {/* Summary */}
                             {item.summary && (
 
-                              <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed">
+                              <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-[11px] text-slate-700 dark:text-slate-300 leading-relaxed break-words">
 
                                 <span className="font-black text-amber-600 dark:text-amber-400 block mb-1">
                                   📌 সারসংক্ষেপ:
                                 </span>
 
-                                {renderHighlightedParts(
-                                  item.summary
-                                )}
+                                <div className="break-words">
+                                  {renderHighlightedParts(
+                                    item.summary
+                                  )}
+                                </div>
 
                               </div>
 
                             )}
 
                             {/* Story Content */}
-                            <div className="rounded-xl border border-slate-200 dark:border-[#1e293b] bg-white dark:bg-[#030714] p-3 text-xs text-slate-700 dark:text-[#cbd5e1] leading-relaxed max-h-80 overflow-y-auto">
+                            <div className="rounded-xl border border-slate-200 dark:border-[#1e293b] bg-white dark:bg-[#030714] p-3 text-xs text-slate-700 dark:text-[#cbd5e1] leading-relaxed max-h-[450px] overflow-y-auto break-words">
 
                               {renderFormattedContent(
                                 formattedContent
@@ -853,11 +855,11 @@ export default function MemoriesPage() {
           </div>
 
         ) : filteredMemories.length ===
-          0 ? (
+            0 ? (
 
           /* =========================
-             No Result
-          ========================== */
+              No Result
+          ========================= */
           <div className="flex h-64 flex-col items-center justify-center rounded-3xl border border-slate-200 dark:border-[#1e293b] bg-slate-50 dark:bg-[#0b1220] p-8 text-center shadow-sm">
 
             <span className="text-4xl mb-3">
@@ -873,8 +875,8 @@ export default function MemoriesPage() {
         ) : (
 
           /* =========================
-             Normal Memories
-          ========================== */
+              Normal Memories
+          ========================= */
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
 
             {filteredMemories.map(
@@ -930,11 +932,11 @@ export default function MemoriesPage() {
                       {/* Title + Author */}
                       <div className="mt-4">
 
-                        <h3 className="text-lg sm:text-2xl font-black group-hover:text-amber-600 dark:group-hover:text-[#fbbf24] transition leading-snug">
+                        <h3 className="text-lg sm:text-2xl font-black group-hover:text-amber-600 dark:group-hover:text-[#fbbf24] transition leading-snug break-words">
                           {item.title}
                         </h3>
 
-                        <p className="text-xs font-semibold text-blue-600 dark:text-[#60a5fa] mt-1">
+                        <p className="text-xs font-semibold text-blue-600 dark:text-[#60a5fa] mt-1 break-words">
 
                           ✍ লেখক:{" "}
 
@@ -947,7 +949,7 @@ export default function MemoriesPage() {
                       </div>
 
                       {/* Content */}
-                      <div className="mt-5 rounded-2xl border border-slate-100 dark:border-[#172033] bg-slate-50 dark:bg-[#030714] p-4 sm:p-5 text-sm sm:text-[15px] text-slate-700 dark:text-[#cbd5e1] leading-relaxed max-h-96 overflow-y-auto">
+                      <div className="mt-5 rounded-2xl border border-slate-100 dark:border-[#172033] bg-slate-50 dark:bg-[#030714] p-4 sm:p-5 text-sm sm:text-[15px] text-slate-700 dark:text-[#cbd5e1] leading-relaxed max-h-96 overflow-y-auto break-words">
 
                         {renderFormattedContent(
                           formattedContent
