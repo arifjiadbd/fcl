@@ -60,7 +60,7 @@ interface TournamentRecord {
   topWicket: number;
 }
 
-// 🌟 সঠিক এভারেজ ও শর্ত অনুযায়ী প্লেয়ার ডিরেক্টরির রোল ডিটেকশন ফাংশন
+// 🌟 আরও নিখুঁত এবং VIP-দের জন্য কঠিনকৃত রোল ডিটেকশন ফাংশন
 export const getAutomaticRole = (player: Player): string => {
   const matches = Number(player.matches) || 0;
   if (matches === 0) return "Promising Player";
@@ -74,16 +74,16 @@ export const getAutomaticRole = (player: Player): string => {
   const runAvg = dismissals > 0 ? runs / dismissals : innings > 0 ? runs / innings : 0;
   const wkAvg = wickets / matches;
 
-  // ১. VIP All-Rounder (রান গড় ১৫+, উইকেট গড় ১.৫+)
-  if (runAvg >= 15 && wkAvg >= 1.5) {
+  // ১. VIP All-Rounder (আরও কঠিন ক্রাইটেরিয়া: রান গড় ১৩+ এবং উইকেট গড় ১.৫+)
+  if (runAvg >= 13 && wkAvg >= 1.5) {
     return "VIP All-Rounder";
   }
-  // ২. Bowling All-Rounder (রান গড় ১১+, উইকেট গড় ১.৫+)
-  else if (runAvg >= 11 && wkAvg >= 1.5) {
+  // ২. Bowling All-Rounder (রান গড় ৯+, উইকেট গড় ১.২+)
+  else if (runAvg >= 9 && wkAvg >= 1.2) {
     return "Bowling All-Rounder";
   }
-  // ৩. All-Rounder (রান গড় ১১ থেকে ১৫ এর ভেতরে, উইকেট গড় ১.৫ এর নিচে)
-  else if (runAvg >= 11 && runAvg < 15 && wkAvg < 1.5 && wkAvg >= 0.8) {
+  // ৩. All-Rounder (রান গড় ৯+, উইকেট গড় ০.৮+)
+  else if (runAvg >= 9 && wkAvg >= 0.8) {
     return "All-Rounder";
   }
   // ৪. Batsman (রান গড় ১০ এর বেশি এবং উইকেট গড় ০.৮ এর কম)
@@ -99,6 +99,7 @@ export const getAutomaticRole = (player: Player): string => {
     return "Promising Player";
   }
 };
+
 export const calculateFclPoints = (p: Player): number => {
   const runs = Number(p.runs) || 0;
   const sixes = Number(p.sixes) || 0;
@@ -349,7 +350,7 @@ export default function PlayersPage() {
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => setShowCriteria(!showCriteria)}
-              className="rounded-2xl border border-[#1877F2]/40 bg-[#1877F2]/10 px-4 py-3 text-xs font-bold text-[#60a5fa] transition hover:bg-[#1877F2]/20"
+              className="rounded-2xl border border-[#1877F2]/40 bg-[#1877F2]/10 px-4 py-3 text-xs font-bold text-[#60a5fa] transition hover:bg-[#1877F2]/20 shadow-sm"
             >
               {showCriteria ? "Hide Role Criteria ✕" : "ℹ️ How Roles Are Determined?"}
             </button>
@@ -363,7 +364,7 @@ export default function PlayersPage() {
           </div>
         </header>
 
-        {/* 🌟 Player Comparison Highlight Banner with Pulse Animation */}
+        {/* Player Comparison Highlight Banner */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-3xl border border-amber-400/40 bg-gradient-to-r from-amber-400/10 via-[#1877F2]/10 to-transparent p-4 sm:p-5 shadow-lg backdrop-blur-md">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/20 text-xl sm:text-2xl animate-bounce">
@@ -374,7 +375,7 @@ export default function PlayersPage() {
                 অকশনের আগে খেলোয়াড়দের পারফরম্যান্স তুলনা করুন!
               </h2>
               <p className="text-xs text-slate-600 dark:text-[#94a3b8]">
-                একাধিক খেলোয়াড়ের স্ট্যাটস পাশাপাশি যাচাই করে সেরা স্কোয়াড গড়ে তুলুন।
+                একাধিক খেলোয়াড়ের স্ট্যাটস পাশাপাশি যাচাই করে সেরা স্কোয়াড গড়ে তুলুন।
               </p>
             </div>
           </div>
@@ -383,50 +384,60 @@ export default function PlayersPage() {
             href="/players/compare"
             className="relative inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1877F2] px-5 py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-[#1877F2]/30 transition hover:bg-blue-600 hover:scale-105 shrink-0"
           >
-            {/* পালসিং অ্যানিমেশন ডট */}
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
               <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500"></span>
             </span>
-
             <span>তুলনা শুরু করুন →</span>
           </Link>
         </div>
 
-        {/* Role Criteria Info Box */}
+        {/* 🌟 Role Criteria Info Box (উন্নত ফন্ট সাইজ, বোল্ড ও হাইলাইটেড) */}
         {showCriteria && (
-          <div className="mb-6 rounded-3xl border border-[#1877F2]/30 bg-white p-5 shadow-lg dark:bg-[#0b1220]/90 animate-fadeIn">
-            <h3 className="text-sm font-black text-[#60a5fa] mb-3 uppercase tracking-wider">
-              🏏 Automated Player Role Determination Criteria
+          <div className="mb-6 rounded-3xl border-2 border-amber-400/60 bg-slate-900/95 p-6 shadow-2xl dark:bg-[#0b1220]/95 animate-fadeIn">
+            <h3 className="text-base sm:text-lg font-black text-amber-400 mb-4 flex items-center gap-2 uppercase tracking-wider border-b border-amber-400/20 pb-3">
+              <span>🏏</span> AUTOMATED PLAYER ROLE DETERMINATION CRITERIA
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs text-slate-700 dark:text-slate-300">
-              <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-3">
-                <p className="font-bold text-amber-600 dark:text-amber-300">👑 VIP All-Rounder</p>
-                <p className="mt-1 text-[11px] text-slate-500 dark:text-[#94a3b8]">Batting Avg ≥ 15 AND Wicket Avg ≥ 1.5</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs sm:text-sm text-slate-200">
+              <div className="rounded-2xl border-2 border-amber-400/50 bg-amber-500/15 p-4 shadow-md">
+                <p className="font-black text-amber-300 text-sm sm:text-base flex items-center gap-1.5">👑 VIP All-Rounder</p>
+                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-200 bg-black/30 p-2 rounded-xl border border-amber-400/30">
+                  Batting Avg <span className="text-amber-400">≥ 13</span> AND Wicket Avg <span className="text-amber-400">≥ 1.5</span>
+                </p>
               </div>
-              <div className="rounded-xl border border-violet-400/30 bg-violet-400/5 p-3">
-                <p className="font-bold text-violet-600 dark:text-violet-300">⚡ Bowling All-Rounder</p>
-                <p className="mt-1 text-[11px] text-slate-500 dark:text-[#94a3b8]">Batting Avg ≥ 11 AND Wicket Avg ≥ 1.5</p>
+              <div className="rounded-2xl border-2 border-violet-400/50 bg-violet-500/15 p-4 shadow-md">
+                <p className="font-black text-violet-300 text-sm sm:text-base flex items-center gap-1.5">⚡ Bowling All-Rounder</p>
+                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-200 bg-black/30 p-2 rounded-xl border border-violet-400/30">
+                  Batting Avg <span className="text-violet-400">≥ 9</span> AND Wicket Avg <span className="text-violet-400">≥ 1.2</span>
+                </p>
               </div>
-              <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3">
-                <p className="font-bold text-emerald-600 dark:text-emerald-300">⭐ All-Rounder</p>
-                <p className="mt-1 text-[11px] text-slate-500 dark:text-[#94a3b8]">Batting Avg 12–15 AND Wicket Avg &lt; 1.5 (≥ 0.8)</p>
+              <div className="rounded-2xl border-2 border-emerald-400/50 bg-emerald-500/15 p-4 shadow-md">
+                <p className="font-black text-emerald-300 text-sm sm:text-base flex items-center gap-1.5">⭐ All-Rounder</p>
+                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-200 bg-black/30 p-2 rounded-xl border border-emerald-400/30">
+                  Batting Avg <span className="text-emerald-400">≥ 9</span> AND Wicket Avg <span className="text-emerald-400">≥ 0.8</span>
+                </p>
               </div>
-              <div className="rounded-xl border border-sky-400/30 bg-sky-400/5 p-3">
-                <p className="font-bold text-sky-600 dark:text-sky-300">🛡️ Batsman</p>
-                <p className="mt-1 text-[11px] text-slate-500 dark:text-[#94a3b8]">Batting Avg &gt; 10 AND Wicket Avg &lt; 0.8</p>
+              <div className="rounded-2xl border-2 border-sky-400/50 bg-sky-500/15 p-4 shadow-md">
+                <p className="font-black text-sky-300 text-sm sm:text-base flex items-center gap-1.5">🛡️ Batsman</p>
+                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-200 bg-black/30 p-2 rounded-xl border border-sky-400/30">
+                  Batting Avg <span className="text-sky-400">&gt; 10</span> AND Wicket Avg <span className="text-sky-400">&lt; 0.8</span>
+                </p>
               </div>
-              <div className="rounded-xl border border-rose-400/30 bg-rose-400/5 p-3">
-                <p className="font-bold text-rose-600 dark:text-rose-300">🎯 Bowler</p>
-                <p className="mt-1 text-[11px] text-slate-500 dark:text-[#94a3b8]">Wicket Avg ≥ 1.0 AND Batting Avg &lt; 10</p>
+              <div className="rounded-2xl border-2 border-rose-400/50 bg-rose-500/15 p-4 shadow-md">
+                <p className="font-black text-rose-300 text-sm sm:text-base flex items-center gap-1.5">🎯 Bowler</p>
+                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-200 bg-black/30 p-2 rounded-xl border border-rose-400/30">
+                  Wicket Avg <span className="text-rose-400">≥ 1.0</span> AND Batting Avg <span className="text-rose-400">&lt; 10</span>
+                </p>
               </div>
-              <div className="rounded-xl border border-slate-400/30 bg-slate-400/5 p-3">
-                <p className="font-bold text-slate-600 dark:text-slate-300">🌱 Promising Player</p>
-                <p className="mt-1 text-[11px] text-slate-500 dark:text-[#94a3b8]">Other developing or rookie players</p>
+              <div className="rounded-2xl border-2 border-slate-400/50 bg-slate-500/15 p-4 shadow-md">
+                <p className="font-black text-slate-300 text-sm sm:text-base flex items-center gap-1.5">🌱 Promising Player</p>
+                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-300 bg-black/30 p-2 rounded-xl border border-slate-400/30">
+                  Other developing or rookie players
+                </p>
               </div>
             </div>
-            <p className="mt-3 text-[11px] text-slate-400 dark:text-[#64748b]">
-              *Note: Batting Average is calculated dynamically using: <code className="text-[#60a5fa]">Total Runs / (Total Innings - Not Out Innings)</code>
+            <p className="mt-4 text-xs font-bold text-slate-400 border-t border-amber-400/20 pt-3">
+              *Note: Batting Average is calculated dynamically using: <code className="text-amber-300 font-black">Total Runs / (Total Innings - Not Out Innings)</code>
             </p>
           </div>
         )}

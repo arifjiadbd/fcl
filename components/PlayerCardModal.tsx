@@ -101,6 +101,8 @@ const THEMES = {
     finalLbl: "text-amber-300",
     finalNum: "text-yellow-300",
     finalSub: "text-amber-200/80",
+    finalRankLbl: "text-amber-300/80",
+    finalRankVal: "text-amber-300",
     lastBox: "border-amber-400/40 bg-gradient-to-r from-[#241705] to-[#0F0A03]",
     lastLbl: "text-amber-300",
     lastPill: "bg-amber-400 text-slate-900 border-amber-400",
@@ -146,13 +148,15 @@ const THEMES = {
     themeOff: "text-slate-500 hover:text-slate-900",
     heroBox: "border-amber-400 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50",
     heroHead: "border-amber-300",
-    heroTitle: "text-amber-700",
+    heroTitle: "text-amber-800",
     heroPill: "bg-gradient-to-r from-amber-500 to-orange-600 text-white border-amber-600/30",
-    rankBox: "border-amber-200 bg-white shadow-sm",
+    rankBox: "border-amber-300 bg-amber-50/70 shadow-sm text-slate-900",
     finalBox: "border-amber-500 bg-gradient-to-b from-amber-100 to-amber-50",
-    finalLbl: "text-amber-800",
-    finalNum: "text-amber-700",
-    finalSub: "text-amber-800/80",
+    finalLbl: "text-amber-900",
+    finalNum: "text-amber-800",
+    finalSub: "text-amber-900/80",
+    finalRankLbl: "text-amber-900/80",
+    finalRankVal: "text-amber-900 font-black",
     lastBox: "border-amber-400 bg-gradient-to-r from-amber-50 via-amber-100/70 to-amber-50",
     lastLbl: "text-amber-800",
     lastPill: "bg-white text-amber-800 border-amber-500",
@@ -224,22 +228,42 @@ export const calculateFclPoints = (p: Player): number => {
   );
 };
 
-// 🌟 খেলোয়াড় কোন এলিট ক্লাবের সদস্য তা নির্ধারণ করার ফাংশন
-function getPlayerEliteClub(p: Player) {
+// 🌟 লাইট মোডে ভালোভাবে ফুটার জন্য উন্নত কালার টোকেন সহ এলিট ক্লাব ব্যাজ
+function getPlayerEliteClub(p: Player, theme: "dark" | "light") {
   const runs = Number(p.runs) || 0;
   const wickets = Number(p.wickets) || 0;
 
   if (runs >= 2500 && wickets >= 150) {
-    return { name: "💎 Diamond All-Rounder Club", badge: "bg-purple-500/20 text-purple-300 border-purple-500/40" };
+    return {
+      name: "💎 Diamond All-Rounder Club",
+      badge: theme === "light"
+        ? "bg-purple-100 text-purple-800 border-purple-300 font-extrabold shadow-sm"
+        : "bg-purple-500/20 text-purple-300 border-purple-500/40"
+    };
   }
   if (runs >= 2000 && wickets >= 100) {
-    return { name: "🥇 Gold All-Rounder Club", badge: "bg-blue-500/20 text-blue-300 border-blue-500/40" };
+    return {
+      name: "🥇 Gold All-Rounder Club",
+      badge: theme === "light"
+        ? "bg-blue-100 text-blue-800 border-blue-300 font-extrabold shadow-sm"
+        : "bg-blue-500/20 text-blue-300 border-blue-500/40"
+    };
   }
   if (runs >= 1000 && wickets >= 50) {
-    return { name: "🥈 Silver All-Rounder Club", badge: "bg-amber-500/20 text-amber-300 border-amber-500/40" };
+    return {
+      name: "🥈 Silver All-Rounder Club",
+      badge: theme === "light"
+        ? "bg-amber-100 text-amber-900 border-amber-300 font-extrabold shadow-sm"
+        : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+    };
   }
   if (runs >= 500 && wickets >= 50) {
-    return { name: "🥉 Bronze All-Rounder Club", badge: "bg-slate-500/20 text-slate-300 border-slate-500/40" };
+    return {
+      name: "🥉 Bronze All-Rounder Club",
+      badge: theme === "light"
+        ? "bg-slate-200 text-slate-800 border-slate-300 font-extrabold shadow-sm"
+        : "bg-slate-500/20 text-slate-300 border-slate-500/40"
+    };
   }
   return null;
 }
@@ -255,7 +279,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
   if (!selectedPlayer) return null;
 
   const T = THEMES[cardTheme];
-  const eliteClub = getPlayerEliteClub(selectedPlayer);
+  const eliteClub = getPlayerEliteClub(selectedPlayer, cardTheme);
 
   const handleDownloadCard = async () => {
     if (!cardRef.current) return;
@@ -301,18 +325,21 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     }
   };
 
-  const getRank = (player: Player, type: "mvp" | "runs" | "wickets" | "sixes" | "champion") => {
-    if (!player || allPlayers.length === 0) return "—";
+  const getRankWithNR = (player: Player, type: "mvp" | "runs" | "wickets" | "sixes" | "fours" | "champion" | "matches" | "finals") => {
+    if (!player || allPlayers.length === 0) return "N/R";
     const sorted = [...allPlayers].sort((a, b) => {
       if (type === "mvp") return calculateFclPoints(b) - calculateFclPoints(a);
       if (type === "runs") return b.runs - a.runs;
       if (type === "wickets") return b.wickets - a.wickets;
       if (type === "sixes") return (b.sixes || 0) - (a.sixes || 0);
+      if (type === "fours") return (b.fours || 0) - (a.fours || 0);
       if (type === "champion") return (b.champion || 0) - (a.champion || 0);
+      if (type === "matches") return b.matches - a.matches;
+      if (type === "finals") return (b.totalFinal || 0) - (a.totalFinal || 0);
       return 0;
     });
     const index = sorted.findIndex((p) => p.name === player.name);
-    return index !== -1 ? index + 1 : "—";
+    return index !== -1 ? `#${index + 1}` : "N/R";
   };
 
   const playerTournamentHistory = tournamentsData.filter((t) => {
@@ -446,7 +473,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                   <h4 className={`mt-1 break-words text-base sm:text-lg font-black leading-tight ${T.text}`}>{selectedPlayer.name}</h4>
                   {selectedPlayer.nickName && <p className={`mt-0.5 text-xs font-bold ${T.blue}`}>@{selectedPlayer.nickName}</p>}
                   
-                  {/* 🌟 এলিট ক্লাব মেম্বারশিপ ব্যাজ কার্ডে যুক্ত করা হলো */}
                   {eliteClub && (
                     <div className="mt-2">
                       <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-black ${eliteClub.badge}`}>
@@ -460,10 +486,17 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                     <span className={`truncate text-xs font-extrabold ${T.amber}`}>{selectedPlayer.role}</span>
                   </div>
                 </div>
-                <div className={`col-span-3 sm:col-span-1 rounded-xl border-2 p-2.5 text-center shadow-lg ${T.finalBox}`}>
-                  <span className={`text-[11px] font-black uppercase ${T.finalLbl}`}>TOTAL FINAL</span>
-                  <p className={`my-0.5 text-3xl font-black ${T.finalNum}`}>{selectedPlayer.totalFinal ?? 0}</p>
-                  <span className={`text-[10px] font-bold ${T.finalSub}`}>Finals Played</span>
+
+                <div className={`col-span-3 sm:col-span-1 rounded-xl border-2 p-2.5 text-center shadow-lg flex flex-col justify-between ${T.finalBox}`}>
+                  <div>
+                    <span className={`text-[11px] font-black uppercase ${T.finalLbl}`}>TOTAL FINAL</span>
+                    <p className={`my-0.5 text-3xl font-black ${T.finalNum}`}>{selectedPlayer.totalFinal ?? 0}</p>
+                    <span className={`text-[10px] font-bold ${T.finalSub}`}>Finals Played</span>
+                  </div>
+                  <div className="mt-2 border-t border-amber-400/30 pt-1">
+                    <span className={`text-[9px] font-bold uppercase ${T.finalRankLbl}`}>Rank: </span>
+                    <span className={`text-xs ${T.finalRankVal}`}>{getRankWithNR(selectedPlayer, "finals")}</span>
+                  </div>
                 </div>
               </div>
 
@@ -495,24 +528,37 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                   </p>
                   <div className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-1.5 shadow-md ${T.heroPill}`}>
                     <span>👑</span>
-                    <span className="text-xs sm:text-sm font-black">#{getRank(selectedPlayer, "mvp")} MVP</span>
+                    <span className="text-xs sm:text-sm font-black">{getRankWithNR(selectedPlayer, "mvp")} MVP</span>
                     <span className="h-3.5 w-px bg-white/50" />
                     <span className="text-xs sm:text-sm font-extrabold">{calculateFclPoints(selectedPlayer).toLocaleString()} Pts</span>
                   </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                  {[
-                    { l: "Runs Rank", t: "runs" as const, c: T.green },
-                    { l: "Wkts Rank", t: "wickets" as const, c: T.amber },
-                    { l: "6s Rank", t: "sixes" as const, c: T.purple },
-                    { l: "Trophy Rank", t: "champion" as const, c: T.blue },
-                  ].map((r) => (
-                    <div key={r.t} className={`rounded-xl border p-2 ${T.rankBox}`}>
-                      <Lbl>{r.l}</Lbl>
-                      <p className={`mt-0.5 text-base sm:text-lg font-black ${r.c}`}>#{getRank(selectedPlayer, r.t)}</p>
-                    </div>
-                  ))}
+                <div className="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
+                    <Lbl>Runs Rank</Lbl>
+                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "runs")}</p>
+                  </div>
+                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
+                    <Lbl>Wkts Rank</Lbl>
+                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "wickets")}</p>
+                  </div>
+                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
+                    <Lbl>Trophy Rank</Lbl>
+                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "champion")}</p>
+                  </div>
+                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
+                    <Lbl>Matches Rank</Lbl>
+                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "matches")}</p>
+                  </div>
+                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
+                    <Lbl>6s Rank</Lbl>
+                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "sixes")}</p>
+                  </div>
+                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
+                    <Lbl>4s Rank</Lbl>
+                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "fours")}</p>
+                  </div>
                 </div>
               </div>
 
@@ -634,7 +680,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
           {cardModalTab === "combined" && (
             <div className="w-full overflow-x-auto pb-2">
               <div ref={combinedRef} className={`mx-auto w-[1100px] min-w-[1100px] rounded-2xl border p-6 shadow-2xl ${T.card}`}>
-                {/* Header */}
                 <div className={`flex items-center justify-between border-b pb-4 ${T.divider}`}>
                   <div>
                     <h3 className={`text-xl font-black uppercase tracking-wide ${T.title}`}>Player Complete Statistics</h3>
@@ -643,7 +688,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                   <div className={`rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-1.5 text-xs font-black ${T.amber}`}>OFFICIAL</div>
                 </div>
 
-                {/* PART 01 */}
                 <div className={`mt-5 overflow-hidden rounded-xl border ${T.partBlue}`}>
                   <div className={`border-b px-4 py-3 ${T.partBlueHead}`}>
                     <h4 className="text-sm font-black uppercase tracking-widest">PART 01 — COMPLETE PLAYER INFORMATION</h4>
@@ -676,23 +720,21 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                   </table>
                 </div>
 
-                {/* PART 02 */}
                 <div className={`mt-5 overflow-hidden rounded-xl border ${T.partAmber}`}>
                   <div className={`border-b px-4 py-3 ${T.partAmberHead}`}>
                     <h4 className="text-sm font-black uppercase tracking-widest">PART 02 — RANKINGS, ACHIEVEMENTS & CAREER HONOURS</h4>
                   </div>
                   <table className="w-full border-collapse text-[13px]">
                     <tbody>
-                      {kv("MVP Rank", <span className={T.gold}>#{getRank(selectedPlayer, "mvp")} • {calculateFclPoints(selectedPlayer).toLocaleString()} Pts</span>, "Runs Rank", <span className={T.green}>#{getRank(selectedPlayer, "runs")}</span>, T.keyAmber)}
-                      {kv("Wickets Rank", <span className={T.amber}>#{getRank(selectedPlayer, "wickets")}</span>, "6s Rank", <span className={T.purple}>#{getRank(selectedPlayer, "sixes")}</span>, T.keyAmber)}
-                      {kv("Trophy Rank", <span className={T.blue}>#{getRank(selectedPlayer, "champion")}</span>, "Champion / Runner-Up", <span>🏆 {selectedPlayer.champion ?? 0} / 🥈 {selectedPlayer.runnersUp ?? 0}</span>, T.keyAmber)}
-                      {kv("MOT / CPOT", <span>⭐ {selectedPlayer.mot ?? 0} / {selectedPlayer.cpot ?? 0}</span>, "MOM / CPOM", <span>🎖️ {selectedPlayer.mom ?? 0} / {selectedPlayer.cpom ?? 0}</span>, T.keyAmber)}
+                      {kv("MVP Rank", <span className={T.gold}>{getRankWithNR(selectedPlayer, "mvp")} • {calculateFclPoints(selectedPlayer).toLocaleString()} Pts</span>, "Runs Rank", <span className={T.green}>{getRankWithNR(selectedPlayer, "runs")}</span>, T.keyAmber)}
+                      {kv("Wickets Rank", <span className={T.amber}>{getRankWithNR(selectedPlayer, "wickets")}</span>, "6s / 4s Rank", <span className={T.purple}>{getRankWithNR(selectedPlayer, "sixes")} / {getRankWithNR(selectedPlayer, "fours")}</span>, T.keyAmber)}
+                      {kv("Trophy Rank", <span className={T.blue}>{getRankWithNR(selectedPlayer, "champion")}</span>, "Champion / Runner-Up", <span>🏆 {selectedPlayer.champion ?? 0} / 🥈 {selectedPlayer.runnersUp ?? 0}</span>, T.keyAmber)}
+                      {kv("Matches Rank", <span className={T.pink}>{getRankWithNR(selectedPlayer, "matches")}</span>, "Finals Rank", <span className={T.gold}>{getRankWithNR(selectedPlayer, "finals")}</span>, T.keyAmber)}
                       {kv("Top Scorer", <span className={T.gold}>{selectedPlayer.highestRunScorer ?? 0}</span>, "Top Wicket Taker", <span className={T.gold}>{selectedPlayer.topWicketTaker ?? 0}</span>, T.keyAmber, true)}
                     </tbody>
                   </table>
                 </div>
 
-                {/* PART 03 */}
                 <div className={`mt-5 overflow-hidden rounded-xl border ${T.partBlue}`}>
                   <div className={`border-b px-4 py-3 ${T.partBlueHead}`}>
                     <h4 className="text-sm font-black uppercase tracking-widest">COMPLETE TOURNAMENT HISTORY ({playerTournamentHistory.length})</h4>
@@ -722,11 +764,11 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                             <td className="px-3 py-2.5 text-center">{t.notOut}</td>
                             <td className={`px-3 py-2.5 text-center ${T.blue}`}>{t.fours}</td>
                             <td className={`px-3 py-2.5 text-center ${T.purple}`}>{t.sixes}</td>
-                            <td className={`px-3 py-2.5 text-center ${T.pink}`}>{t.hatTrick}</td>
+                            <td className={`px-3.5 py-2.5 text-center ${T.pink}`}>{t.hatTrick}</td>
                             <td className={`px-3 py-2.5 text-center font-bold ${T.gold}`}>{t.motCpot || "—"}</td>
                             <td className={`px-3 py-2.5 text-center font-bold ${T.amber}`}>{t.chamRu || "—"}</td>
                             <td className="px-3 py-2.5 text-center">{Number(t.topScorer) === 1 ? "🏏 YES" : "—"}</td>
-                            <td className="px-3 py-2.5 text-center">{Number(t.topWicket) === 1 ? "🎯 YES" : "—"}</td>
+                            <td className="px-3.5 py-2.5 text-center">{Number(t.topWicket) === 1 ? "🎯 YES" : "—"}</td>
                             <td className={`whitespace-nowrap px-3 py-2.5 text-center ${T.silver}`}>{formatFullMonthDate(t.time)}</td>
                           </tr>
                         ))
