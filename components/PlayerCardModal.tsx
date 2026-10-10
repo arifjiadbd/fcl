@@ -96,7 +96,7 @@ const THEMES = {
     heroHead: "border-amber-400/25",
     heroTitle: "text-amber-400",
     heroPill: "bg-gradient-to-r from-amber-500 to-orange-600 text-white border-amber-300/40",
-    rankBox: "border-amber-400/25 bg-black/40",
+    rankBox: "border-amber-400/25 bg-black/40 text-slate-100",
     finalBox: "border-amber-400 bg-gradient-to-b from-[#2A1D05] to-[#140D02]",
     finalLbl: "text-amber-300",
     finalNum: "text-yellow-300",
@@ -148,9 +148,9 @@ const THEMES = {
     themeOff: "text-slate-500 hover:text-slate-900",
     heroBox: "border-amber-400 bg-gradient-to-br from-amber-50 via-orange-50 to-amber-50",
     heroHead: "border-amber-300",
-    heroTitle: "text-amber-800",
+    heroTitle: "text-amber-900",
     heroPill: "bg-gradient-to-r from-amber-500 to-orange-600 text-white border-amber-600/30",
-    rankBox: "border-amber-300 bg-amber-50/70 shadow-sm text-slate-900",
+    rankBox: "border-amber-300 bg-white shadow-sm text-slate-900",
     finalBox: "border-amber-500 bg-gradient-to-b from-amber-100 to-amber-50",
     finalLbl: "text-amber-900",
     finalNum: "text-amber-800",
@@ -228,49 +228,28 @@ export const calculateFclPoints = (p: Player): number => {
   );
 };
 
-// 🌟 লাইট মোডে ভালোভাবে ফুটার জন্য উন্নত কালার টোকেন সহ এলিট ক্লাব ব্যাজ
 function getPlayerEliteClub(p: Player, theme: "dark" | "light") {
   const runs = Number(p.runs) || 0;
   const wickets = Number(p.wickets) || 0;
 
   if (runs >= 2500 && wickets >= 150) {
-    return {
-      name: "💎 Diamond All-Rounder Club",
-      badge: theme === "light"
-        ? "bg-purple-100 text-purple-800 border-purple-300 font-extrabold shadow-sm"
-        : "bg-purple-500/20 text-purple-300 border-purple-500/40"
-    };
+    return { name: "💎 Diamond All-Rounder Club", badge: theme === "light" ? "bg-purple-100 text-purple-800 border-purple-300 font-extrabold shadow-sm" : "bg-purple-500/20 text-purple-300 border-purple-500/40" };
   }
   if (runs >= 2000 && wickets >= 100) {
-    return {
-      name: "🥇 Gold All-Rounder Club",
-      badge: theme === "light"
-        ? "bg-blue-100 text-blue-800 border-blue-300 font-extrabold shadow-sm"
-        : "bg-blue-500/20 text-blue-300 border-blue-500/40"
-    };
+    return { name: "🥇 Gold All-Rounder Club", badge: theme === "light" ? "bg-blue-100 text-blue-800 border-blue-300 font-extrabold shadow-sm" : "bg-blue-500/20 text-blue-300 border-blue-500/40" };
   }
   if (runs >= 1000 && wickets >= 50) {
-    return {
-      name: "🥈 Silver All-Rounder Club",
-      badge: theme === "light"
-        ? "bg-amber-100 text-amber-900 border-amber-300 font-extrabold shadow-sm"
-        : "bg-amber-500/20 text-amber-300 border-amber-500/40"
-    };
+    return { name: "🥈 Silver All-Rounder Club", badge: theme === "light" ? "bg-amber-100 text-amber-900 border-amber-300 font-extrabold shadow-sm" : "bg-amber-500/20 text-amber-300 border-amber-500/40" };
   }
   if (runs >= 500 && wickets >= 50) {
-    return {
-      name: "🥉 Bronze All-Rounder Club",
-      badge: theme === "light"
-        ? "bg-slate-200 text-slate-800 border-slate-300 font-extrabold shadow-sm"
-        : "bg-slate-500/20 text-slate-300 border-slate-500/40"
-    };
+    return { name: "🥉 Bronze All-Rounder Club", badge: theme === "light" ? "bg-slate-200 text-slate-800 border-slate-300 font-extrabold shadow-sm" : "bg-slate-500/20 text-slate-300 border-slate-500/40" };
   }
   return null;
 }
 
 export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsData, allPlayers }: Props) {
   const [cardTheme, setCardTheme] = useState<"dark" | "light">("dark");
-  const [cardModalTab, setCardModalTab] = useState<"card" | "history" | "combined">("card");
+  const [cardModalTab, setCardModalTab] = useState<"card" | "rankings" | "history" | "combined">("card");
   const [downloading, setDownloading] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -325,22 +304,57 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     }
   };
 
-  const getRankWithNR = (player: Player, type: "mvp" | "runs" | "wickets" | "sixes" | "fours" | "champion" | "matches" | "finals") => {
+  const getRankWithNR = (player: Player, type: string) => {
     if (!player || allPlayers.length === 0) return "N/R";
     const sorted = [...allPlayers].sort((a, b) => {
-      if (type === "mvp") return calculateFclPoints(b) - calculateFclPoints(a);
+      if (type === "points") return calculateFclPoints(b) - calculateFclPoints(a);
       if (type === "runs") return b.runs - a.runs;
       if (type === "wickets") return b.wickets - a.wickets;
       if (type === "sixes") return (b.sixes || 0) - (a.sixes || 0);
       if (type === "fours") return (b.fours || 0) - (a.fours || 0);
-      if (type === "champion") return (b.champion || 0) - (a.champion || 0);
-      if (type === "matches") return b.matches - a.matches;
+      if (type === "hattricks") return (b.hatTricks || 0) - (a.hatTricks || 0);
+      if (type === "champions") return (b.champion || 0) - (a.champion || 0);
+      if (type === "runnersup") return (b.runnersUp || 0) - (a.runnersUp || 0);
       if (type === "finals") return (b.totalFinal || 0) - (a.totalFinal || 0);
+      if (type === "motcpot") return ((Number(b.mot) || 0) + (Number(b.cpot) || 0)) - ((Number(a.mot) || 0) + (Number(a.cpot) || 0));
+      if (type === "runking") return (b.highestRunScorer || 0) - (a.highestRunScorer || 0);
+      if (type === "wicketking") return (b.topWicketTaker || 0) - (a.topWicketTaker || 0);
+      if (type === "matches") return b.matches - a.matches;
+      if (type === "mom") return (b.mom || 0) - (a.mom || 0);
+      if (type === "cpom") return (b.cpom || 0) - (a.cpom || 0);
+      if (type === "innings") return (b.innings || 0) - (a.innings || 0);
+      if (type === "notout") return (b.notOut || 0) - (a.notOut || 0);
+      if (type === "maxruns") return (b.maxRuns || 0) - (a.maxRuns || 0);
+      if (type === "maxwickets") return (b.maxWickets || 0) - (a.maxWickets || 0);
+      if (type === "tournaments") return (b.totalTournament || 0) - (a.totalTournament || 0);
       return 0;
     });
     const index = sorted.findIndex((p) => p.name === player.name);
-    return index !== -1 ? `#${index + 1}` : "N/R";
+    return index !== -1 ? `${index + 1}` : "N/R";
   };
+
+  const allRankCategories = [
+    { id: "points", label: "FCL Points", icon: "💯" },
+    { id: "runs", label: "Most Runs", icon: "🏏" },
+    { id: "wickets", label: "Most Wickets", icon: "🎯" },
+    { id: "sixes", label: "Six Machine", icon: "💥" },
+    { id: "fours", label: "Boundary Kings", icon: "🔷" },
+    { id: "hattricks", label: "Hat-Tricks", icon: "🎩" },
+    { id: "champions", label: "Champions", icon: "🏆" },
+    { id: "runnersup", label: "Runners-Up", icon: "🥈" },
+    { id: "finals", label: "Total Finals", icon: "⚔️" },
+    { id: "motcpot", label: "MOT / CPOT", icon: "⭐" },
+    { id: "runking", label: "Tour. Run King", icon: "👑" },
+    { id: "wicketking", label: "Tour. Wicket King", icon: "🛡️" },
+    { id: "matches", label: "Most Matches", icon: "⚡" },
+    { id: "mom", label: "Man of Match", icon: "🎖️" },
+    { id: "cpom", label: "CP of Match", icon: "🏅" },
+    { id: "innings", label: "Most Innings", icon: "📋" },
+    { id: "notout", label: "Most Not Outs", icon: "🧱" },
+    { id: "maxruns", label: "Highest Score", icon: "🚀" },
+    { id: "maxwickets", label: "Best Bowling", icon: "🔥" },
+    { id: "tournaments", label: "Tournaments", icon: "🗓️" },
+  ];
 
   const playerTournamentHistory = tournamentsData.filter((t) => {
     const pName = selectedPlayer.name.toLowerCase().trim();
@@ -387,15 +401,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     </div>
   );
 
-  const kv = (k1: string, v1: ReactNode, k2: string, v2: ReactNode, keyCls: string, last = false) => (
-    <tr className={last ? "" : `border-b ${T.rowLine}`}>
-      <td className={`w-[18%] px-4 py-3 font-bold ${keyCls}`}>{k1}</td>
-      <td className="w-[32%] px-4 py-3 font-black">{v1}</td>
-      <td className={`w-[18%] px-4 py-3 font-bold ${keyCls}`}>{k2}</td>
-      <td className="w-[32%] px-4 py-3 font-black">{v2}</td>
-    </tr>
-  );
-
   return (
     <div
       onClick={onClose}
@@ -413,13 +418,17 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                 <span>🎖️</span>
                 <span>Stat Card</span>
               </button>
+              <button onClick={() => setCardModalTab("rankings")} className={tabCls(cardModalTab === "rankings")}>
+                <span>🏆</span>
+                <span>All Ranks</span>
+              </button>
               <button onClick={() => setCardModalTab("history")} className={tabCls(cardModalTab === "history")}>
                 <span>📊</span>
                 <span>History ({playerTournamentHistory.length})</span>
               </button>
               <button onClick={() => setCardModalTab("combined")} className={tabCls(cardModalTab === "combined", true)}>
                 <span>⚡</span>
-                <span>Full Profile (2-in-1 View)</span>
+                <span>Full Profile</span>
               </button>
             </div>
 
@@ -448,10 +457,8 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
 
         {/* ================= BODY ================= */}
         <div className={`flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 ${T.body}`}>
-          {/* ---------- TAB 1: STAT CARD ---------- */}
           {cardModalTab === "card" && (
             <div ref={cardRef} className={`mx-auto w-full max-w-2xl space-y-4 rounded-2xl border p-5 sm:p-6 shadow-xl ${T.card}`}>
-              {/* Title */}
               <div className={`flex items-center justify-between border-b pb-3 ${T.divider}`}>
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1877F2]/15 text-2xl">🏏</div>
@@ -463,7 +470,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                 <span className={`rounded-md border border-amber-500/50 bg-amber-500/10 px-2.5 py-1 text-xs font-bold ${T.amber}`}>OFFICIAL</span>
               </div>
 
-              {/* Profile Row */}
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                 <div className={`flex aspect-square items-center justify-center rounded-xl border-2 p-1.5 text-4xl ${T.surface} ${cardTheme === "dark" ? "!border-sky-400/40" : "!border-sky-300"}`}>
                   🏏
@@ -494,13 +500,12 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                     <span className={`text-[10px] font-bold ${T.finalSub}`}>Finals Played</span>
                   </div>
                   <div className="mt-2 border-t border-amber-400/30 pt-1">
-                    <span className={`text-[9px] font-bold uppercase ${T.finalRankLbl}`}>Rank: </span>
-                    <span className={`text-xs ${T.finalRankVal}`}>{getRankWithNR(selectedPlayer, "finals")}</span>
+                    <span className={`text-[9px] font-bold uppercase ${T.finalRankLbl}`}>Position: </span>
+                    <span className={`text-xs ${T.finalRankVal}`}>#{getRankWithNR(selectedPlayer, "finals")}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Debut */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
                 <div className={`rounded-xl border p-2.5 ${T.surface}`}>
                   <Lbl>Debut Date</Lbl>
@@ -520,95 +525,67 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                 </div>
               </div>
 
-              {/* Rankings */}
+              {/* 🌟 অল-টাইম লিগ র‍্যাঙ্কিং সেকশন — আগের সেই আকর্ষণীয় কালার কোডসহ */}
               <div className={`rounded-2xl border-2 p-3.5 sm:p-4 text-center shadow-lg ${T.heroBox}`}>
                 <div className={`flex flex-col sm:flex-row items-center justify-between gap-2 border-b pb-2.5 ${T.heroHead}`}>
-                  <p className={`flex items-center gap-1.5 text-xs sm:text-sm font-black uppercase tracking-widest ${T.heroTitle}`}>
-                    <span>⭐</span> ALL-TIME LEAGUE RANKINGS
+                  <p className={`flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-widest ${T.heroTitle}`}>
+                    <span className="text-base sm:text-lg">👑</span> ALL-TIME LEAGUE RANKINGS
                   </p>
                   <div className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-1.5 shadow-md ${T.heroPill}`}>
-                    <span>👑</span>
-                    <span className="text-xs sm:text-sm font-black">{getRankWithNR(selectedPlayer, "mvp")} MVP</span>
+                    <span className="text-sm">⭐</span>
+                    <span className="text-xs sm:text-sm font-black">Pos #{getRankWithNR(selectedPlayer, "points")} MVP</span>
                     <span className="h-3.5 w-px bg-white/50" />
                     <span className="text-xs sm:text-sm font-extrabold">{calculateFclPoints(selectedPlayer).toLocaleString()} Pts</span>
                   </div>
                 </div>
 
                 <div className="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
-                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
-                    <Lbl>Runs Rank</Lbl>
-                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "runs")}</p>
-                  </div>
-                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
-                    <Lbl>Wkts Rank</Lbl>
-                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "wickets")}</p>
-                  </div>
-                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
-                    <Lbl>Trophy Rank</Lbl>
-                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "champion")}</p>
-                  </div>
-                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
-                    <Lbl>Matches Rank</Lbl>
-                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "matches")}</p>
-                  </div>
-                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
-                    <Lbl>6s Rank</Lbl>
-                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "sixes")}</p>
-                  </div>
-                  <div className={`rounded-xl border p-2 ${T.rankBox}`}>
-                    <Lbl>4s Rank</Lbl>
-                    <p className={`mt-0.5 text-sm sm:text-base font-black ${T.text}`}>{getRankWithNR(selectedPlayer, "fours")}</p>
-                  </div>
+                  {[
+                    { id: "runs", label: "MOST RUNS", icon: "🏏", color: "text-[#0d9488] dark:text-[#2dd4bf]" },
+                    { id: "wickets", label: "MOST WICKETS", icon: "🎯", color: "text-[#c2410c] dark:text-[#fb923c]" },
+                    { id: "champions", label: "TITLES WON", icon: "🏆", color: "text-[#1d4ed8] dark:text-[#60a5fa]" },
+                    { id: "matches", label: "MATCH CAPS", icon: "⚡", color: "text-[#b45309] dark:text-[#facc15]" },
+                    { id: "sixes", label: "SIXES HIT", icon: "💥", color: "text-[#7e22ce] dark:text-[#c084fc]" },
+                    { id: "fours", label: "FOURS HIT", icon: "🔷", color: "text-[#0369a1] dark:text-[#38bdf8]" },
+                  ].map((box) => {
+                    const rVal = getRankWithNR(selectedPlayer, box.id);
+                    const displayVal = rVal === "N/R" ? "N/R" : `#${rVal}`;
+                    return (
+                      <div key={box.id} className={`relative flex flex-col justify-between rounded-xl border p-2.5 text-left ${T.rankBox}`}>
+                        <div className="flex items-center justify-between w-full">
+                          <span className={`text-[11px] font-black tracking-tight flex items-center gap-1 ${box.color}`}>
+                            <span className="text-sm">{box.icon}</span> <span className="uppercase">{box.label}</span>
+                          </span>
+                        </div>
+                        <div className="mt-2 text-right">
+                          <span className="text-[9px] uppercase font-black text-slate-500 dark:text-slate-400 block tracking-wider">POSITION</span>
+                          <span className={`text-base sm:text-lg font-black leading-none block ${box.color}`}>{displayVal}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Career Stats */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className={`space-y-2 rounded-xl border p-3.5 text-xs sm:text-[13px] ${T.surface}`}>
                   <Line k="Total Match:">{selectedPlayer.matches}</Line>
-                  <Line k="Total Runs & Max:">
-                    <span className={T.green}>
-                      {selectedPlayer.runs} ({selectedPlayer.maxRuns || "—"})
-                    </span>
-                  </Line>
-                  <Line k="Total Wickets & Max:">
-                    <span className={T.amber}>
-                      {selectedPlayer.wickets} ({selectedPlayer.maxWickets || "—"})
-                    </span>
-                  </Line>
-                  <Line k="Innings / Not Out:">
-                    {selectedPlayer.innings ?? 0} / {selectedPlayer.notOut ?? 0}
-                  </Line>
-                  <Line k="Boundaries (4s / 6s):">
-                    <span className={T.blue}>{selectedPlayer.fours ?? 0}</span> / <span className={T.purple}>{selectedPlayer.sixes ?? 0}</span>
-                  </Line>
-                  <Line k="Career Hat-Trick:" last>
-                    <span className={T.pink}>{selectedPlayer.hatTricks ?? 0}</span>
-                  </Line>
+                  <Line k="Total Runs & Max:"><span className={T.green}>{selectedPlayer.runs} ({selectedPlayer.maxRuns || "—"})</span></Line>
+                  <Line k="Total Wickets & Max:"><span className={T.amber}>{selectedPlayer.wickets} ({selectedPlayer.maxWickets || "—"})</span></Line>
+                  <Line k="Innings / Not Out:">{selectedPlayer.innings ?? 0} / {selectedPlayer.notOut ?? 0}</Line>
+                  <Line k="Boundaries (4s / 6s):"><span className={T.blue}>{selectedPlayer.fours ?? 0}</span> / <span className={T.purple}>{selectedPlayer.sixes ?? 0}</span></Line>
+                  <Line k="Career Hat-Trick:" last><span className={T.pink}>{selectedPlayer.hatTricks ?? 0}</span></Line>
                 </div>
 
                 <div className={`space-y-2 rounded-xl border p-3.5 text-xs sm:text-[13px] ${T.surface}`}>
-                  <Line k="Batting / Bowling Avg:">
-                    {selectedPlayer.runAvg || "0.00"} / {getSafeWkAvg(selectedPlayer)}
-                  </Line>
-                  <Line k="Champion / Runner-Up:">
-                    🏆 <span className={T.amber}>{selectedPlayer.champion ?? 0}</span> / 🥈 <span className={T.silver}>{selectedPlayer.runnersUp ?? 0}</span>
-                  </Line>
-                  <Line k="MOT / CPOT:">
-                    ⭐ <span className={T.purple}>{selectedPlayer.mot ?? 0}</span> / {selectedPlayer.cpot ?? 0}
-                  </Line>
-                  <Line k="MOM / CPOM:">
-                    🎖️ <span className={T.blue}>{selectedPlayer.mom ?? 0}</span> / {selectedPlayer.cpom ?? 0}
-                  </Line>
-                  <Line k="Top Scorer / Wicket Taker:" last>
-                    <span className={T.gold}>
-                      {selectedPlayer.highestRunScorer ?? 0} / {selectedPlayer.topWicketTaker ?? 0}
-                    </span>
-                  </Line>
+                  <Line k="Batting / Bowling Avg:">{selectedPlayer.runAvg || "0.00"} / {getSafeWkAvg(selectedPlayer)}</Line>
+                  <Line k="Champion / Runner-Up:">🏆 <span className={T.amber}>{selectedPlayer.champion ?? 0}</span> / 🥈 <span className={T.silver}>{selectedPlayer.runnersUp ?? 0}</span></Line>
+                  <Line k="MOT / CPOT:">⭐ <span className={T.purple}>{selectedPlayer.mot ?? 0}</span> / {selectedPlayer.cpot ?? 0}</Line>
+                  <Line k="MOM / CPOM:">🎖️ <span className={T.blue}>{selectedPlayer.mom ?? 0}</span> / {selectedPlayer.cpom ?? 0}</Line>
+                  <Line k="Top Scorer / Wicket Taker:" last><span className={T.gold}>{selectedPlayer.highestRunScorer ?? 0} / {selectedPlayer.topWicketTaker ?? 0}</span></Line>
                 </div>
               </div>
 
-              {/* Last Played */}
               <div className={`flex flex-col sm:flex-row items-center justify-between gap-2 rounded-xl border-2 p-3 ${T.lastBox}`}>
                 <div className="flex items-center gap-2">
                   <span className="flex h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
@@ -619,7 +596,33 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             </div>
           )}
 
-          {/* ---------- TAB 2: HISTORY ---------- */}
+          {cardModalTab === "rankings" && (
+            <div className="mx-auto max-w-2xl space-y-3">
+              <div className={`rounded-2xl border p-4 text-center ${T.card}`}>
+                <h3 className={`text-base font-black uppercase tracking-wider ${T.title}`}>🏆 All-Time Category Rankings</h3>
+                <p className={`mt-1 text-xs ${T.label}`}>এখানে রেকর্ডস ও লিডারবোর্ডের প্রতিটি ক্যাটাগরিতে {selectedPlayer.name}-এর পজিশন দেখানো হলো।</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {allRankCategories.map((cat) => {
+                  const rankVal = getRankWithNR(selectedPlayer, cat.id);
+                  const isTop = rankVal !== "N/R" && parseInt(rankVal) <= 3;
+                  return (
+                    <div key={cat.id} className={`flex items-center justify-between rounded-xl border p-3.5 transition ${T.surface}`}>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-xl">{cat.icon}</span>
+                        <span className="text-xs sm:text-sm font-bold">{cat.label}</span>
+                      </div>
+                      <span className={`rounded-lg px-3 py-1 text-xs font-black shadow-sm ${isTop ? "bg-amber-500 text-slate-900" : "bg-black/40 text-amber-400 border border-amber-400/30"}`}>
+                        {rankVal === "N/R" ? "N/R" : `#${rankVal}`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {cardModalTab === "history" && (
             <div className="mx-auto max-w-2xl space-y-3.5">
               {playerTournamentHistory.length === 0 ? (
@@ -676,7 +679,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             </div>
           )}
 
-          {/* ---------- TAB 3: COMBINED ---------- */}
           {cardModalTab === "combined" && (
             <div className="w-full overflow-x-auto pb-2">
               <div ref={combinedRef} className={`mx-auto w-[1100px] min-w-[1100px] rounded-2xl border p-6 shadow-2xl ${T.card}`}>
@@ -726,10 +728,10 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                   </div>
                   <table className="w-full border-collapse text-[13px]">
                     <tbody>
-                      {kv("MVP Rank", <span className={T.gold}>{getRankWithNR(selectedPlayer, "mvp")} • {calculateFclPoints(selectedPlayer).toLocaleString()} Pts</span>, "Runs Rank", <span className={T.green}>{getRankWithNR(selectedPlayer, "runs")}</span>, T.keyAmber)}
-                      {kv("Wickets Rank", <span className={T.amber}>{getRankWithNR(selectedPlayer, "wickets")}</span>, "6s / 4s Rank", <span className={T.purple}>{getRankWithNR(selectedPlayer, "sixes")} / {getRankWithNR(selectedPlayer, "fours")}</span>, T.keyAmber)}
-                      {kv("Trophy Rank", <span className={T.blue}>{getRankWithNR(selectedPlayer, "champion")}</span>, "Champion / Runner-Up", <span>🏆 {selectedPlayer.champion ?? 0} / 🥈 {selectedPlayer.runnersUp ?? 0}</span>, T.keyAmber)}
-                      {kv("Matches Rank", <span className={T.pink}>{getRankWithNR(selectedPlayer, "matches")}</span>, "Finals Rank", <span className={T.gold}>{getRankWithNR(selectedPlayer, "finals")}</span>, T.keyAmber)}
+                      {kv("MVP Rank", <span className={T.gold}>Pos #{getRankWithNR(selectedPlayer, "points")} • {calculateFclPoints(selectedPlayer).toLocaleString()} Pts</span>, "Runs Rank", <span className={T.green}>Pos #{getRankWithNR(selectedPlayer, "runs")}</span>, T.keyAmber)}
+                      {kv("Wickets Rank", <span className={T.amber}>Pos #{getRankWithNR(selectedPlayer, "wickets")}</span>, "6s / 4s Rank", <span className={T.purple}>Pos #{getRankWithNR(selectedPlayer, "sixes")} / Pos #{getRankWithNR(selectedPlayer, "fours")}</span>, T.keyAmber)}
+                      {kv("Trophy Rank", <span className={T.blue}>Pos #{getRankWithNR(selectedPlayer, "champions")}</span>, "Champion / Runner-Up", <span>🏆 {selectedPlayer.champion ?? 0} / 🥈 {selectedPlayer.runnersUp ?? 0}</span>, T.keyAmber)}
+                      {kv("Matches Rank", <span className={T.pink}>Pos #{getRankWithNR(selectedPlayer, "matches")}</span>, "Finals Rank", <span className={T.gold}>Pos #{getRankWithNR(selectedPlayer, "finals")}</span>, T.keyAmber)}
                       {kv("Top Scorer", <span className={T.gold}>{selectedPlayer.highestRunScorer ?? 0}</span>, "Top Wicket Taker", <span className={T.gold}>{selectedPlayer.topWicketTaker ?? 0}</span>, T.keyAmber, true)}
                     </tbody>
                   </table>
@@ -806,5 +808,16 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
         </div>
       </div>
     </div>
+  );
+}
+
+function kv(k1: string, v1: ReactNode, k2: string, v2: ReactNode, keyCls: string, last = false) {
+  return (
+    <tr className={last ? "" : "border-b border-slate-700/60"}>
+      <td className={`w-[18%] px-4 py-3 font-bold ${keyCls}`}>{k1}</td>
+      <td className={`w-[32%] px-4 py-3 font-black`}>{v1}</td>
+      <td className={`w-[18%] px-4 py-3 font-bold ${keyCls}`}>{k2}</td>
+      <td className={`w-[32%] px-4 py-3 font-black`}>{v2}</td>
+    </tr>
   );
 }
