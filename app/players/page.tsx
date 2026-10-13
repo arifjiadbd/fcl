@@ -35,6 +35,7 @@ interface Player {
   maxWickets?: number;
   runAvg?: string;
   wkAvg?: string;
+  photo?: string;
   photoUrl?: string;
 }
 
@@ -60,7 +61,6 @@ interface TournamentRecord {
   topWicket: number;
 }
 
-// 🌟 আরও নিখুঁত এবং VIP-দের জন্য কঠিনকৃত রোল ডিটেকশন ফাংশন
 export const getAutomaticRole = (player: Player): string => {
   const matches = Number(player.matches) || 0;
   if (matches === 0) return "Promising Player";
@@ -74,28 +74,17 @@ export const getAutomaticRole = (player: Player): string => {
   const runAvg = dismissals > 0 ? runs / dismissals : innings > 0 ? runs / innings : 0;
   const wkAvg = wickets / matches;
 
-  // ১. VIP All-Rounder (আরও কঠিন ক্রাইটেরিয়া: রান গড় ১৩+ এবং উইকেট গড় ১.৫+)
   if (runAvg >= 13 && wkAvg >= 1.5) {
     return "VIP All-Rounder";
-  }
-  // ২. Bowling All-Rounder (রান গড় ৯+, উইকেট গড় ১.২+)
-  else if (runAvg >= 9 && wkAvg >= 1.2) {
+  } else if (runAvg >= 9 && wkAvg >= 1.2) {
     return "Bowling All-Rounder";
-  }
-  // ৩. All-Rounder (রান গড় ৯+, উইকেট গড় ০.৮+)
-  else if (runAvg >= 9 && wkAvg >= 0.8) {
+  } else if (runAvg >= 9 && wkAvg >= 0.8) {
     return "All-Rounder";
-  }
-  // ৪. Batsman (রান গড় ১০ এর বেশি এবং উইকেট গড় ০.৮ এর কম)
-  else if (runAvg > 10 && wkAvg < 0.8) {
+  } else if (runAvg > 10 && wkAvg < 0.8) {
     return "Batsman";
-  }
-  // ৫. Bowler (উইকেট গড় ১.০ বা তার বেশি, কিন্তু রান গড় ১০ এর কম)
-  else if (runAvg < 10 && wkAvg >= 1.0) {
+  } else if (runAvg < 10 && wkAvg >= 1.0) {
     return "Bowler";
-  }
-  // ৬. বাকিরা প্রতিশ্রুতিশীল খেলোয়াড়
-  else {
+  } else {
     return "Promising Player";
   }
 };
@@ -193,26 +182,26 @@ const getInitials = (name: string) =>
 
 function Avatar({ player, size }: { player: Player; size: "sm" | "md" | "lg" }) {
   const [failed, setFailed] = useState(false);
-  const photoPath = `/players/${(player.nickName || "").toLowerCase().trim()}.jpg`;
+  
+  // 🌟 এক্সেল থেকে আসা ছবি অথবা ডেমো ছবি
+  const rawPhoto = player.photo || player.photoUrl;
+  const photoPath = rawPhoto && rawPhoto !== "—" && rawPhoto !== ""
+    ? (rawPhoto.startsWith("/") ? rawPhoto : `/players/${rawPhoto}`)
+    : `/FCL Cricket Avatar Placeholder.jpg`;
+
   const dims = size === "lg" ? "h-16 w-16 text-lg" : size === "md" ? "h-14 w-14 text-base" : "h-10 w-10 text-xs";
 
   return (
     <div
       className={`relative shrink-0 overflow-hidden rounded-2xl border border-[#1877F2]/40 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-[#16224a] dark:to-[#0b1220] ${dims}`}
     >
-      {!failed && player.nickName ? (
-        <img
-          src={photoPath}
-          alt={player.name}
-          loading="lazy"
-          className="h-full w-full object-cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center font-extrabold text-[#60a5fa]">
-          {getInitials(player.name)}
-        </div>
-      )}
+      <img
+        src={failed ? "/FCL Cricket Avatar Placeholder.jpg" : photoPath}
+        alt={player.name}
+        loading="lazy"
+        className="h-full w-full object-cover"
+        onError={() => setFailed(true)}
+      />
     </div>
   );
 }
@@ -392,7 +381,6 @@ export default function PlayersPage() {
           </Link>
         </div>
 
-        {/* 🌟 Role Criteria Info Box (উন্নত ফন্ট সাইজ, বোল্ড ও হাইলাইটেড) */}
         {showCriteria && (
           <div className="mb-6 rounded-3xl border-2 border-amber-400/60 bg-slate-900/95 p-6 shadow-2xl dark:bg-[#0b1220]/95 animate-fadeIn">
             <h3 className="text-base sm:text-lg font-black text-amber-400 mb-4 flex items-center gap-2 uppercase tracking-wider border-b border-amber-400/20 pb-3">
@@ -436,9 +424,6 @@ export default function PlayersPage() {
                 </p>
               </div>
             </div>
-            <p className="mt-4 text-xs font-bold text-slate-400 border-t border-amber-400/20 pt-3">
-              *Note: Batting Average is calculated dynamically using: <code className="text-amber-300 font-black">Total Runs / (Total Innings - Not Out Innings)</code>
-            </p>
           </div>
         )}
 

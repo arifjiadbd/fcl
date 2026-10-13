@@ -34,6 +34,8 @@ interface Player {
   maxWickets?: number;
   runAvg?: string;
   wkAvg?: string;
+  photo?: string;
+  photoUrl?: string;
 }
 
 interface TournamentRecord {
@@ -251,6 +253,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
   const [cardTheme, setCardTheme] = useState<"dark" | "light">("dark");
   const [cardModalTab, setCardModalTab] = useState<"card" | "rankings" | "history" | "combined">("card");
   const [downloading, setDownloading] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const combinedRef = useRef<HTMLDivElement>(null);
@@ -260,6 +263,11 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
   const T = THEMES[cardTheme];
   const eliteClub = getPlayerEliteClub(selectedPlayer, cardTheme);
 
+  const rawPhoto = selectedPlayer.photo || selectedPlayer.photoUrl;
+  const playerPhotoPath = rawPhoto && rawPhoto !== "—" && rawPhoto !== ""
+    ? (rawPhoto.startsWith("/") ? rawPhoto : `/players/${rawPhoto}`)
+    : `/FCL Cricket Avatar Placeholder.jpg`;
+
   const handleDownloadCard = async () => {
     if (!cardRef.current) return;
     try {
@@ -267,6 +275,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
       const dataUrl = await toPng(cardRef.current, {
         cacheBust: true,
         pixelRatio: 3,
+        skipAutoScale: true,
         backgroundColor: T.cardBg,
         style: { width: "750px", maxWidth: "100%", margin: "0 auto" },
       });
@@ -289,6 +298,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
       const dataUrl = await toPng(combinedRef.current, {
         cacheBust: true,
         pixelRatio: 3,
+        skipAutoScale: true,
         backgroundColor: T.cardBg,
         style: { width: "1100px", minWidth: "1100px", maxWidth: "none", margin: "0 auto" },
       });
@@ -461,7 +471,9 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             <div ref={cardRef} className={`mx-auto w-full max-w-2xl space-y-4 rounded-2xl border p-5 sm:p-6 shadow-xl ${T.card}`}>
               <div className={`flex items-center justify-between border-b pb-3 ${T.divider}`}>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1877F2]/15 text-2xl">🏏</div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1877F2]/15 p-1.5 overflow-hidden">
+                    <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain" crossOrigin="anonymous" />
+                  </div>
                   <div>
                     <h3 className={`text-base sm:text-2xl font-black uppercase tracking-wide ${T.title}`}>Player Statistics Card</h3>
                     <p className={`text-xs font-semibold ${T.label}`}>Facebook Cricket League (FCL)</p>
@@ -471,9 +483,17 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
               </div>
 
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                <div className={`flex aspect-square items-center justify-center rounded-xl border-2 p-1.5 text-4xl ${T.surface} ${cardTheme === "dark" ? "!border-sky-400/40" : "!border-sky-300"}`}>
-                  🏏
+                {/* 🌟 আসল প্লেয়ারের ছবি অথবা ডেমো ছবি */}
+                <div className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border-2 p-1 ${T.surface} ${cardTheme === "dark" ? "!border-sky-400/40" : "!border-sky-300"}`}>
+                  <img
+                    src={imgError ? "/FCL Cricket Avatar Placeholder.jpg" : playerPhotoPath}
+                    alt={selectedPlayer.name}
+                    crossOrigin="anonymous"
+                    onError={() => setImgError(true)}
+                    className="absolute inset-0 h-full w-full rounded-lg object-cover"
+                  />
                 </div>
+
                 <div className={`col-span-2 flex flex-col justify-center rounded-xl border p-3.5 ${T.surface}`}>
                   <Lbl>Player Name</Lbl>
                   <h4 className={`mt-1 break-words text-base sm:text-lg font-black leading-tight ${T.text}`}>{selectedPlayer.name}</h4>
@@ -525,7 +545,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                 </div>
               </div>
 
-              {/* 🌟 অল-টাইম লিগ র‍্যাঙ্কিং সেকশন — আগের সেই আকর্ষণীয় কালার কোডসহ */}
+              {/* 🌟 অল-টাইম লিগ র‍্যাঙ্কিং সেকশন */}
               <div className={`rounded-2xl border-2 p-3.5 sm:p-4 text-center shadow-lg ${T.heroBox}`}>
                 <div className={`flex flex-col sm:flex-row items-center justify-between gap-2 border-b pb-2.5 ${T.heroHead}`}>
                   <p className={`flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-widest ${T.heroTitle}`}>
@@ -788,7 +808,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
         </div>
 
         {/* ================= FOOTER ================= */}
-        <div className={`flex shrink-0 gap-2 border-t p-3 ${T.footer}`}>
+        <div className={`shrink-0 flex gap-2 border-t p-3 ${T.footer}`}>
           {cardModalTab === "card" ? (
             <button onClick={handleDownloadCard} disabled={downloading} className="flex-1 rounded-xl bg-[#1877F2] py-2.5 text-xs font-bold text-white shadow hover:bg-[#166fe5] disabled:opacity-60">
               {downloading ? "প্রসেসিং হচ্ছে..." : "📥 ডাউনলোড কার্ড (PNG)"}

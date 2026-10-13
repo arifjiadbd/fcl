@@ -43,7 +43,7 @@ function getRowValue(row: any, ...targetKeys: string[]): string {
   return "";
 }
 
-// 🌟 সঠিক ফর্মুলা অনুযায়ী রোল এবং এভারেজ ডিটেকশন ফাংশন
+// 🌟 সঠিক ফর্মুলা অনুযায়ী রোল এবং এভারেজ ডিটেকশন ফাংশন
 function calculateAutomaticRole(runAvg: number, wkAvg: number, matches: number): string {
   if (matches === 0) return "Promising Player";
 
@@ -119,8 +119,11 @@ export async function GET() {
         }
         const runAvg = runAvgNum.toFixed(2);
 
-        // 🌟 সঠিক এভারেজ দিয়ে রোল ক্যালকুলেট করা হলো
+        // 🌟 সঠিক এভারেজ দিয়ে রোল ক্যালকুলেট করা হলো
         const role = calculateAutomaticRole(runAvgNum, wkAvgNum, matches);
+
+        // 🌟 এক্সেলের শেষ কলামের 'Player Image' বা ছবির নাম রিড করা
+        const photoVal = getRowValue(row, "Player Image", "PlayerImage", "Photo", "Image") || "";
 
         return {
           id: index + 1,
@@ -153,6 +156,8 @@ export async function GET() {
           maxWickets: Number(row["Max Wickets In Tournament"]) || 0,
           runAvg,
           wkAvg,
+          photo: photoVal, // 🌟 ছবির নাম বা পাথ পাস করা হলো
+          photoUrl: photoVal,
         };
       });
 

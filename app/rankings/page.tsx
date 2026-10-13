@@ -35,6 +35,8 @@ interface Player {
   maxWickets?: number;
   runAvg?: string;
   wkAvg?: string;
+  photo?: string;
+  photoUrl?: string;
 }
 
 interface TournamentRecord {
@@ -73,15 +75,15 @@ export const calculateFclPoints = (p: Player): number => {
 
   return Math.round(
     runs * 1 +
-    sixes * 2 +
-    fours * 1 +
-    wickets * 20 +
-    matches * 2 +
-    champion * 100 +
-    runnersUp * 40 +
-    motCpot * 60 +
-    highestRuns * 30 +
-    topWickets * 30
+      sixes * 2 +
+      fours * 1 +
+      wickets * 20 +
+      matches * 2 +
+      champion * 100 +
+      runnersUp * 40 +
+      motCpot * 60 +
+      highestRuns * 30 +
+      topWickets * 30
   );
 };
 
@@ -137,7 +139,7 @@ export default function RankingsPage() {
     return !q || p.name.toLowerCase().includes(q) || (p.nickName && p.nickName.toLowerCase().includes(q));
   });
 
-  // বর্তমান দৃশ্যমান প্লেয়ারদের তালিকা (প্রথমত ৫০ জন)
+  // বর্তমান দৃশ্যমান প্লেয়ারদের তালিকা (প্রথমত ৫০ জন)
   const displayedPlayers = filteredRankings.slice(0, visibleCount);
 
   // ক্যাটেগরি বা সার্চ পরিবর্তন হলে পেজিনেশন আবার ৫০ থেকে শুরু হবে
@@ -243,6 +245,11 @@ export default function RankingsPage() {
                     ? { border: "border-2 border-[#94a3b8] shadow-[0_0_30px_rgba(148,163,184,0.2)]", bg: "bg-gradient-to-b from-[#171d28] via-[#0c1017] to-[#030508]", tag: "border-[#94a3b8]/50 bg-[#94a3b8]/20 text-[#e2e8f0]", badge: "bg-[#cbd5e1] text-black font-black", highlight: "text-[#f1f5f9]", icon: "🥈", label: "SILVER MEDALIST • #02 MVP" }
                     : { border: "border-2 border-[#d97706] shadow-[0_0_30px_rgba(217,119,6,0.2)]", bg: "bg-gradient-to-b from-[#1a1005] via-[#0e0802] to-[#030200]", tag: "border-[#d97706]/50 bg-[#d97706]/20 text-[#fcd34d]", badge: "bg-[#d97706] text-white font-black", highlight: "text-[#fbbf24]", icon: "🥉", label: "BRONZE MEDALIST • #03 MVP" };
 
+                const rawPhoto = player.photo || player.photoUrl;
+                const podiumPhotoPath = rawPhoto && rawPhoto !== "—" && rawPhoto !== ""
+                  ? (rawPhoto.startsWith("/") ? rawPhoto : `/players/${rawPhoto}`)
+                  : `/FCL Cricket Avatar Placeholder.jpg`;
+
                 return (
                   <div
                     key={player.name + idx}
@@ -257,14 +264,21 @@ export default function RankingsPage() {
                     </div>
 
                     <div className="mt-5 flex items-center gap-3">
-                      <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-white/10 bg-[#0f172a] text-2xl shadow-lg">
-                        {badgeColors.icon}
+                      <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-white/10 bg-[#0f172a] shadow-lg">
+                        <img
+                          src={podiumPhotoPath}
+                          alt={player.name}
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = "/FCL Cricket Avatar Placeholder.jpg";
+                          }}
+                        />
                       </div>
                       <div className="min-w-0 flex-1">
                         <h4 className="text-lg font-black text-white group-hover:text-[#60a5fa] transition break-words leading-tight">
                           {player.name}
                         </h4>
-                        <p className="text-xs text-[#94a3b8] mt-0.5">@{player.nickName || player.name} • {player.role}</p>
+                        <p className="text-xs text-[#94a3b8] mt-0.5">{player.role}</p>
                       </div>
                     </div>
 
@@ -357,6 +371,11 @@ export default function RankingsPage() {
                       const isTop3 = rankNum === 3;
                       const mvpPoints = calculateFclPoints(player);
 
+                      const rawPhoto = player.photo || player.photoUrl;
+                      const rowPhotoPath = rawPhoto && rawPhoto !== "—" && rawPhoto !== ""
+                        ? (rawPhoto.startsWith("/") ? rawPhoto : `/players/${rawPhoto}`)
+                        : `/FCL Cricket Avatar Placeholder.jpg`;
+
                       return (
                         <tr
                           key={player.name + index}
@@ -389,12 +408,11 @@ export default function RankingsPage() {
                             <div className="flex items-center gap-3">
                               <div className="h-8 w-8 rounded-lg overflow-hidden border border-[#1e293b] bg-[#030712] shrink-0">
                                 <img
-                                  src={`/players/${(player.nickName || "").toLowerCase().trim()}.jpg`}
-                                  alt=""
+                                  src={rowPhotoPath}
+                                  alt={player.name}
                                   className="h-full w-full object-cover"
                                   onError={(e) => {
-                                    e.currentTarget.style.display = "none";
-                                    e.currentTarget.parentElement!.innerHTML = '<div class="flex h-full w-full items-center justify-center text-xs">🏏</div>';
+                                    e.currentTarget.src = "/FCL Cricket Avatar Placeholder.jpg";
                                   }}
                                 />
                               </div>

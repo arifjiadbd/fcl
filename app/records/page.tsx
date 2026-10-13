@@ -112,7 +112,7 @@ const MOBILE_TABS: { id: MTabId; label: string; icon: string }[] = [
   { id: "innings", label: "Most Innings", icon: "📋" },
   { id: "notout", label: "Most Not Outs", icon: "🧱" },
   { id: "maxruns", label: "Highest Tour. Runs", icon: "🚀" },
-  { id: "maxwickets", label: "Best Bowling", icon: "🔥" },
+  { id: "maxwickets", label: "Highest Wickets", icon: "🔥" },
   { id: "tournaments", label: "Tournaments", icon: "🗓️" },
 ];
 
@@ -162,7 +162,7 @@ const MOBILE_CFG: Record<string, { v: (p: Player) => number; badge: (p: Player) 
   innings: { v: (p) => p.innings || 0, badge: (p) => `${p.runs} Runs`, meta: (p) => `${p.matches} Matches`, unit: "Inn" },
   notout: { v: (p) => p.notOut || 0, badge: (p) => `${p.innings ?? 0} Innings`, meta: (p) => `${p.runs} Runs`, unit: "NO" },
   maxruns: { v: (p) => p.maxRuns || 0, badge: () => "Best Batting Score", meta: (p) => `${p.runs} Career Runs`, unit: "Runs" },
-  maxwickets: { v: (p) => p.maxWickets || 0, badge: () => "Best Bowling Figure", meta: (p) => `${p.wickets} Career Wkts`, unit: "Wkts" },
+  maxwickets: { v: (p) => p.maxWickets || 0, badge: () => "In A Tournament", meta: (p) => `${p.wickets} Career Wkts`, unit: "Wkts" },
   tournaments: { v: (p) => p.totalTournament || 0, badge: (p) => `${p.matches} Matches`, meta: (p) => `@${p.nickName || "Player"}`, unit: "Tours" },
 };
 
@@ -461,11 +461,11 @@ const DESC: Record<string, string> = {
   wicketking: "টুর্নামেন্টে সর্বোচ্চ উইকেটের মালিক হয়েছেন যতবার",
   matches: "সবচেয়ে বেশি ম্যাচ খেলা",
   mom: "ম্যান অফ দ্য ম্যাচ",
-  cpom: "চ্যাম্পিয়ন প্লেয়ার অফ দ্য ম্যাচ",
+  cpom: "কুল প্লেয়ার অফ দ্য ম্যাচ",
   innings: "সবচেয়ে বেশি ইনিংস",
   notout: "সবচেয়ে বেশি নট-আউট",
   maxruns: "এক টুর্নামেন্টে সর্বোচ্চ ব্যক্তিগত রান",
-  maxwickets: "এক ম্যাচে সর্বোচ্চ উইকেট",
+  maxwickets: "এক টুর্নামেন্টে সর্বোচ্চ ব্যক্তিগত উইকেট",
   tournaments: "সবচেয়ে বেশি টুর্নামেন্টে অংশগ্রহণ",
   clubs: "রান ও উইকেটের স্ল্যাব অনুযায়ী অলরাউন্ডার ক্লাব",
 };
@@ -564,7 +564,7 @@ function DesktopRecords({
       { id: "innings", label: "Most Innings", icon: "📋", fn: (p: Player) => p.innings || 0, unit: "Innings" },
       { id: "notout", label: "Most Not Outs", icon: "🧱", fn: (p: Player) => p.notOut || 0, unit: "Not Outs" },
       { id: "maxruns", label: "Highest Tour. Runs", icon: "🚀", fn: (p: Player) => p.maxRuns || 0, unit: "Runs" },
-      { id: "maxwickets", label: "Best Bowling", icon: "🔥", fn: (p: Player) => p.maxWickets || 0, unit: "Wickets" },
+      { id: "maxwickets", label: "Highest Wicket", icon: "🔥", fn: (p: Player) => p.maxWickets || 0, unit: "Wickets" },
     ];
     return defs
       .map((d) => {
