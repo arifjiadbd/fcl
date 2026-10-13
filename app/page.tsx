@@ -190,6 +190,17 @@ export default function Home() {
       footerText: "Enter Portal",
     },
     {
+      href: "/matches",
+      color: "#22c55e",
+      badgeText: "MATCH ARCHIVE",
+      badgeIcon: "📅",
+      cornerIcon: "🏟️",
+      title: "Match Directory & History",
+      description:
+        "Browse tournament home pages, series games, friendly matches, and test match archives across years.",
+      footerText: "Enter Portal",
+    },
+    {
       href: "/memories",
       color: "#f472b6",
       badgeText: "NOSTALGIA",
@@ -202,7 +213,7 @@ export default function Home() {
     },
     {
       href: "/players",
-      color: "#22c55e",
+      color: "#38bdf8",
       badgeText: "SQUAD DIRECTORY",
       badgeIcon: "👥",
       cornerIcon: "🏏",
@@ -213,7 +224,7 @@ export default function Home() {
     },
     {
       href: "/rules",
-      color: "#38bdf8",
+      color: "#c084fc",
       badgeText: "RULEBOOK",
       badgeIcon: "📜",
       cornerIcon: "⚖️",
@@ -310,7 +321,7 @@ export default function Home() {
 
       {/* ================================================================
           DESKTOP HERO — unchanged visual structure
-         ================================================================ */}
+          ================================================================ */}
       <section className="relative hidden min-h-[calc(100vh-76px)] overflow-hidden border-b border-[#172033] bg-[#02050b] sm:block">
         <div className="absolute inset-0 bg-[#02050b]" />
         <div className="absolute inset-0 fcl-grid-bg" />
@@ -350,7 +361,7 @@ export default function Home() {
 
       {/* ================================================================
           MOBILE HOME APP — only below 640px
-         ================================================================ */}
+          ================================================================ */}
       <section className="relative overflow-hidden border-b border-[#172033] bg-[#02050b] px-4 pb-7 pt-5 sm:hidden">
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-[#1877F2]/15 blur-[90px] fcl-mobile-glow" />
         <div className="pointer-events-none absolute -left-28 bottom-0 h-64 w-64 rounded-full bg-[#7c3aed]/10 blur-[90px]" />
@@ -367,7 +378,7 @@ export default function Home() {
 
       {/* ================================================================
           DESKTOP PORTALS — original grid preserved
-         ================================================================ */}
+          ================================================================ */}
       <section id="gateways" className="relative hidden overflow-hidden bg-[#020617] px-6 py-28 sm:block">
         <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-[#1877F2]/10 blur-[150px]" />
         <div className="mx-auto max-w-7xl relative z-10">
@@ -384,19 +395,19 @@ export default function Home() {
 
       {/* ================================================================
           MOBILE PORTALS — compact app cards
-         ================================================================ */}
+          ================================================================ */}
       <section id="mobile-gateways" className="relative overflow-hidden bg-[#020617] px-4 pb-8 pt-6 sm:hidden">
         <div className="mb-4 flex items-end justify-between px-1">
           <div>
             <span className="text-[8px] font-black uppercase tracking-[0.28em] text-[#38bdf8]">FCL Navigation</span>
             <h3 className="mt-1 text-[24px] font-black tracking-tight text-white">Choose Your Destination</h3>
           </div>
-          <span className="text-[9px] font-semibold text-[#64748b]">7 Portals</span>
+          <span className="text-[9px] font-semibold text-[#64748b]">8 Portals</span>
         </div>
 
         <div className="space-y-3">
           {cards.map((card, i) => {
-            const colors = ["#f59e0b", "#1877F2", "#f472b6", "#22c55e", "#38bdf8", "#1877F2", "#a855f7"];
+            const colors = ["#f59e0b", "#1877F2", "#22c55e", "#f472b6", "#38bdf8", "#c084fc", "#1877F2", "#a855f7"];
             const color = colors[i];
             const content = (
               <div className="relative flex min-h-[112px] items-center gap-3.5 overflow-hidden rounded-[21px] border bg-[#081020] p-3.5 shadow-[0_12px_35px_rgba(0,0,0,.2)]" style={{ borderColor: `${color}66` }}>
