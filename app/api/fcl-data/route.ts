@@ -43,32 +43,21 @@ function getRowValue(row: any, ...targetKeys: string[]): string {
   return "";
 }
 
-// 🌟 সঠিক ফর্মুলা অনুযায়ী রোল এবং এভারেজ ডিটেকশন ফাংশন
+// 🌟 প্লেয়ার পেজের সাথে হুবহু মিল রেখে সঠিক রোল ডিটেকশন ফাংশন
 function calculateAutomaticRole(runAvg: number, wkAvg: number, matches: number): string {
   if (matches === 0) return "Promising Player";
 
-  // ১. VIP All-Rounder (রান গড় ১৫+, উইকেট গড় ১.৫+)
-  if (runAvg >= 15 && wkAvg >= 1.5) {
+  if (runAvg >= 13 && wkAvg >= 1.5) {
     return "VIP All-Rounder";
-  } 
-  // ২. Bowling All-Rounder (রান গড় ১১+, উইকেট গড় ১.৫+)
-  else if (runAvg >= 11 && wkAvg >= 1.5) {
+  } else if (runAvg >= 9 && wkAvg >= 1.2) {
     return "Bowling All-Rounder";
-  } 
-  // ৩. All-Rounder (রান গড় ১১ থেকে ১৫ এর ভেতরে, উইকেট গড় ১.৫ এর নিচে)
-  else if (runAvg >= 11 && runAvg < 15 && wkAvg < 1.5 && wkAvg >= 0.8) {
+  } else if (runAvg >= 9 && wkAvg >= 0.8) {
     return "All-Rounder";
-  } 
-  // ৪. Batsman (রান গড় ১০ এর বেশি এবং উইকেট গড় ০.৮ এর কম)
-  else if (runAvg > 10 && wkAvg < 0.8) {
+  } else if (runAvg > 10 && wkAvg < 0.8) {
     return "Batsman";
-  } 
-  // ৫. Bowler (উইকেট গড় ১.০ বা তার বেশি, কিন্তু রান গড় ১০ এর কম)
-  else if (runAvg < 10 && wkAvg >= 1.0) {
+  } else if (runAvg < 10 && wkAvg >= 1.0) {
     return "Bowler";
-  } 
-  // ৬. বাকিরা প্রতিশ্রুতিশীল খেলোয়াড়
-  else {
+  } else {
     return "Promising Player";
   }
 }
@@ -98,7 +87,7 @@ export async function GET() {
         const innings = Number(row["Innings"]) || 0;
         const notOut = Number(row["Not Out"]) || 0;
 
-        // বোলিং এভারেজ (উইকেট প্রতি ম্যাচ বা এক্সেলের মান)
+        // বোলিং এভারেজ
         const rawWk = getRowValue(row, "Wk Avg.", "Wk Avg", "Bowling Avg", "Wicket Avg");
         let wkAvgNum = 0;
         if (rawWk && !isNaN(Number(rawWk)) && Number(rawWk) > 0) {
@@ -108,7 +97,7 @@ export async function GET() {
         }
         const wkAvg = wkAvgNum.toFixed(2);
 
-        // ব্যাটিং এভারেজ: total run / (total innings - not out inngs)
+        // ব্যাটিং এভারেজ
         const rawRun = getRowValue(row, "Run Avg.", "Run Avg", "Batting Avg");
         let runAvgNum = 0;
         if (rawRun && !isNaN(Number(rawRun)) && Number(rawRun) > 0) {
@@ -119,7 +108,7 @@ export async function GET() {
         }
         const runAvg = runAvgNum.toFixed(2);
 
-        // 🌟 সঠিক এভারেজ দিয়ে রোল ক্যালকুলেট করা হলো
+        // 🌟 সঠিক রোল ক্যালকুলেট করা হলো
         const role = calculateAutomaticRole(runAvgNum, wkAvgNum, matches);
 
         // 🌟 এক্সেলের শেষ কলামের 'Player Image' বা ছবির নাম রিড করা
@@ -156,7 +145,7 @@ export async function GET() {
           maxWickets: Number(row["Max Wickets In Tournament"]) || 0,
           runAvg,
           wkAvg,
-          photo: photoVal, // 🌟 ছবির নাম বা পাথ পাস করা হলো
+          photo: photoVal,
           photoUrl: photoVal,
         };
       });

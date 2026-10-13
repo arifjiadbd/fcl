@@ -35,6 +35,8 @@ interface Player {
   maxWickets?: number;
   runAvg?: string;
   wkAvg?: string;
+  photo?: string;
+  photoUrl?: string;
 }
 
 interface TournamentRecord {
@@ -86,9 +88,6 @@ export const calculateFclPoints = (p: Player): number => {
   );
 };
 
-/* =====================================================================
-   📱 MOBILE LAYOUT (শুধু ফোনে দেখাবে — md এর নিচে)
-   ===================================================================== */
 type MTabId = string;
 
 const MOBILE_TABS: { id: MTabId; label: string; icon: string }[] = [
@@ -116,7 +115,6 @@ const MOBILE_TABS: { id: MTabId; label: string; icon: string }[] = [
   { id: "tournaments", label: "Tournaments", icon: "🗓️" },
 ];
 
-// 🌟 ডায়মন্ড সবার উপরে এবং সিলভার সবার শেষে (হায়েস্ট থেকে লো)
 const TIERS = [
   { key: "Diamond", icon: "💎", title: "Diamond All-Rounder", range: "2500+ Runs • 150+ Wkts", test: (p: Player) => p.runs >= 2500 && p.wickets >= 150 },
   { key: "Gold", icon: "🥇", title: "Gold All-Rounder", range: "2000–2500 Runs • 100–150 Wkts", test: (p: Player) => p.runs >= 2000 && p.runs < 2500 && p.wickets >= 100 && p.wickets < 150 },
@@ -425,18 +423,6 @@ function MobileRecords({
   );
 }
 
-/* =====================================================================
-   🖥️ DESKTOP (PC) LAYOUT — বামে মেনু, ডানে লিস্ট
-   ===================================================================== */
-const initials = (name: string) =>
-  (name || "?")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("");
-
-// 🌟 বামের মেনুতে Elite অপশনটি Record Holders-এর পরেই দুই নম্বরে রাখা হলো
 const GROUPS: { title: string; ids: string[] }[] = [
   { title: "Overview", ids: ["records", "clubs"] },
   { title: "Batting", ids: ["runs", "sixes", "fours", "maxruns", "innings", "notout"] },
@@ -480,20 +466,26 @@ const ACCENT: Record<string, string> = {
 
 const TIER_COLOR: Record<string, string> = { Bronze: "#cd7f32", Silver: "#cbd5e1", Gold: "#fbbf24", Diamond: "#67e8f9" };
 
-function Avatar({ name, color, size = 44 }: { name: string; color: string; size?: number }) {
+// 🌟 ডেস্কটপ ও রেকর্ড পেজের জন্য আসল ছবি অথবা ডেমো ছবি রেন্ডারিং কম্পোনেন্ট
+function Avatar({ player, size = 44 }: { player: Player; size?: number }) {
+  const rawPhoto = player?.photo || player?.photoUrl;
+  const photoPath = rawPhoto && rawPhoto !== "—" && rawPhoto !== ""
+    ? (rawPhoto.startsWith("/") ? rawPhoto : `/players/${rawPhoto}`)
+    : `/FCL Cricket Avatar Placeholder.jpg`;
+
   return (
     <div
-      className="flex shrink-0 items-center justify-center rounded-full font-black text-white"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.36,
-        background: `linear-gradient(135deg, ${color}55, ${color}15)`,
-        border: `1.5px solid ${color}80`,
-        boxShadow: `0 0 18px ${color}30`,
-      }}
+      className="relative shrink-0 overflow-hidden rounded-full border border-[#1e293b] bg-[#0b1220]"
+      style={{ width: size, height: size }}
     >
-      {initials(name)}
+      <img
+        src={photoPath}
+        alt={player?.name || "Player"}
+        className="h-full w-full object-cover"
+        onError={(e) => {
+          e.currentTarget.src = "/FCL Cricket Avatar Placeholder.jpg";
+        }}
+      />
     </div>
   );
 }
@@ -526,7 +518,6 @@ function DesktopRecords({
     if (v && (tab === "records" || tab === "clubs")) changeTab("points");
   };
 
-  // 🌟 এ পর্যন্ত মোট কতটি টুর্নামেন্ট হয়েছে (tournamentsData থেকে ইউনিক টুর্নামেন্ট গণণা)
   const totalTournamentsCount = useMemo(() => {
     if (!tournamentsData || tournamentsData.length === 0) return 0;
     const uniqueTournaments = new Set(tournamentsData.map((t) => (t.tournament || "").trim().toLowerCase()));
@@ -542,7 +533,6 @@ function DesktopRecords({
     [players, totalTournamentsCount]
   );
 
-  // Hall of fame (record holders)
   const holders = useMemo(() => {
     const top = (fn: (p: Player) => number) => [...players].sort((a, b) => fn(b) - fn(a))[0];
     const defs = [
@@ -600,7 +590,6 @@ function DesktopRecords({
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(ellipse_at_top,rgba(245,158,11,0.10),transparent_60%)]" />
 
       <div className="relative mx-auto max-w-[1400px] px-8 pb-20 pt-8">
-        {/* Top bar */}
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <Link
@@ -633,7 +622,6 @@ function DesktopRecords({
           </div>
         </div>
 
-        {/* 🌟 Stat strip (6s বাদ দিয়ে মোট টুর্নামেন্ট যোগ করা হলো) */}
         <div className="mt-8 grid grid-cols-4 overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220]/70 backdrop-blur">
           {[
             { label: "Players", value: players.length, color: "#f59e0b" },
@@ -650,9 +638,7 @@ function DesktopRecords({
           ))}
         </div>
 
-        {/* Body */}
         <div className="mt-8 grid grid-cols-[270px_1fr] gap-8">
-          {/* Sidebar */}
           <aside className="self-start">
             <nav className="sticky top-6 max-h-[calc(100vh-3rem)] space-y-5 overflow-y-auto rounded-3xl border border-[#1e293b] bg-[#0b1220]/80 p-4 [scrollbar-width:thin]">
               {GROUPS.map((g) => (
@@ -684,14 +670,12 @@ function DesktopRecords({
             </nav>
           </aside>
 
-          {/* Content */}
           <section className="min-w-0">
             {loading ? (
               <div className="flex h-96 items-center justify-center text-sm font-semibold text-[#f59e0b] animate-pulse">
                 Compiling FCL All-Time Records from Database, please be patient...
               </div>
             ) : tab === "records" ? (
-              /* ---------------- HALL OF FAME ---------------- */
               <div>
                 <div className="mb-5">
                   <h2 className="text-2xl font-black">Hall of Fame</h2>
@@ -721,12 +705,12 @@ function DesktopRecords({
                         </p>
                         <p className="mt-1.5 text-xs font-semibold text-slate-400">{h.unit}</p>
                         <div className="mt-6 flex items-center gap-3 border-t border-white/10 pt-4">
-                          <Avatar name={h.player.name} color={c} size={42} />
-                          <div className="min-w-0">
-                            <p className="truncate text-base font-black text-white">{h.player.name}</p>
-                            <p className="truncate text-xs font-semibold text-slate-400">@{h.player.nickName || "Player"}</p>
-                          </div>
-                        </div>
+  <Avatar player={h.player} size={42} />
+  <div className="min-w-0 flex-1">
+    <p className="text-sm font-black text-white leading-tight break-words line-clamp-2">{h.player.name}</p>
+    <p className="truncate text-xs font-semibold text-slate-400 mt-0.5">@{h.player.nickName || "Player"}</p>
+  </div>
+</div>
                       </button>
                     );
                   })}
@@ -754,16 +738,15 @@ function DesktopRecords({
                           <p className="pb-0.5 text-[11px] font-semibold text-slate-500">{h.unit}</p>
                         </div>
                         <div className="mt-3 flex items-center gap-2.5 border-t border-[#172033] pt-3">
-                          <Avatar name={h.player.name} color={c} size={30} />
-                          <p className="truncate text-sm font-bold text-white transition group-hover:text-[var(--c)]">{h.player.name}</p>
-                        </div>
+  <Avatar player={h.player} size={30} />
+  <p className="text-xs font-bold text-white transition group-hover:text-[var(--c)] leading-tight break-words line-clamp-2">{h.player.name}</p>
+</div>
                       </button>
                     );
                   })}
                 </div>
               </div>
             ) : tab === "clubs" ? (
-              /* ---------------- ELITE CLUBS (ডায়মন্ড সবার উপরে, সিলভার সবার শেষে) ---------------- */
               <div>
                 <div className="mb-5">
                   <h2 className="text-2xl font-black">💎 Elite Milestone Clubs</h2>
@@ -813,12 +796,10 @@ function DesktopRecords({
                                 onClick={() => onSelect(p)}
                                 className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-white/[0.05]"
                               >
-                                <Avatar name={p.name} color={c} size={36} />
+                                <Avatar player={p} size={36} />
                                 <div className="min-w-0 flex-1">
                                   <p className="truncate text-sm font-bold text-white">{p.name}</p>
-                                  <p className="truncate text-[11px] text-slate-400">
-                                    @{p.nickName || "Player"} • {p.matches} Matches
-                                  </p>
+                                  <p className="truncate text-[11px] text-slate-400">@{p.nickName || "Player"} • {p.matches} Matches</p>
                                 </div>
                                 <div className="text-right text-xs font-black">
                                   <span className="text-[#60a5fa]">{p.runs}R</span>
@@ -835,7 +816,6 @@ function DesktopRecords({
                 </div>
               </div>
             ) : (
-              /* ---------------- LEADERBOARD ---------------- */
               <div>
                 <div className="mb-6 flex items-end justify-between gap-4">
                   <div>
@@ -866,7 +846,6 @@ function DesktopRecords({
                   </div>
                 ) : (
                   <>
-                    {/* Podium */}
                     <div className="grid grid-cols-3 items-end gap-5">
                       {podiumOrder.map((i) => {
                         const r = podium[i];
@@ -892,7 +871,7 @@ function DesktopRecords({
                               {i + 1}
                             </span>
                             <div className="flex justify-center">
-                              <Avatar name={r.player.name} color={m} size={first ? 76 : 62} />
+                              <Avatar player={r.player} size={first ? 76 : 62} />
                             </div>
                             <p className={`mt-4 truncate font-black text-white ${first ? "text-xl" : "text-lg"}`}>{r.player.name}</p>
                             <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">@{r.player.nickName || "Player"}</p>
@@ -911,7 +890,6 @@ function DesktopRecords({
                       })}
                     </div>
 
-                    {/* Rest of the list */}
                     {rest.length > 0 && (
                       <div className="mt-6 overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220]">
                         <div className="grid grid-cols-[56px_1fr_220px_160px_110px] gap-4 border-b border-[#172033] px-5 py-3 text-xs font-bold text-slate-500">
@@ -932,7 +910,7 @@ function DesktopRecords({
                                 {idx + 4}
                               </span>
                               <span className="flex min-w-0 items-center gap-3">
-                                <Avatar name={r.player.name} color={accent} size={34} />
+                                <Avatar player={r.player} size={34} />
                                 <span className="min-w-0">
                                   <span className="block truncate text-sm font-bold text-white">{r.player.name}</span>
                                   <span className="block truncate text-[11px] text-slate-500">@{r.player.nickName || "Player"}</span>
@@ -959,9 +937,6 @@ function DesktopRecords({
   );
 }
 
-/* =====================================================================
-   MAIN PAGE — ফোনে MobileRecords, পিসিতে DesktopRecords
-   ===================================================================== */
 export default function RecordsPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [tournamentsData, setTournamentsData] = useState<TournamentRecord[]>([]);
@@ -990,17 +965,14 @@ export default function RecordsPage() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-white selection:bg-[#f59e0b]/30 selection:text-white">
-      {/* 📱 ফোন ভিউ (md এর নিচে) */}
       <div className="md:hidden">
         <MobileRecords players={players} loading={loading} onSelect={(p) => setSelectedPlayer(p)} />
       </div>
 
-      {/* 🖥️ পিসি ভিউ (md এবং তার উপরে) */}
       <div className="hidden md:block">
         <DesktopRecords players={players} tournamentsData={tournamentsData} loading={loading} onSelect={(p) => setSelectedPlayer(p)} />
       </div>
 
-      {/* CENTRALIZED PLAYER CARD MODAL */}
       <PlayerCardModal
         selectedPlayer={selectedPlayer}
         onClose={() => setSelectedPlayer(null)}
