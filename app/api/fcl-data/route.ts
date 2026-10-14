@@ -43,7 +43,7 @@ function getRowValue(row: any, ...targetKeys: string[]): string {
   return "";
 }
 
-// 🌟 প্লেয়ার পেজের সাথে হুবহু মিল রেখে সঠিক রোল ডিটেকশন ফাংশন
+// 🌟 প্লেয়ার পেজের সাথে হুবহু মিল রেখে সঠিক রোল ডিটেকশন ফাংশন
 function calculateAutomaticRole(runAvg: number, wkAvg: number, matches: number): string {
   if (matches === 0) return "Promising Player";
 
@@ -114,6 +114,9 @@ export async function GET() {
         // 🌟 এক্সেলের শেষ কলামের 'Player Image' বা ছবির নাম রিড করা
         const photoVal = getRowValue(row, "Player Image", "PlayerImage", "Photo", "Image") || "";
 
+        // 🌟 বার্থডে বা জন্মতারিখ রিড করা (Excel column: Birthday)
+        const birthdayVal = getRowValue(row, "Birthday", "Birth Date", "DOB", "BirthDay") || "—";
+
         return {
           id: index + 1,
           name: String(row["Full Name"] || "").trim(),
@@ -145,6 +148,7 @@ export async function GET() {
           maxWickets: Number(row["Max Wickets In Tournament"]) || 0,
           runAvg,
           wkAvg,
+          birthday: birthdayVal, // 🌟 বার্থডে প্রপার্টি যুক্ত করা হলো
           photo: photoVal,
           photoUrl: photoVal,
         };

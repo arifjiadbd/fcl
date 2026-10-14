@@ -36,6 +36,7 @@ interface Player {
   wkAvg?: string;
   photo?: string;
   photoUrl?: string;
+  birthday?: string;
 }
 
 interface TournamentRecord {
@@ -178,6 +179,19 @@ const THEMES = {
   },
 } as const;
 
+function formatBirthdayDate(val: any): string {
+  if (!val || val === "—") return "";
+  const num = Number(val);
+  if (!isNaN(num) && num > 20000 && num < 60000) {
+    const utcDays = Math.floor(num - 25569);
+    const dateInfo = new Date(utcDays * 86400 * 1000);
+    const day = String(dateInfo.getUTCDate()).padStart(2, "0");
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    return `${day} ${months[dateInfo.getUTCMonth()]}`;
+  }
+  return String(val).trim();
+}
+
 function formatFullMonthDate(val: any): string {
   if (!val) return "";
   const num = Number(val);
@@ -267,6 +281,8 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
   const playerPhotoPath = rawPhoto && rawPhoto !== "—" && rawPhoto !== ""
     ? (rawPhoto.startsWith("/") ? rawPhoto : `/players/${rawPhoto}`)
     : `/FCL Cricket Avatar Placeholder.jpg`;
+
+  const formattedBirthday = formatBirthdayDate(selectedPlayer.birthday);
 
   const handleDownloadCard = async () => {
     if (!cardRef.current) return;
@@ -479,11 +495,12 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                     <p className={`text-xs font-semibold ${T.label}`}>Facebook Cricket League (FCL)</p>
                   </div>
                 </div>
-                <span className={`rounded-md border border-amber-500/50 bg-amber-500/10 px-2.5 py-1 text-xs font-bold ${T.amber}`}>OFFICIAL</span>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-md border border-amber-500/50 bg-amber-500/10 px-2.5 py-1 text-xs font-bold ${T.amber}`}>OFFICIAL</span>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                {/* 🌟 আসল প্লেয়ারের ছবি অথবা ডেমো ছবি */}
                 <div className={`relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border-2 p-1 ${T.surface} ${cardTheme === "dark" ? "!border-sky-400/40" : "!border-sky-300"}`}>
                   <img
                     src={imgError ? "/FCL Cricket Avatar Placeholder.jpg" : playerPhotoPath}
@@ -495,7 +512,14 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                 </div>
 
                 <div className={`col-span-2 flex flex-col justify-center rounded-xl border p-3.5 ${T.surface}`}>
-                  <Lbl>Player Name</Lbl>
+                  <div className="flex items-center justify-between gap-2">
+                    <Lbl>Player Name</Lbl>
+                    {formattedBirthday && (
+                      <span className="rounded-md border border-pink-500/50 bg-pink-500/10 px-2 py-0.5 text-[10px] font-black text-pink-400">
+                        🎂 {formattedBirthday}
+                      </span>
+                    )}
+                  </div>
                   <h4 className={`mt-1 break-words text-base sm:text-lg font-black leading-tight ${T.text}`}>{selectedPlayer.name}</h4>
                   {selectedPlayer.nickName && <p className={`mt-0.5 text-xs font-bold ${T.blue}`}>@{selectedPlayer.nickName}</p>}
                   
@@ -545,7 +569,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                 </div>
               </div>
 
-              {/* 🌟 অল-টাইম লিগ র‍্যাঙ্কিং সেকশন */}
               <div className={`rounded-2xl border-2 p-3.5 sm:p-4 text-center shadow-lg ${T.heroBox}`}>
                 <div className={`flex flex-col sm:flex-row items-center justify-between gap-2 border-b pb-2.5 ${T.heroHead}`}>
                   <p className={`flex items-center gap-2 text-xs sm:text-sm font-black uppercase tracking-widest ${T.heroTitle}`}>
