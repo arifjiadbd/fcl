@@ -180,14 +180,14 @@ const THEMES = {
 } as const;
 
 function formatBirthdayDate(val: any): string {
-  if (!val || val === "—") return "";
+  if (!val || val === "—") return "—";
   const num = Number(val);
   if (!isNaN(num) && num > 20000 && num < 60000) {
     const utcDays = Math.floor(num - 25569);
     const dateInfo = new Date(utcDays * 86400 * 1000);
     const day = String(dateInfo.getUTCDate()).padStart(2, "0");
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    return `${day} ${months[dateInfo.getUTCMonth()]}`;
+    return `${day} ${months[dateInfo.getUTCMonth()]} ${dateInfo.getUTCFullYear()}`;
   }
   return String(val).trim();
 }
@@ -281,8 +281,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
   const playerPhotoPath = rawPhoto && rawPhoto !== "—" && rawPhoto !== ""
     ? (rawPhoto.startsWith("/") ? rawPhoto : `/players/${rawPhoto}`)
     : `/FCL Cricket Avatar Placeholder.jpg`;
-
-  const formattedBirthday = formatBirthdayDate(selectedPlayer.birthday);
 
   const handleDownloadCard = async () => {
     if (!cardRef.current) return;
@@ -514,9 +512,9 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                 <div className={`col-span-2 flex flex-col justify-center rounded-xl border p-3.5 ${T.surface}`}>
                   <div className="flex items-center justify-between gap-2">
                     <Lbl>Player Name</Lbl>
-                    {formattedBirthday && (
+                    {selectedPlayer.birthday && selectedPlayer.birthday !== "—" && (
                       <span className="rounded-md border border-pink-500/50 bg-pink-500/10 px-2 py-0.5 text-[10px] font-black text-pink-400">
-                        🎂 {formattedBirthday}
+                        🎂 {formatBirthdayDate(selectedPlayer.birthday)}
                       </span>
                     )}
                   </div>
@@ -740,14 +738,10 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                   <table className="w-full border-collapse text-[13px]">
                     <tbody>
                       {kv("Player Name", <span className={T.text}>{selectedPlayer.name}</span>, "Nickname", <span className={T.blue}>{selectedPlayer.nickName ? `@${selectedPlayer.nickName}` : "—"}</span>, T.keyBlue)}
-                      {kv("Role", <span className={T.amber}>{selectedPlayer.role || "—"}</span>, "Debut Date", <span className={T.blue}>{formatFullMonthDate(selectedPlayer.debutYear) || "—"}</span>, T.keyBlue)}
-                      {kv("Debut Tournament", <span className={T.green}>{getDebutTournament(selectedPlayer)}</span>, "Debut Team", <span className={T.text}>{selectedPlayer.debutTeam || "—"}</span>, T.keyBlue)}
-                      {kv("Total Tournaments", <span className={T.green}>{selectedPlayer.totalTournament ?? 0}</span>, "Total Finals", <span className={T.gold}>{selectedPlayer.totalFinal ?? 0}</span>, T.keyBlue)}
-
-                      <tr className={`border-b ${T.rowLine}`}>
-                        <td className={`px-4 py-3 font-bold ${T.keyBlue}`}>Last Played Tournament</td>
-                        <td colSpan={3} className={`px-4 py-3 font-black ${T.amber}`}>🏟️ {selectedPlayer.lastPlayed || "—"}</td>
-                      </tr>
+                      {kv("Role", <span className={T.amber}>{selectedPlayer.role || "—"}</span>, "Birthdate", <span className={T.pink}>{selectedPlayer.birthday && selectedPlayer.birthday !== "—" ? formatBirthdayDate(selectedPlayer.birthday) : "—"}</span>, T.keyBlue)}
+                      {kv("Debut Date", <span className={T.blue}>{formatFullMonthDate(selectedPlayer.debutYear) || "—"}</span>, "Debut Tournament", <span className={T.green}>{getDebutTournament(selectedPlayer)}</span>, T.keyBlue)}
+                      {kv("Debut Team", <span className={T.text}>{selectedPlayer.debutTeam || "—"}</span>, "Total Tournaments", <span className={T.green}>{selectedPlayer.totalTournament ?? 0}</span>, T.keyBlue)}
+                      {kv("Total Finals", <span className={T.gold}>{selectedPlayer.totalFinal ?? 0}</span>, "Last Played", <span className={T.amber}>{selectedPlayer.lastPlayed || "—"}</span>, T.keyBlue)}
 
                       {kv("Total Matches", <span className={T.text}>{selectedPlayer.matches}</span>, "Batting / Bowling Avg", <span className={T.text}>{selectedPlayer.runAvg || "0.00"} / {getSafeWkAvg(selectedPlayer)}</span>, T.keyBlue)}
                       {kv("Total Runs & Max", <span className={T.green}>{selectedPlayer.runs} ({selectedPlayer.maxRuns ?? "—"})</span>, "Total Wickets & Max", <span className={T.amber}>{selectedPlayer.wickets} ({selectedPlayer.maxWickets ?? "—"})</span>, T.keyBlue)}
