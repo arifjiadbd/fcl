@@ -64,12 +64,15 @@ export default function Navbar() {
     },
   ];
 
+  // চেক করা বর্তমান পেজ কি বাংলা ভার্সন (/bn) কিনা
+  const isBanglaPage = pathname === "/bn";
+
   return (
     <header ref={dropdownRef} className="sticky top-0 z-50 border-b border-white/10 bg-[#020617]/90 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         
         {/* লোগো */}
-        <Link href="/" className="flex items-center gap-2.5 group">
+        <Link href={isBanglaPage ? "/bn" : "/"} className="flex items-center gap-2.5 group">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600/20 border border-blue-500/40 p-1.5 shadow">
             <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain" />
           </div>
@@ -84,12 +87,12 @@ export default function Navbar() {
         {/* 💻 পিসি ভিউ নেভিগেশন (ক্যাটেগরি ও সাব-মেনু) */}
         <nav className="hidden lg:flex items-center gap-2">
           <Link
-            href="/"
+            href={isBanglaPage ? "/bn" : "/"}
             className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
-              pathname === "/" ? "bg-blue-600 text-white shadow" : "text-slate-300 hover:bg-white/5 hover:text-white"
+              pathname === "/" || pathname === "/bn" ? "bg-blue-600 text-white shadow" : "text-slate-300 hover:bg-white/5 hover:text-white"
             }`}
           >
-            🏠 Home
+            🏠 {isBanglaPage ? "হোম" : "Home"}
           </Link>
 
           {categories.map((cat) => {
@@ -134,13 +137,14 @@ export default function Navbar() {
           })}
         </nav>
 
-        {/* ডানপাশে বাংলা ভার্সন ও মোবাইল মেনু টগল */}
+        {/* ডানপাশে ভাষা পরিবর্তন বাটন ও মোবাইল মেনু টগল */}
         <div className="flex items-center gap-3">
           <Link
-            href="/bn"
-            className="rounded-xl border border-blue-500/40 bg-blue-500/15 px-3.5 py-2 text-xs font-bold text-sky-300 transition hover:bg-blue-600 hover:text-white"
+            href={isBanglaPage ? "/" : "/bn"}
+            className="rounded-xl border border-blue-500/40 bg-blue-500/15 px-3.5 py-2 text-xs font-bold text-sky-300 transition hover:bg-blue-600 hover:text-white flex items-center gap-1.5"
           >
-            💙 বাংলা ভার্সন
+            <span>{isBanglaPage ? "🇬🇧" : "💙"}</span>
+            <span>{isBanglaPage ? "English Version" : "বাংলা ভার্সন"}</span>
           </Link>
 
           <button
@@ -157,13 +161,13 @@ export default function Navbar() {
       {mobileMenuOpen && (
         <div className="border-t border-slate-800 bg-[#080d17]/95 px-4 py-5 backdrop-blur-2xl lg:hidden max-h-[80vh] overflow-y-auto space-y-5 animate-in slide-in-from-top duration-200">
           <Link
-            href="/"
+            href={isBanglaPage ? "/bn" : "/"}
             className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${
-              pathname === "/" ? "bg-blue-600 text-white shadow" : "bg-white/5 text-slate-200"
+              pathname === "/" || pathname === "/bn" ? "bg-blue-600 text-white shadow" : "bg-white/5 text-slate-200"
             }`}
           >
             <span>🏠</span>
-            <span>Home</span>
+            <span>{isBanglaPage ? "হোম" : "Home"}</span>
           </Link>
 
           {categories.map((cat) => (

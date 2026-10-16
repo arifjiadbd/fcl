@@ -190,6 +190,28 @@ export default function BanglaHome() {
       footerText: "প্রবেশ করুন",
     },
     {
+      href: "/birthday",
+      color: "#ec4899",
+      badgeText: "বার্থডে কর্নার",
+      badgeIcon: "🎂",
+      cornerIcon: "🎉",
+      title: "জন্মদিন উদযাপন",
+      description:
+        "এফসিএল তারকাদের জন্মদিন উদযাপন করুন! জন্মতারিখ দেখুন এবং অটো-জেনারেটেড শুভেচ্ছা কার্ড ডাউনলোড করুন।",
+      footerText: "প্রবেশ করুন",
+    },
+    {
+      href: "/matches",
+      color: "#16a34a",
+      badgeText: "ম্যাচ আর্কাইভ",
+      badgeIcon: "📅",
+      cornerIcon: "🏟️",
+      title: "ম্যাচ ডিরেক্টরি ও ইতিহাস",
+      description:
+        "বিভিন্ন বছরের টুর্নামেন্ট হোম পেজ, সিরিজ ম্যাচ, প্রীতি ম্যাচ এবং টেস্ট ম্যাচ আর্কাইভ ব্রাউজ করুন।",
+      footerText: "প্রবেশ করুন",
+    },
+    {
       href: "/memories",
       color: "#db2777",
       badgeText: "নস্টালজিয়া",
@@ -202,7 +224,7 @@ export default function BanglaHome() {
     },
     {
       href: "/players",
-      color: "#16a34a",
+      color: "#0284c7",
       badgeText: "স্কোয়াড ডিরেক্টরি",
       badgeIcon: "👥",
       cornerIcon: "🏏",
@@ -213,7 +235,7 @@ export default function BanglaHome() {
     },
     {
       href: "/rules",
-      color: "#0284c7",
+      color: "#9333ea",
       badgeText: "রুলবুক",
       badgeIcon: "📜",
       cornerIcon: "⚖️",
@@ -234,15 +256,26 @@ export default function BanglaHome() {
       footerText: "এফসিএল অনলাইনে যান",
     },
     {
+      href: "/thrillers",
       color: "#9333ea",
       badgeText: "থ্রিলার",
       badgeIcon: "⚡",
       cornerIcon: "🔥",
       title: "উত্তেজনাপূর্ণ ম্যাচসমূহ",
       description:
-        "সবচেয়ে তীব্র ও রোমাঞ্চকর ফিনিশিং এবং মহাকাব্যিক টুর্নামেন্ট যুদ্ধের ম্যাচগুলো পুনরায় উপভোগ করুন। (শীঘ্রই আসছে)",
-      footerText: "শীঘ্রই আসছে",
-      comingSoon: true,
+        "সবচেয়ে তীব্র ও রোমাঞ্চকর ফিনিশিং এবং মহাকাব্যিক টুর্নামেন্ট যুদ্ধের ম্যাচগুলোর বিস্তারিত দেখুন।",
+      footerText: "ম্যাচগুলো দেখুন",
+    },
+    {
+      href: "/extraordinary",
+      color: "#06b6d4",
+      badgeText: "হিরোইকস",
+      badgeIcon: "🌟",
+      cornerIcon: "💎",
+      title: "অসাধারণ পারফরম্যান্স",
+      description:
+        "চোখে পড়ার মতো একক পারফরম্যান্স, ম্যাচ জেতানো হ্যাট্রিক এবং বিধ্বংসী ইনিংসগুলোর মুহূর্ত উপভোগ করুন।",
+      footerText: "পারফরম্যান্স দেখুন",
     },
   ];
 
@@ -310,7 +343,7 @@ export default function BanglaHome() {
 
       {/* ================================================================
           DESKTOP HERO — white theme structure
-         ================================================================ */}
+          ================================================================ */}
       <section className="relative hidden min-h-[calc(100vh-76px)] overflow-hidden border-b border-slate-200 bg-slate-50/50 sm:block">
         <div className="absolute inset-0 bg-slate-50/50" />
         <div className="absolute inset-0 fcl-grid-bg" />
@@ -368,7 +401,7 @@ export default function BanglaHome() {
 
       {/* ================================================================
           DESKTOP PORTALS — white background theme
-         ================================================================ */}
+          ================================================================ */}
       <section id="gateways" className="relative hidden overflow-hidden bg-white px-6 py-28 sm:block">
         <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-blue-500/5 blur-[150px]" />
         <div className="mx-auto max-w-7xl relative z-10">
@@ -385,19 +418,19 @@ export default function BanglaHome() {
 
       {/* ================================================================
           MOBILE PORTALS — white background compact app cards
-         ================================================================ */}
+          ================================================================ */}
       <section id="mobile-gateways" className="relative overflow-hidden bg-white px-4 pb-8 pt-6 sm:hidden">
         <div className="mb-4 flex items-end justify-between px-1">
           <div>
             <span className="text-[8px] font-black uppercase tracking-[0.28em] text-sky-600">এফসিএল নেভিগেশন</span>
             <h3 className="mt-1 text-[24px] font-black tracking-tight text-slate-900">আপনার গন্তব্য বেছে নিন</h3>
           </div>
-          <span className="text-[9px] font-semibold text-slate-500">৭টি পোর্টাল</span>
+          <span className="text-[9px] font-semibold text-slate-500">১০টি পোর্টাল</span>
         </div>
 
         <div className="space-y-3">
           {cards.map((card, i) => {
-            const colors = ["#d97706", "#1877F2", "#db2777", "#16a34a", "#0284c7", "#1877F2", "#9333ea"];
+            const colors = ["#d97706", "#1877F2", "#ec4899", "#16a34a", "#db2777", "#0284c7", "#9333ea", "#1877F2", "#9333ea", "#06b6d4"];
             const color = colors[i];
             const content = (
               <div className="relative flex min-h-[112px] items-center gap-3.5 overflow-hidden rounded-[21px] border bg-slate-50/70 p-3.5 shadow-sm" style={{ borderColor: `${color}40` }}>
