@@ -256,15 +256,26 @@ export default function Home() {
       footerText: "Enter FCL Online",
     },
     {
+      href: "/thrillers",
       color: "#a855f7",
       badgeText: "THRILLER",
       badgeIcon: "⚡",
       cornerIcon: "🔥",
       title: "High Voltage Matches",
       description:
-        "Relive the most intense nail-biting matches, thrilling finishes, and epic tournament battles. (Coming Soon)",
-      footerText: "Coming Soon",
-      comingSoon: true,
+        "Relive the most intense nail-biting matches, thrilling finishes, and heroic nail-biting tournament victories.",
+      footerText: "Explore Matches",
+    },
+    {
+      href: "/extraordinary",
+      color: "#22d3ee",
+      badgeText: "HEROICS",
+      badgeIcon: "🌟",
+      cornerIcon: "💎",
+      title: "Extraordinary Performance",
+      description:
+        "Witness jaw-dropping individual masterclasses, match-winning hat-tricks, and explosive 50+ knocks.",
+      footerText: "Explore Masterclasses",
     },
   ];
 
@@ -413,12 +424,12 @@ export default function Home() {
             <span className="text-[8px] font-black uppercase tracking-[0.28em] text-[#38bdf8]">FCL Navigation</span>
             <h3 className="mt-1 text-[24px] font-black tracking-tight text-white">Choose Your Destination</h3>
           </div>
-          <span className="text-[9px] font-semibold text-[#64748b]">9 Portals</span>
+          <span className="text-[9px] font-semibold text-[#64748b]">10 Portals</span>
         </div>
 
         <div className="space-y-3">
           {cards.map((card, i) => {
-            const colors = ["#f59e0b", "#1877F2", "#ec4899", "#22c55e", "#f472b6", "#38bdf8", "#c084fc", "#1877F2", "#a855f7"];
+            const colors = ["#f59e0b", "#1877F2", "#ec4899", "#22c55e", "#f472b6", "#38bdf8", "#c084fc", "#1877F2", "#a855f7", "#22d3ee"];
             const color = colors[i];
             const content = (
               <div className="relative flex min-h-[112px] items-center gap-3.5 overflow-hidden rounded-[21px] border bg-[#081020] p-3.5 shadow-[0_12px_35px_rgba(0,0,0,.2)]" style={{ borderColor: `${color}66` }}>
