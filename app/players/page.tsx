@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import PlayerCardModal from "../../components/PlayerCardModal";
+
+/* ───────────────────────── Types ───────────────────────── */
 
 interface Player {
   id?: number;
@@ -61,6 +63,8 @@ interface TournamentRecord {
   topWicket: number;
 }
 
+/* ───────────────────── Role & points logic ───────────────────── */
+
 export const getAutomaticRole = (player: Player): string => {
   const matches = Number(player.matches) || 0;
   if (matches === 0) return "Promising Player";
@@ -115,6 +119,8 @@ export const calculateFclPoints = (p: Player): number => {
   );
 };
 
+/* ───────────────────────── Constants ───────────────────────── */
+
 const PAGE_SIZE = 12;
 
 const ROLES = [
@@ -127,76 +133,129 @@ const ROLES = [
   "Promising Player",
 ];
 
+const ROLE_ICONS: Record<string, string> = {
+  All: "🌐",
+  "VIP All-Rounder": "👑",
+  "Bowling All-Rounder": "⚡",
+  "All-Rounder": "⭐",
+  Batsman: "🏏",
+  Bowler: "🎯",
+  "Promising Player": "🌱",
+};
+
 const SORTS = [
-  { key: "name", label: "Name (A–Z)" },
-  { key: "points", label: "FCL Points" },
-  { key: "runs", label: "Most Runs" },
-  { key: "wickets", label: "Most Wickets" },
-  { key: "matches", label: "Most Matches" },
+  { key: "name", label: "Name (A–Z)", short: "A–Z", icon: "🔤" },
+  { key: "points", label: "FCL Points", short: "Points", icon: "💯" },
+  { key: "runs", label: "Most Runs", short: "Runs", icon: "🏏" },
+  { key: "wickets", label: "Most Wickets", short: "Wickets", icon: "🎯" },
+  { key: "matches", label: "Most Matches", short: "Matches", icon: "⚡" },
 ] as const;
 
 type SortKey = (typeof SORTS)[number]["key"];
+type ViewKey = "grid" | "list";
 
-const ROLE_STYLE: Record<string, { badge: string; bar: string; dot: string }> = {
+const ROLE_STYLE: Record<
+  string,
+  { badge: string; bar: string; dot: string; text: string; ring: string; icon: string; rule: string }
+> = {
   "VIP All-Rounder": {
     badge: "border-amber-400/40 bg-amber-400/10 text-amber-600 dark:text-amber-300",
     bar: "bg-amber-400",
     dot: "bg-amber-400",
+    text: "text-amber-400",
+    ring: "border-amber-400/50 bg-amber-500/10",
+    icon: "👑",
+    rule: "Batting Avg ≥ 13 and Wicket Avg ≥ 1.5",
   },
   "Bowling All-Rounder": {
     badge: "border-violet-400/40 bg-violet-400/10 text-violet-600 dark:text-violet-300",
     bar: "bg-violet-400",
     dot: "bg-violet-400",
+    text: "text-violet-400",
+    ring: "border-violet-400/50 bg-violet-500/10",
+    icon: "⚡",
+    rule: "Batting Avg ≥ 9 and Wicket Avg ≥ 1.2",
   },
   "All-Rounder": {
     badge: "border-emerald-400/40 bg-emerald-400/10 text-emerald-600 dark:text-emerald-300",
     bar: "bg-emerald-400",
     dot: "bg-emerald-400",
+    text: "text-emerald-400",
+    ring: "border-emerald-400/50 bg-emerald-500/10",
+    icon: "⭐",
+    rule: "Batting Avg ≥ 9 and Wicket Avg ≥ 0.8",
   },
   Batsman: {
     badge: "border-sky-400/40 bg-sky-400/10 text-sky-600 dark:text-sky-300",
     bar: "bg-sky-400",
     dot: "bg-sky-400",
+    text: "text-sky-400",
+    ring: "border-sky-400/50 bg-sky-500/10",
+    icon: "🛡️",
+    rule: "Batting Avg > 10 and Wicket Avg < 0.8",
   },
   Bowler: {
     badge: "border-rose-400/40 bg-rose-400/10 text-rose-600 dark:text-rose-300",
     bar: "bg-rose-400",
     dot: "bg-rose-400",
+    text: "text-rose-400",
+    ring: "border-rose-400/50 bg-rose-500/10",
+    icon: "🎯",
+    rule: "Wicket Avg ≥ 1.0 and Batting Avg < 10",
   },
   "Promising Player": {
     badge: "border-slate-400/40 bg-slate-400/10 text-slate-600 dark:text-slate-300",
     bar: "bg-slate-400",
     dot: "bg-slate-400",
+    text: "text-slate-300",
+    ring: "border-slate-400/50 bg-slate-500/10",
+    icon: "🌱",
+    rule: "Other developing or rookie players",
   },
 };
 
 const getRoleStyle = (role: string) => ROLE_STYLE[role] || ROLE_STYLE["Promising Player"];
 
-const getInitials = (name: string) =>
-  (name || "?")
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("");
+const RANK_STYLE = [
+  "bg-gradient-to-br from-amber-300 to-amber-500 text-amber-950",
+  "bg-gradient-to-br from-slate-200 to-slate-400 text-slate-900",
+  "bg-gradient-to-br from-orange-300 to-orange-600 text-orange-950",
+];
 
-function Avatar({ player, size }: { player: Player; size: "sm" | "md" | "lg" }) {
+/* ───────────────────────── Hooks ───────────────────────── */
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const update = () => setMatches(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [query]);
+  return matches;
+}
+
+/* ───────────────────────── Small UI pieces ───────────────────────── */
+
+const PLACEHOLDER = "/FCL Cricket Avatar Placeholder.jpg";
+
+function Avatar({ player, className }: { player: Player; className: string }) {
   const [failed, setFailed] = useState(false);
-  
-  // 🌟 এক্সেল থেকে আসা ছবি অথবা ডেমো ছবি
   const rawPhoto = player.photo || player.photoUrl;
-  const photoPath = rawPhoto && rawPhoto !== "—" && rawPhoto !== ""
-    ? (rawPhoto.startsWith("/") ? rawPhoto : `/players/${rawPhoto}`)
-    : `/FCL Cricket Avatar Placeholder.jpg`;
-
-  const dims = size === "lg" ? "h-16 w-16 text-lg" : size === "md" ? "h-14 w-14 text-base" : "h-10 w-10 text-xs";
+  const photoPath =
+    rawPhoto && rawPhoto !== "—" && rawPhoto !== ""
+      ? rawPhoto.startsWith("/")
+        ? rawPhoto
+        : `/players/${rawPhoto}`
+      : PLACEHOLDER;
 
   return (
     <div
-      className={`relative shrink-0 overflow-hidden rounded-2xl border border-[#1877F2]/40 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-[#16224a] dark:to-[#0b1220] ${dims}`}
+      className={`relative shrink-0 overflow-hidden border border-[#1877F2]/40 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-[#16224a] dark:to-[#0b1220] ${className}`}
     >
       <img
-        src={failed ? "/FCL Cricket Avatar Placeholder.jpg" : photoPath}
+        src={failed ? PLACEHOLDER : photoPath}
         alt={player.name}
         loading="lazy"
         className="h-full w-full object-cover"
@@ -206,17 +265,345 @@ function Avatar({ player, size }: { player: Player; size: "sm" | "md" | "lg" }) 
   );
 }
 
-function RoleBadge({ role }: { role: string }) {
+function RoleBadge({ role, small }: { role: string; small?: boolean }) {
   const s = getRoleStyle(role);
   return (
     <span
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[10px] font-bold sm:text-[11px] ${s.badge}`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border font-bold ${s.badge} ${
+        small ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-[11px]"
+      }`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
       {role || "Player"}
     </span>
   );
 }
+
+function RankChip({ rank }: { rank: number }) {
+  const cls = rank <= 3 ? RANK_STYLE[rank - 1] : "bg-slate-100 text-slate-500 dark:bg-[#172033] dark:text-[#94a3b8]";
+  return (
+    <span
+      className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] font-black tabular-nums ${cls}`}
+    >
+      {rank}
+    </span>
+  );
+}
+
+function Tile({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "amber" | "blue";
+}) {
+  const color =
+    tone === "amber"
+      ? "text-amber-600 dark:text-[#f59e0b]"
+      : tone === "blue"
+      ? "text-[#1877F2] dark:text-[#60a5fa]"
+      : "text-slate-900 dark:text-white";
+  return (
+    <div className="rounded-2xl bg-slate-50 px-2 py-2.5 text-center dark:bg-[#0f1830]">
+      <p className={`text-base font-black tabular-nums leading-none ${color}`}>{value.toLocaleString()}</p>
+      <p className="mt-1.5 text-[10px] font-medium text-slate-400 dark:text-[#64748b]">{label}</p>
+    </div>
+  );
+}
+
+const Icon = {
+  search: (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  ),
+  sliders: (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0" />
+      <circle cx="16" cy="6" r="2" />
+      <circle cx="8" cy="12" r="2" />
+      <circle cx="18" cy="18" r="2" />
+    </svg>
+  ),
+  grid: (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  ),
+  list: (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  ),
+};
+
+function ViewToggle({ view, setView }: { view: ViewKey; setView: (v: ViewKey) => void }) {
+  return (
+    <div className="flex rounded-xl border border-slate-200 bg-white p-0.5 dark:border-[#1e293b] dark:bg-[#0b1220]">
+      {(["grid", "list"] as const).map((v) => (
+        <button
+          key={v}
+          onClick={() => setView(v)}
+          aria-label={`${v} view`}
+          aria-pressed={view === v}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-[10px] px-3 py-2 text-xs font-bold transition ${
+            view === v
+              ? "bg-[#1877F2] text-white shadow shadow-[#1877F2]/30"
+              : "text-slate-500 hover:text-slate-900 dark:text-[#94a3b8] dark:hover:text-white"
+          }`}
+        >
+          {Icon[v]}
+          {v === "grid" ? "Cards" : "List"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Sheet({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal="true">
+      <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div className="relative max-h-[88vh] w-full overflow-y-auto rounded-t-[28px] border border-slate-200 bg-white p-5 shadow-2xl dark:border-[#1e293b] dark:bg-[#0b1220] md:max-w-2xl md:rounded-[28px] md:p-7">
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300 dark:bg-[#1e293b] md:hidden" />
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-black">{title}</h3>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 dark:bg-[#172033] dark:text-[#94a3b8] dark:hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function CriteriaContent() {
+  const roles = ROLES.filter((r) => r !== "All");
+  return (
+    <div className="space-y-2.5">
+      <p className="text-xs text-slate-500 dark:text-[#94a3b8]">
+        Roles are assigned automatically from each player’s batting average and wickets per match.
+      </p>
+      {roles.map((r) => {
+        const s = getRoleStyle(r);
+        return (
+          <div key={r} className={`flex items-center gap-3 rounded-2xl border p-3.5 ${s.ring}`}>
+            <span className="text-xl">{s.icon}</span>
+            <div className="min-w-0">
+              <p className={`text-sm font-black ${s.text}`}>{r}</p>
+              <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">{s.rule}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ───────────────────────── Player views ───────────────────────── */
+
+type ItemProps = {
+  player: Player;
+  rank: number;
+  showRank: boolean;
+  maxPoints: number;
+  onOpen: (p: Player) => void;
+};
+
+function DesktopCard({ player, rank, showRank, maxPoints, onOpen }: ItemProps) {
+  const s = getRoleStyle(player.role);
+  const points = calculateFclPoints(player);
+  const pct = maxPoints > 0 ? Math.max(4, (points / maxPoints) * 100) : 0;
+  return (
+    <button
+      onClick={() => onOpen(player)}
+      className="group relative flex flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white p-6 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#1877F2]/60 hover:shadow-2xl hover:shadow-[#1877F2]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1877F2] dark:border-[#1e293b] dark:bg-[#0b1220]"
+    >
+      <span className={`absolute inset-x-0 top-0 h-1 ${s.bar} opacity-80`} />
+      {showRank && (
+        <span className="absolute right-5 top-5">
+          <RankChip rank={rank} />
+        </span>
+      )}
+
+      <div className="flex items-center gap-4">
+        <Avatar player={player} className="h-[72px] w-[72px] rounded-3xl" />
+        <div className="min-w-0 flex-1 pr-6">
+          <h3 className="break-words text-base font-black leading-tight transition group-hover:text-[#60a5fa]">
+            {player.name}
+          </h3>
+          {player.nickName && (
+            <p className="mt-0.5 truncate text-xs font-medium text-slate-500 dark:text-[#94a3b8]">@{player.nickName}</p>
+          )}
+          <div className="mt-2">
+            <RoleBadge role={player.role} />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-3 gap-2">
+        <Tile label="Matches" value={Number(player.matches) || 0} />
+        <Tile label="Runs" value={Number(player.runs) || 0} />
+        <Tile label="Wickets" value={Number(player.wickets) || 0} tone="amber" />
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-1.5 flex items-end justify-between">
+          <span className="text-[11px] font-semibold text-slate-400 dark:text-[#64748b]">FCL Points</span>
+          <span className="text-lg font-black tabular-nums text-[#1877F2] dark:text-[#60a5fa]">
+            {points.toLocaleString()}
+          </span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-[#172033]">
+          <div className={`h-full rounded-full ${s.bar}`} style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+
+      <span className="mt-4 text-center text-[11px] font-bold text-[#1877F2] opacity-0 transition group-hover:opacity-100 dark:text-[#60a5fa]">
+        View Official Card
+      </span>
+    </button>
+  );
+}
+
+function DesktopRow({ player, rank, showRank, onOpen }: ItemProps) {
+  return (
+    <li>
+      <button
+        onClick={() => onOpen(player)}
+        className="group grid w-full grid-cols-[40px_minmax(0,2.4fr)_1.4fr_repeat(4,0.7fr)] items-center gap-3 px-6 py-3.5 text-left transition hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none dark:hover:bg-[#0f1830] dark:focus-visible:bg-[#0f1830]"
+      >
+        <span>{showRank ? <RankChip rank={rank} /> : null}</span>
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar player={player} className="h-11 w-11 rounded-2xl" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold transition group-hover:text-[#60a5fa]">{player.name}</p>
+            {player.nickName && (
+              <p className="truncate text-[11px] text-slate-500 dark:text-[#94a3b8]">@{player.nickName}</p>
+            )}
+          </div>
+        </div>
+        <RoleBadge role={player.role} small />
+        <span className="text-right text-sm font-semibold tabular-nums">{player.matches ?? 0}</span>
+        <span className="text-right text-sm font-semibold tabular-nums">{player.runs ?? 0}</span>
+        <span className="text-right text-sm font-semibold tabular-nums text-amber-600 dark:text-[#f59e0b]">
+          {player.wickets ?? 0}
+        </span>
+        <span className="text-right text-sm font-black tabular-nums text-[#60a5fa]">
+          {calculateFclPoints(player).toLocaleString()}
+        </span>
+      </button>
+    </li>
+  );
+}
+
+function MobileCard({ player, rank, showRank, onOpen }: ItemProps) {
+  const s = getRoleStyle(player.role);
+  return (
+    <button
+      onClick={() => onOpen(player)}
+      className="relative flex flex-col items-center overflow-hidden rounded-3xl border border-slate-200 bg-white px-3 pb-3.5 pt-5 text-center shadow-sm active:scale-[0.98] dark:border-[#1e293b] dark:bg-[#0b1220]"
+    >
+      <span className={`absolute inset-x-0 top-0 h-[3px] ${s.bar} opacity-80`} />
+      {showRank && (
+        <span className="absolute left-2.5 top-3">
+          <RankChip rank={rank} />
+        </span>
+      )}
+      <Avatar player={player} className="h-16 w-16 rounded-2xl" />
+      <h3 className="mt-2.5 line-clamp-2 min-h-[2.25rem] text-[13px] font-bold leading-tight">{player.name}</h3>
+      <div className="mt-1.5">
+        <RoleBadge role={player.role} small />
+      </div>
+      <div className="mt-3 grid w-full grid-cols-3 gap-1 border-t border-slate-100 pt-3 dark:border-[#172033]">
+        <MiniStat label="M" value={Number(player.matches) || 0} />
+        <MiniStat label="R" value={Number(player.runs) || 0} />
+        <MiniStat label="W" value={Number(player.wickets) || 0} amber />
+      </div>
+      <div className="mt-2.5 w-full rounded-xl bg-[#1877F2]/10 py-1.5">
+        <span className="text-sm font-black tabular-nums text-[#1877F2] dark:text-[#60a5fa]">
+          {calculateFclPoints(player).toLocaleString()}
+        </span>
+        <span className="ml-1 text-[10px] font-semibold text-slate-500 dark:text-[#94a3b8]">pts</span>
+      </div>
+    </button>
+  );
+}
+
+function MiniStat({ label, value, amber }: { label: string; value: number; amber?: boolean }) {
+  return (
+    <div>
+      <p className={`text-[13px] font-black tabular-nums ${amber ? "text-amber-600 dark:text-[#f59e0b]" : ""}`}>
+        {value.toLocaleString()}
+      </p>
+      <p className="text-[9px] font-semibold text-slate-400 dark:text-[#64748b]">{label}</p>
+    </div>
+  );
+}
+
+function MobileRow({ player, rank, showRank, onOpen }: ItemProps) {
+  return (
+    <li>
+      <button
+        onClick={() => onOpen(player)}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-[#0f1830]"
+      >
+        {showRank && <RankChip rank={rank} />}
+        <Avatar player={player} className="h-12 w-12 rounded-2xl" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold">{player.name}</p>
+          <div className="mt-1">
+            <RoleBadge role={player.role} small />
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-sm font-black tabular-nums text-[#60a5fa]">
+            {calculateFclPoints(player).toLocaleString()}
+          </p>
+          <p className="text-[10px] text-slate-500 dark:text-[#64748b]">
+            {player.runs ?? 0}r · {player.wickets ?? 0}w
+          </p>
+        </div>
+      </button>
+    </li>
+  );
+}
+
+/* ───────────────────────── Page ───────────────────────── */
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -225,10 +612,13 @@ export default function PlayersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState("All");
   const [sortBy, setSortBy] = useState<SortKey>("name");
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setView] = useState<ViewKey>("grid");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [showCriteria, setShowCriteria] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
     fetch("/api/fcl-data")
@@ -246,11 +636,9 @@ export default function PlayersPage() {
           role: getAutomaticRole(player),
         }));
 
-        processedPlayers.sort((a, b) => {
-          const nameA = (a.name || "").toLowerCase();
-          const nameB = (b.name || "").toLowerCase();
-          return nameA.localeCompare(nameB);
-        });
+        processedPlayers.sort((a, b) =>
+          (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase())
+        );
 
         setPlayers(processedPlayers);
 
@@ -276,6 +664,20 @@ export default function PlayersPage() {
     });
     return counts;
   }, [players]);
+
+  const totals = useMemo(
+    () => ({
+      matches: players.reduce((a, p) => a + (Number(p.matches) || 0), 0),
+      runs: players.reduce((a, p) => a + (Number(p.runs) || 0), 0),
+      wickets: players.reduce((a, p) => a + (Number(p.wickets) || 0), 0),
+    }),
+    [players]
+  );
+
+  const maxPoints = useMemo(
+    () => players.reduce((m, p) => Math.max(m, calculateFclPoints(p)), 0),
+    [players]
+  );
 
   const filteredPlayers = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -312,383 +714,410 @@ export default function PlayersPage() {
   const visiblePlayers = filteredPlayers.slice(0, visibleCount);
   const remaining = filteredPlayers.length - visiblePlayers.length;
   const isFiltering = searchQuery.trim() !== "" || selectedRole !== "All";
+  const hasActiveFilter = isFiltering || sortBy !== "name";
+  const showRank = sortBy !== "name";
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchQuery("");
     setSelectedRole("All");
+  }, []);
+
+  const open = useCallback((p: Player) => setSelectedPlayer(p), []);
+
+  const itemProps = (player: Player, idx: number): ItemProps => ({
+    player,
+    rank: idx + 1,
+    showRank,
+    maxPoints,
+    onOpen: open,
+  });
+
+  const SearchBox = (
+    <div className="relative w-full">
+      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#64748b]">
+        {Icon.search}
+      </span>
+      <input
+        type="text"
+        placeholder="Search name or nickname"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-9 text-sm text-slate-900 placeholder-slate-400 transition focus:border-[#1877F2] focus:outline-none focus:ring-1 focus:ring-[#1877F2] dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-white dark:placeholder-[#64748b]"
+      />
+      {searchQuery && (
+        <button
+          onClick={() => setSearchQuery("")}
+          aria-label="Clear search"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white"
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  );
+
+  const SortButtons = (
+    <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap">
+      {SORTS.map((s) => {
+        const active = sortBy === s.key;
+        return (
+          <button
+            key={s.key}
+            onClick={() => setSortBy(s.key)}
+            aria-pressed={active}
+            className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl border p-3 text-center transition ${
+              active
+                ? "border-amber-400 bg-gradient-to-br from-amber-400/20 to-amber-500/10 text-amber-500 shadow-md shadow-amber-500/10"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8] dark:hover:text-white"
+            }`}
+          >
+            <span className="text-xl">{s.icon}</span>
+            <span className="text-xs font-black">{s.short}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const RoleButtons = (
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+      {ROLES.map((role) => {
+        const active = selectedRole === role;
+        const icon = ROLE_ICONS[role] || "🏏";
+        const count = roleCounts[role] ?? 0;
+        return (
+          <button
+            key={role}
+            onClick={() => setSelectedRole(role)}
+            aria-pressed={active}
+            className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl border p-3.5 text-center transition ${
+              active
+                ? "border-amber-400 bg-gradient-to-br from-amber-400/20 to-amber-500/10 text-amber-500 shadow-md shadow-amber-500/10"
+                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8] dark:hover:text-white"
+            }`}
+          >
+            <span className="text-2xl">{icon}</span>
+            <span className="text-xs font-black truncate max-w-full">{role}</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-[#172033] dark:text-[#94a3b8]">
+              {count}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+          {Array.from({ length: isDesktop ? 6 : 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-56 animate-pulse rounded-3xl border border-slate-200 bg-white dark:border-[#1e293b] dark:bg-[#0b1220] lg:h-72"
+            />
+          ))}
+        </div>
+      );
+    }
+
+    if (filteredPlayers.length === 0) {
+      return (
+        <div className="flex h-64 flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-8 text-center dark:border-[#1e293b] dark:bg-[#0b1220]">
+          <span className="mb-3 text-4xl">🏏</span>
+          <p className="text-base font-semibold">No players match your search</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-[#94a3b8]">Try a different name or remove the role filter.</p>
+          <button
+            onClick={clearFilters}
+            className="mt-4 rounded-xl bg-[#1877F2] px-4 py-2 text-xs font-semibold text-white hover:bg-[#1877F2]/90"
+          >
+            Clear filters
+          </button>
+        </div>
+      );
+    }
+
+    if (isDesktop) {
+      if (view === "grid") {
+        return (
+          <div className="grid grid-cols-2 gap-5 xl:grid-cols-3">
+            {visiblePlayers.map((p, i) => (
+              <DesktopCard key={p.id ?? p.name + i} {...itemProps(p, i)} />
+            ))}
+          </div>
+        );
+      }
+      return (
+        <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white dark:border-[#1e293b] dark:bg-[#0b1220]">
+          <div className="grid grid-cols-[40px_minmax(0,2.4fr)_1.4fr_repeat(4,0.7fr)] items-center gap-3 border-b border-slate-200 bg-slate-50 px-6 py-3 text-[11px] font-semibold text-slate-500 dark:border-[#1e293b] dark:bg-[#0a1020] dark:text-[#64748b]">
+            <span>#</span>
+            <span>Player</span>
+            <span>Role</span>
+            <span className="text-right">Matches</span>
+            <span className="text-right">Runs</span>
+            <span className="text-right">Wickets</span>
+            <span className="text-right">Points</span>
+          </div>
+          <ul className="divide-y divide-slate-100 dark:divide-[#172033]">
+            {visiblePlayers.map((p, i) => (
+              <DesktopRow key={p.id ?? p.name + i} {...itemProps(p, i)} />
+            ))}
+          </ul>
+        </div>
+      );
+    }
+
+    if (view === "grid") {
+      return (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {visiblePlayers.map((p, i) => (
+            <MobileCard key={p.id ?? p.name + i} {...itemProps(p, i)} />
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-[#1e293b] dark:bg-[#0b1220]">
+        <ul className="divide-y divide-slate-100 dark:divide-[#172033]">
+          {visiblePlayers.map((p, i) => (
+            <MobileRow key={p.id ?? p.name + i} {...itemProps(p, i)} />
+          ))}
+        </ul>
+      </div>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-[#020617] dark:text-white">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,rgba(24,119,242,0.14),transparent_65%)]" />
+    <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-[#020617] dark:text-white">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[460px] bg-[radial-gradient(ellipse_at_top,rgba(24,119,242,0.16),transparent_65%)]" />
 
-      <main className="relative mx-auto max-w-7xl px-4 pb-20 pt-10 sm:px-6 lg:px-8">
-        {/* Header */}
-        <header className="mb-6 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-2xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#1877F2]/40 bg-[#1877F2]/10 px-3 py-1 text-xs font-semibold text-[#60a5fa]">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#60a5fa]" />
-              FCL Community Roster
-            </span>
-            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">Player Directory</h1>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-[#94a3b8]">
-              Search any player, filter by role, and open a profile to view and download the Official Card.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setShowCriteria(!showCriteria)}
-              className="rounded-2xl border border-[#1877F2]/40 bg-[#1877F2]/10 px-4 py-3 text-xs font-bold text-[#60a5fa] transition hover:bg-[#1877F2]/20 shadow-sm"
-            >
-              {showCriteria ? "Hide Role Criteria ✕" : "ℹ️ How Roles Are Determined?"}
-            </button>
-
-            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm backdrop-blur dark:border-[#1e293b] dark:bg-[#0b1220]/80">
-              <div>
-                <p className="text-2xl font-black leading-none">{players.length}</p>
-                <p className="mt-1 text-[11px] text-slate-500 dark:text-[#94a3b8]">Registered players</p>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Player Comparison Highlight Banner */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-3xl border border-amber-400/40 bg-gradient-to-r from-amber-400/10 via-[#1877F2]/10 to-transparent p-4 sm:p-5 shadow-lg backdrop-blur-md">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/20 text-xl sm:text-2xl animate-bounce">
-              ⚔️
-            </span>
-            <div>
-              <h2 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
-                অকশনের আগে খেলোয়াড়দের পারফরম্যান্স তুলনা করুন!
-              </h2>
-              <p className="text-xs text-slate-600 dark:text-[#94a3b8]">
-                একাধিক খেলোয়াড়ের স্ট্যাটস পাশাপাশি যাচাই করে সেরা স্কোয়াড গড়ে তুলুন।
+      <main className="relative mx-auto max-w-[1400px] px-4 pb-32 pt-6 sm:px-6 lg:px-10 lg:pb-20 lg:pt-12">
+        <header className="mb-6 lg:mb-10">
+          <div className="flex items-start justify-between gap-4">
+            <div className="max-w-2xl">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#1877F2]/40 bg-[#1877F2]/10 px-3 py-1 text-[11px] font-semibold text-[#60a5fa]">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#60a5fa]" />
+                FCL Community Roster
+              </span>
+              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-6xl">Player Directory</h1>
+              <p className="mt-2 hidden text-sm leading-relaxed text-slate-600 dark:text-[#94a3b8] sm:block lg:text-base">
+                Search any player, filter by role, and open a profile to view and download the Official Card.
               </p>
             </div>
           </div>
 
-          <Link
-            href="/players/compare"
-            className="relative inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1877F2] px-5 py-3 text-xs sm:text-sm font-black text-white shadow-lg shadow-[#1877F2]/30 transition hover:bg-blue-600 hover:scale-105 shrink-0"
-          >
-            <span className="absolute -top-1 -right-1 flex h-3 w-3">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75"></span>
-              <span className="relative inline-flex h-3 w-3 rounded-full bg-amber-500"></span>
-            </span>
-            <span>তুলনা শুরু করুন →</span>
-          </Link>
-        </div>
+          <div className="mt-5 grid grid-cols-4 gap-2 sm:gap-3 lg:mt-8 lg:max-w-3xl lg:gap-4">
+            {[
+              { label: "Players", value: players.length },
+              { label: "Matches", value: totals.matches },
+              { label: "Runs", value: totals.runs },
+              { label: "Wickets", value: totals.wickets },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="rounded-2xl border border-slate-200 bg-white px-2 py-3 text-center shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]/80 lg:rounded-3xl lg:px-5 lg:py-4 lg:text-left"
+              >
+                <p className="text-lg font-black tabular-nums leading-none lg:text-3xl">
+                  {loading ? "–" : s.value.toLocaleString()}
+                </p>
+                <p className="mt-1.5 text-[10px] font-medium text-slate-500 dark:text-[#94a3b8] lg:text-xs">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        </header>
 
-        {showCriteria && (
-          <div className="mb-6 rounded-3xl border-2 border-amber-400/60 bg-slate-900/95 p-6 shadow-2xl dark:bg-[#0b1220]/95 animate-fadeIn">
-            <h3 className="text-base sm:text-lg font-black text-amber-400 mb-4 flex items-center gap-2 uppercase tracking-wider border-b border-amber-400/20 pb-3">
-              <span>🏏</span> AUTOMATED PLAYER ROLE DETERMINATION CRITERIA
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs sm:text-sm text-slate-200">
-              <div className="rounded-2xl border-2 border-amber-400/50 bg-amber-500/15 p-4 shadow-md">
-                <p className="font-black text-amber-300 text-sm sm:text-base flex items-center gap-1.5">👑 VIP All-Rounder</p>
-                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-200 bg-black/30 p-2 rounded-xl border border-amber-400/30">
-                  Batting Avg <span className="text-amber-400">≥ 13</span> AND Wicket Avg <span className="text-amber-400">≥ 1.5</span>
-                </p>
+        <div className="lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-8">
+          <aside className="hidden lg:block">
+            <div className="sticky top-6 space-y-5">
+              <div className="space-y-5 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]">
+                {SearchBox}
+
+                <div>
+                  <p className="mb-2.5 text-xs font-bold text-slate-500 dark:text-[#94a3b8]">Role</p>
+                  <div className="space-y-1">
+                    {ROLES.map((role) => {
+                      const active = selectedRole === role;
+                      const st = role === "All" ? null : getRoleStyle(role);
+                      return (
+                        <button
+                          key={role}
+                          onClick={() => setSelectedRole(role)}
+                          aria-pressed={active}
+                          className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[13px] font-semibold transition ${
+                            active
+                              ? "bg-[#1877F2] text-white shadow shadow-[#1877F2]/25"
+                              : "text-slate-600 hover:bg-slate-100 dark:text-[#94a3b8] dark:hover:bg-[#101a33] dark:hover:text-white"
+                          }`}
+                        >
+                          <span className="flex items-center gap-2.5">
+                            <span className="w-4 text-center">{st ? st.icon : "🏏"}</span>
+                            {role}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                              active ? "bg-white/20" : "bg-slate-100 text-slate-500 dark:bg-[#172033] dark:text-[#94a3b8]"
+                            }`}
+                          >
+                            {roleCounts[role] ?? 0}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2.5 text-xs font-bold text-slate-500 dark:text-[#94a3b8]">Sort by</p>
+                  {SortButtons}
+                </div>
+
+                <div>
+                  <p className="mb-2.5 text-xs font-bold text-slate-500 dark:text-[#94a3b8]">Layout</p>
+                  <ViewToggle view={view} setView={setView} />
+                </div>
+
+                <button
+                  onClick={() => setShowCriteria(true)}
+                  className="w-full rounded-xl border border-[#1877F2]/40 bg-[#1877F2]/10 px-4 py-2.5 text-xs font-bold text-[#60a5fa] transition hover:bg-[#1877F2]/20"
+                >
+                  How roles are determined
+                </button>
               </div>
-              <div className="rounded-2xl border-2 border-violet-400/50 bg-violet-500/15 p-4 shadow-md">
-                <p className="font-black text-violet-300 text-sm sm:text-base flex items-center gap-1.5">⚡ Bowling All-Rounder</p>
-                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-200 bg-black/30 p-2 rounded-xl border border-violet-400/30">
-                  Batting Avg <span className="text-violet-400">≥ 9</span> AND Wicket Avg <span className="text-violet-400">≥ 1.2</span>
+
+              <div className="relative overflow-hidden rounded-[28px] border border-amber-400/40 bg-gradient-to-br from-amber-400/15 via-[#1877F2]/10 to-transparent p-5">
+                <span className="text-3xl">⚔️</span>
+                <h2 className="mt-3 text-sm font-black leading-snug">অকশনের আগে খেলোয়াড়দের পারফরম্যান্স তুলনা করুন!</h2>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-[#94a3b8]">
+                  একাধিক খেলোয়াড়ের স্ট্যাটস পাশাপাশি যাচাই করে সেরা স্কোয়াড গড়ে তুলুন।
                 </p>
-              </div>
-              <div className="rounded-2xl border-2 border-emerald-400/50 bg-emerald-500/15 p-4 shadow-md">
-                <p className="font-black text-emerald-300 text-sm sm:text-base flex items-center gap-1.5">⭐ All-Rounder</p>
-                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-200 bg-black/30 p-2 rounded-xl border border-emerald-400/30">
-                  Batting Avg <span className="text-emerald-400">≥ 9</span> AND Wicket Avg <span className="text-emerald-400">≥ 0.8</span>
-                </p>
-              </div>
-              <div className="rounded-2xl border-2 border-sky-400/50 bg-sky-500/15 p-4 shadow-md">
-                <p className="font-black text-sky-300 text-sm sm:text-base flex items-center gap-1.5">🛡️ Batsman</p>
-                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-200 bg-black/30 p-2 rounded-xl border border-sky-400/30">
-                  Batting Avg <span className="text-sky-400">&gt; 10</span> AND Wicket Avg <span className="text-sky-400">&lt; 0.8</span>
-                </p>
-              </div>
-              <div className="rounded-2xl border-2 border-rose-400/50 bg-rose-500/15 p-4 shadow-md">
-                <p className="font-black text-rose-300 text-sm sm:text-base flex items-center gap-1.5">🎯 Bowler</p>
-                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-200 bg-black/30 p-2 rounded-xl border border-rose-400/30">
-                  Wicket Avg <span className="text-rose-400">≥ 1.0</span> AND Batting Avg <span className="text-rose-400">&lt; 10</span>
-                </p>
-              </div>
-              <div className="rounded-2xl border-2 border-slate-400/50 bg-slate-500/15 p-4 shadow-md">
-                <p className="font-black text-slate-300 text-sm sm:text-base flex items-center gap-1.5">🌱 Promising Player</p>
-                <p className="mt-2 text-xs sm:text-sm font-bold text-slate-300 bg-black/30 p-2 rounded-xl border border-slate-400/30">
-                  Other developing or rookie players
-                </p>
+                <Link
+                  href="/players/compare"
+                  className="mt-4 flex items-center justify-center rounded-2xl bg-[#1877F2] px-4 py-3 text-sm font-black text-white shadow-lg shadow-[#1877F2]/30 transition hover:bg-blue-600"
+                >
+                  তুলনা শুরু করুন →
+                </Link>
               </div>
             </div>
-          </div>
-        )}
+          </aside>
 
-        {/* Toolbar */}
-        <div className="sticky top-0 z-20 -mx-4 mb-6 border-b border-slate-200/70 bg-white/85 px-4 py-4 backdrop-blur-xl dark:border-[#1e293b]/70 dark:bg-[#020617]/85 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="relative w-full lg:max-w-sm">
-                <svg
-                  className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-[#64748b]"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
+          <div className="min-w-0">
+            <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-slate-200/70 bg-slate-50/90 px-4 pb-3 pt-3 backdrop-blur-xl dark:border-[#1e293b]/70 dark:bg-[#020617]/90 sm:-mx-6 sm:px-6 lg:hidden">
+              <div className="flex items-center gap-2">
+                {SearchBox}
+                <button
+                  onClick={() => setShowFilters(true)}
+                  aria-label="Sort and layout"
+                  className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8]"
                 >
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="m20 20-3.5-3.5" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search by name or nickname"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-10 pr-9 text-sm text-slate-900 placeholder-slate-400 shadow-sm transition focus:border-[#1877F2] focus:outline-none focus:ring-1 focus:ring-[#1877F2] dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-white dark:placeholder-[#64748b]"
-                />
-                {searchQuery && (
+                  {Icon.sliders}
+                  {sortBy !== "name" && (
+                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-400" />
+                  )}
+                </button>
+              </div>
+
+              {/* রোল সিলেকশন গ্রিড বাটন (ছবি স্টাইল) */}
+              <div className="mt-3">
+                <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-400">Filter by Role</p>
+                {RoleButtons}
+              </div>
+            </div>
+
+            {!loading && filteredPlayers.length > 0 && (
+              <div className="mb-4 flex items-center justify-between text-xs text-slate-500 dark:text-[#94a3b8]">
+                <p>
+                  Showing <span className="font-bold text-slate-900 dark:text-white">{visiblePlayers.length}</span> of{" "}
+                  <span className="font-bold text-slate-900 dark:text-white">{filteredPlayers.length}</span> players
+                  {sortBy !== "name" && (
+                    <span className="ml-2 rounded-full bg-[#1877F2]/10 px-2 py-0.5 font-bold text-[#60a5fa]">
+                      {SORTS.find((s) => s.key === sortBy)?.label}
+                    </span>
+                  )}
+                </p>
+                {hasActiveFilter && (
                   <button
-                    onClick={() => setSearchQuery("")}
-                    aria-label="Clear search"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white"
+                    onClick={() => {
+                      clearFilters();
+                      setSortBy("name");
+                    }}
+                    className="font-semibold text-[#1877F2] hover:underline"
                   >
-                    ✕
+                    Reset
                   </button>
                 )}
               </div>
+            )}
 
-              <div className="flex items-center justify-between lg:justify-end gap-2.5">
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortKey)}
-                  aria-label="Sort players"
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm focus:border-[#1877F2] focus:outline-none dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-slate-200 sm:text-[13px]"
-                >
-                  {SORTS.map((s) => (
-                    <option key={s.key} value={s.key}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
+            {renderContent()}
 
-                <div className="flex rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]">
-                  {(["grid", "list"] as const).map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setView(v)}
-                      aria-label={`${v} view`}
-                      aria-pressed={view === v}
-                      className={`rounded-[10px] p-2 transition ${
-                        view === v ? "bg-[#1877F2] text-white" : "text-slate-500 hover:text-slate-900 dark:text-[#94a3b8] dark:hover:text-white"
-                      }`}
-                    >
-                      {v === "grid" ? (
-                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                          <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                          <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                          <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                          <rect x="14" y="14" width="7" height="7" rx="1.5" />
-                        </svg>
-                      ) : (
-                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                          <path d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                      )}
-                    </button>
-                  ))}
+            {!loading && remaining > 0 && (
+              <div className="mt-8 flex flex-col items-center gap-3">
+                <div className="h-1 w-48 overflow-hidden rounded-full bg-slate-200 dark:bg-[#172033]">
+                  <div
+                    className="h-full rounded-full bg-[#1877F2] transition-all"
+                    style={{ width: `${(visiblePlayers.length / filteredPlayers.length) * 100}%` }}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                    className="rounded-2xl bg-[#1877F2] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-[#1877F2]/25 transition hover:bg-[#1877F2]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60a5fa]"
+                  >
+                    Show {Math.min(PAGE_SIZE, remaining)} more
+                  </button>
+                  <button
+                    onClick={() => setVisibleCount(filteredPlayers.length)}
+                    className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600 transition hover:border-[#1877F2]/40 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8] dark:hover:text-white"
+                  >
+                    Show all ({remaining} left)
+                  </button>
                 </div>
               </div>
-            </div>
-
-            {/* Role chips */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-200/60 dark:border-[#172033]">
-              {ROLES.map((role) => {
-                const active = selectedRole === role;
-                return (
-                  <button
-                    key={role}
-                    onClick={() => setSelectedRole(role)}
-                    className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1877F2] sm:text-[13px] ${
-                      active
-                        ? "bg-[#1877F2] text-white shadow-lg shadow-[#1877F2]/25"
-                        : "border border-slate-200 bg-white text-slate-600 shadow-sm hover:border-[#1877F2]/40 hover:text-slate-900 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8] dark:hover:text-white"
-                    }`}
-                  >
-                    {role}
-                    <span
-                      className={`rounded-full px-1.5 text-[10px] font-bold ${
-                        active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500 dark:bg-[#172033] dark:text-[#94a3b8]"
-                      }`}
-                    >
-                      {roleCounts[role] ?? 0}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+            )}
           </div>
         </div>
-
-        {/* Result summary */}
-        {!loading && filteredPlayers.length > 0 && (
-          <p className="mb-4 text-xs text-slate-500 dark:text-[#94a3b8]">
-            Showing <span className="font-bold text-slate-900 dark:text-white">{visiblePlayers.length}</span> of{" "}
-            <span className="font-bold text-slate-900 dark:text-white">{filteredPlayers.length}</span> players
-            {isFiltering && (
-              <button onClick={clearFilters} className="ml-3 font-semibold text-[#1877F2] hover:underline">
-                Clear filters
-              </button>
-            )}
-          </p>
-        )}
-
-        {/* Content */}
-        {loading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-44 animate-pulse rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]"
-              />
-            ))}
-          </div>
-        ) : filteredPlayers.length === 0 ? (
-          <div className="flex h-64 flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]">
-            <span className="mb-3 text-4xl">🏏</span>
-            <p className="text-base font-semibold">No players match your search</p>
-            <p className="mt-1 text-xs text-slate-500 dark:text-[#94a3b8]">Try a different name or remove the role filter.</p>
-            <button
-              onClick={clearFilters}
-              className="mt-4 rounded-xl bg-[#1877F2] px-4 py-2 text-xs font-semibold text-white hover:bg-[#1877F2]/90"
-            >
-              Clear filters
-            </button>
-          </div>
-        ) : view === "grid" ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {visiblePlayers.map((player, idx) => {
-              const style = getRoleStyle(player.role);
-              return (
-                <button
-                  key={player.name + idx}
-                  onClick={() => setSelectedPlayer(player)}
-                  className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-[#1877F2]/60 hover:shadow-xl hover:shadow-[#1877F2]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1877F2] dark:border-[#1e293b] dark:bg-[#0b1220]"
-                >
-                  <span className={`absolute inset-x-0 top-0 h-[3px] ${style.bar} opacity-70`} />
-
-                  <div className="flex items-center gap-3.5">
-                    <Avatar player={player} size="md" />
-                    <div className="min-w-0 flex-1">
-                      <h3 className="break-words text-[15px] font-bold leading-tight transition group-hover:text-[#60a5fa]">
-                        {player.name}
-                      </h3>
-                      {player.nickName && (
-                        <p className="mt-0.5 truncate text-xs font-medium text-slate-500 dark:text-[#94a3b8]">@{player.nickName}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mt-3.5">
-                    <RoleBadge role={player.role} />
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-4 divide-x divide-slate-100 border-t border-slate-100 pt-4 text-center dark:divide-[#172033] dark:border-[#172033]">
-                    <Stat label="Matches" value={player.matches ?? 0} />
-                    <Stat label="Runs" value={player.runs ?? 0} />
-                    <Stat label="Wkts" value={player.wickets ?? 0} tone="amber" />
-                    <Stat label="Points" value={calculateFclPoints(player)} tone="blue" />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]">
-            <div className="hidden grid-cols-[minmax(0,2.2fr)_1.3fr_repeat(4,0.7fr)] items-center gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3 text-[11px] font-semibold text-slate-500 dark:border-[#1e293b] dark:bg-[#0a1020] dark:text-[#64748b] md:grid">
-              <span>Player</span>
-              <span>Role</span>
-              <span className="text-right">Matches</span>
-              <span className="text-right">Runs</span>
-              <span className="text-right">Wickets</span>
-              <span className="text-right">Points</span>
-            </div>
-
-            <ul className="divide-y divide-slate-100 dark:divide-[#172033]">
-              {visiblePlayers.map((player, idx) => (
-                <li key={player.name + idx}>
-                  <button
-                    onClick={() => setSelectedPlayer(player)}
-                    className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none dark:hover:bg-[#0f1830] dark:focus-visible:bg-[#0f1830] md:grid-cols-[minmax(0,2.2fr)_1.3fr_repeat(4,0.7fr)] md:px-5"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <Avatar player={player} size="sm" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold transition group-hover:text-[#60a5fa]">{player.name}</p>
-                        {player.nickName && (
-                          <p className="truncate text-[11px] text-slate-500 dark:text-[#94a3b8]">@{player.nickName}</p>
-                        )}
-                        <div className="mt-1 md:hidden">
-                          <RoleBadge role={player.role} />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="hidden md:block">
-                      <RoleBadge role={player.role} />
-                    </div>
-
-                    <span className="hidden text-right text-sm font-semibold md:block">{player.matches ?? 0}</span>
-                    <span className="hidden text-right text-sm font-semibold md:block">{player.runs ?? 0}</span>
-                    <span className="hidden text-right text-sm font-semibold text-amber-600 dark:text-[#f59e0b] md:block">
-                      {player.wickets ?? 0}
-                    </span>
-                    <span className="hidden text-right text-sm font-black text-[#60a5fa] md:block">
-                      {calculateFclPoints(player).toLocaleString()}
-                    </span>
-
-                    <div className="text-right md:hidden">
-                      <p className="text-sm font-black text-[#60a5fa]">{calculateFclPoints(player).toLocaleString()}</p>
-                      <p className="text-[10px] text-slate-500 dark:text-[#64748b]">
-                        {player.runs ?? 0}r · {player.wickets ?? 0}w
-                      </p>
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Load more */}
-        {!loading && remaining > 0 && (
-          <div className="mt-8 flex flex-col items-center gap-3">
-            <div className="h-1 w-48 overflow-hidden rounded-full bg-slate-200 dark:bg-[#172033]">
-              <div
-                className="h-full rounded-full bg-[#1877F2] transition-all"
-                style={{ width: `${(visiblePlayers.length / filteredPlayers.length) * 100}%` }}
-              />
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <button
-                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                className="rounded-2xl bg-[#1877F2] px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#1877F2]/25 transition hover:bg-[#1877F2]/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#60a5fa]"
-              >
-                Show {Math.min(PAGE_SIZE, remaining)} more
-              </button>
-              <button
-                onClick={() => setVisibleCount(filteredPlayers.length)}
-                className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:border-[#1877F2]/40 hover:text-slate-900 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8] dark:hover:text-white"
-              >
-                Show all ({remaining} left)
-              </button>
-            </div>
-          </div>
-        )}
       </main>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
+        <div className="pointer-events-auto flex w-full max-w-md items-center gap-2 rounded-full border border-slate-200 bg-white/90 p-1.5 shadow-2xl shadow-black/30 backdrop-blur-xl dark:border-[#1e293b] dark:bg-[#0b1220]/90">
+          <Link
+            href="/players/compare"
+            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#1877F2] px-4 py-3 text-sm font-black text-white shadow-lg shadow-[#1877F2]/30"
+          >
+            <span>⚔️</span> তুলনা করুন
+          </Link>
+          <button
+            onClick={() => setShowCriteria(true)}
+            aria-label="How roles are determined"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-base font-black text-[#1877F2] dark:bg-[#172033] dark:text-[#60a5fa]"
+          >
+            ?
+          </button>
+        </div>
+      </div>
+
+      <Sheet open={showFilters} onClose={() => setShowFilters(false)} title="Sort & layout">
+        <div className="space-y-6">
+          <div>
+            <p className="mb-2.5 text-xs font-bold text-slate-500 dark:text-[#94a3b8]">Sort by</p>
+            {SortButtons}
+          </div>
+          <div>
+            <p className="mb-2.5 text-xs font-bold text-slate-500 dark:text-[#94a3b8]">Layout</p>
+            <ViewToggle view={view} setView={setView} />
+          </div>
+          <button
+            onClick={() => setShowFilters(false)}
+            className="w-full rounded-2xl bg-[#1877F2] py-3.5 text-sm font-black text-white shadow-lg shadow-[#1877F2]/30"
+          >
+            Show {filteredPlayers.length} players
+          </button>
+        </div>
+      </Sheet>
+
+      <Sheet open={showCriteria} onClose={() => setShowCriteria(false)} title="How roles are determined">
+        <CriteriaContent />
+      </Sheet>
 
       <PlayerCardModal
         selectedPlayer={selectedPlayer}
@@ -696,29 +1125,6 @@ export default function PlayersPage() {
         tournamentsData={tournamentsData || []}
         allPlayers={players || []}
       />
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone?: "amber" | "blue";
-}) {
-  const color =
-    tone === "amber"
-      ? "text-amber-600 dark:text-[#f59e0b]"
-      : tone === "blue"
-      ? "text-[#1877F2] dark:text-[#60a5fa]"
-      : "text-slate-900 dark:text-white";
-  return (
-    <div className="px-1">
-      <p className={`text-sm font-black tabular-nums ${color}`}>{value.toLocaleString()}</p>
-      <p className="mt-0.5 text-[10px] text-slate-400 dark:text-[#64748b]">{label}</p>
     </div>
   );
 }

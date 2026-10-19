@@ -187,9 +187,12 @@ function formatBirthdayDate(val: any): string {
     const dateInfo = new Date(utcDays * 86400 * 1000);
     const day = String(dateInfo.getUTCDate()).padStart(2, "0");
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    return `${day} ${months[dateInfo.getUTCMonth()]} ${dateInfo.getUTCFullYear()}`;
+    // বছর বাদ দিয়ে শুধু তারিখ ও মাস রিটার্ন করা হচ্ছে
+    return `${day} ${months[dateInfo.getUTCMonth()]} `;
   }
-  return String(val).trim();
+  // যদি টেক্সট ফরম্যাটে থাকে, তবে চার ডিজিটের সাল (যেমন 1998 বা 2023) রিমুভ করে দেওয়া হবে
+  const str = String(val).trim();
+  return str.replace(/\b(19|20)\d{2}\b/g, "").trim();
 }
 
 function formatFullMonthDate(val: any): string {
