@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import PlayerCardModal from "../../components/PlayerCardModal";
 
 interface Player {
@@ -60,9 +61,8 @@ interface TournamentRecord {
   topWicket: number;
 }
 
-type Category = "mvp" | "runs" | "wickets" | "matches" | "sixes" | "champion";
-
 export const calculateFclPoints = (p: Player): number => {
+  if (!p) return 0;
   const runs = Number(p.runs) || 0;
   const sixes = Number(p.sixes) || 0;
   const fours = Number(p.fours) || 0;
@@ -88,6 +88,44 @@ export const calculateFclPoints = (p: Player): number => {
   );
 };
 
+export const getAutomaticRole = (player: Player): string => {
+  const matches = Number(player.matches) || 0;
+  if (matches === 0) return "Promising Player";
+
+  const runs = Number(player.runs || 0);
+  const wickets = Number(player.wickets || 0);
+  const innings = Number(player.innings || 0);
+  const notOut = Number(player.notOut || 0);
+
+  const dismissals = innings - notOut;
+  const runAvg = dismissals > 0 ? runs / dismissals : innings > 0 ? runs / innings : 0;
+  const wkAvg = wickets / matches;
+
+  if (runAvg >= 13 && wkAvg >= 1.5) {
+    return "VIP All-Rounder";
+  } else if (runAvg >= 9 && wkAvg >= 1.2) {
+    return "Bowling All-Rounder";
+  } else if (runAvg >= 9 && wkAvg >= 0.8) {
+    return "All-Rounder";
+  } else if (runAvg > 10 && wkAvg < 0.8) {
+    return "Batsman";
+  } else if (runAvg < 10 && wkAvg >= 1.0) {
+    return "Bowler";
+  } else {
+    return "Promising Player";
+  }
+};
+
+const getPlayerTier = (p: Player) => {
+  const runs = Number(p.runs) || 0;
+  const wickets = Number(p.wickets) || 0;
+  if (runs >= 2500 && wickets >= 150) return { name: "Diamond", color: "#67e8f9" };
+  if (runs >= 2000 && wickets >= 100) return { name: "Gold", color: "#fbbf24" };
+  if (runs >= 1000 && wickets >= 50) return { name: "Silver", color: "#cbd5e1" };
+  if (runs >= 500 && wickets >= 50) return { name: "Bronze", color: "#cd7f32" };
+  return null;
+};
+
 const PLACEHOLDER = "/FCL Cricket Avatar Placeholder.jpg";
 
 const getPhoto = (p: Player): string => {
@@ -98,31 +136,14 @@ const getPhoto = (p: Player): string => {
   return PLACEHOLDER;
 };
 
-const CATEGORIES: { id: Category; icon: string; label: string; short: string }[] = [
-  { id: "mvp", icon: "👑", label: "All-Time MVP", short: "MVP" },
-  { id: "runs", icon: "🏏", label: "Batting (Runs)", short: "Runs" },
-  { id: "wickets", icon: "🎯", label: "Bowling (Wickets)", short: "Wickets" },
-  { id: "matches", icon: "⚡", label: "Most Matches", short: "Matches" },
-  { id: "sixes", icon: "💥", label: "Sixes (6s)", short: "Sixes" },
-  { id: "champion", icon: "🏆", label: "Championship Titles", short: "Titles" },
+const ROLES = [
+  { id: "VIP All-Rounder", label: "VIP All-Rounder", icon: "👑" },
+  { id: "Bowling All-Rounder", label: "Bowling All-Rounder", icon: "⚡" },
+  { id: "All-Rounder", label: "All-Rounder", icon: "⭐" },
+  { id: "Batsman", label: "Batsman", icon: "🏏" },
+  { id: "Bowler", label: "Bowler", icon: "🎯" },
+  { id: "Promising Player", label: "Promising Player", icon: "🌱" },
 ];
-
-const getPrimary = (p: Player, c: Category) => {
-  switch (c) {
-    case "runs":
-      return { value: Number(p.runs) || 0, label: "Runs", text: "text-[#22c55e]", bar: "from-[#16a34a] to-[#4ade80]" };
-    case "wickets":
-      return { value: Number(p.wickets) || 0, label: "Wkts", text: "text-[#f59e0b]", bar: "from-[#d97706] to-[#fbbf24]" };
-    case "matches":
-      return { value: Number(p.matches) || 0, label: "Matches", text: "text-white", bar: "from-[#475569] to-[#cbd5e1]" };
-    case "sixes":
-      return { value: Number(p.sixes) || 0, label: "Sixes", text: "text-[#c084fc]", bar: "from-[#9333ea] to-[#d8b4fe]" };
-    case "champion":
-      return { value: Number(p.champion) || 0, label: "Titles", text: "text-[#f59e0b]", bar: "from-[#d97706] to-[#fcd34d]" };
-    default:
-      return { value: calculateFclPoints(p), label: "PTS", text: "text-[#fbbf24]", bar: "from-[#d97706] to-[#fbbf24]" };
-  }
-};
 
 /* Number count-up animation */
 function CountUp({ value, duration = 1200 }: { value: number; duration?: number }) {
@@ -166,23 +187,30 @@ export default function RankingsPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [tournamentsData, setTournamentsData] = useState<TournamentRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [category, setCategory] = useState<Category>("mvp");
+  const [selectedRole, setSelectedRole] = useState("All");
   const [search, setSearch] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [showFormula, setShowFormula] = useState(false);
 
-  // প্রতি ধাপে ৫০ জন করে দেখানোর স্টেট
   const [visibleCount, setVisibleCount] = useState(50);
 
   useEffect(() => {
     fetch("/api/fcl-data")
       .then((res) => res.json())
       .then((data) => {
+        let loaded: Player[] = [];
         if (data.players && Array.isArray(data.players)) {
-          setPlayers(data.players);
+          loaded = data.players;
         } else if (Array.isArray(data)) {
-          setPlayers(data);
+          loaded = data;
         }
+
+        const processed = loaded.map((p) => ({
+          ...p,
+          role: getAutomaticRole(p),
+        }));
+
+        setPlayers(processed);
         if (data.tournaments && Array.isArray(data.tournaments)) {
           setTournamentsData(data.tournaments);
         }
@@ -194,45 +222,27 @@ export default function RankingsPage() {
       });
   }, []);
 
-  // Top 3 MVP (always MVP based)
   const top3Mvp = useMemo(
     () => [...players].sort((a, b) => calculateFclPoints(b) - calculateFclPoints(a)).slice(0, 3),
     [players]
   );
 
-  // ক্যাটেগরি অনুযায়ী সর্টিং
-  const sortedPlayers = useMemo(() => {
-    return [...players].sort((a, b) => {
-      if (category === "mvp") return calculateFclPoints(b) - calculateFclPoints(a);
-      if (category === "runs") return (b.runs || 0) - (a.runs || 0);
-      if (category === "wickets") return (b.wickets || 0) - (a.wickets || 0);
-      if (category === "matches") return (b.matches || 0) - (a.matches || 0);
-      if (category === "sixes") return (b.sixes || 0) - (a.sixes || 0);
-      if (category === "champion") return (b.champion || 0) - (a.champion || 0);
-      return 0;
-    });
-  }, [players, category]);
-
-  // সার্চ ফিল্টার (আসল র‍্যাঙ্ক ঠিক রেখে)
-  const filteredRankings = useMemo(() => {
+  const sortedAndFilteredPlayers = useMemo(() => {
     const q = search.toLowerCase().trim();
-    const ranked = sortedPlayers.map((p, i) => ({ player: p, rank: i + 1 }));
-    if (!q) return ranked;
-    return ranked.filter(
-      ({ player: p }) =>
-        (p.name || "").toLowerCase().includes(q) || (p.nickName && p.nickName.toLowerCase().includes(q))
-    );
-  }, [sortedPlayers, search]);
+    const list = players.filter((p) => {
+      const matchSearch = !q || p.name.toLowerCase().includes(q) || (p.nickName || "").toLowerCase().includes(q);
+      const matchRole = selectedRole === "All" || (p.role || "").toLowerCase() === selectedRole.toLowerCase();
+      return matchSearch && matchRole;
+    });
 
-  const displayed = filteredRankings.slice(0, visibleCount);
+    list.sort((a, b) => calculateFclPoints(b) - calculateFclPoints(a));
+    return list.map((p, i) => ({ player: p, rank: i + 1 }));
+  }, [players, search, selectedRole]);
 
-  const maxValue = useMemo(() => {
-    if (!sortedPlayers.length) return 1;
-    return Math.max(getPrimary(sortedPlayers[0], category).value, 1);
-  }, [sortedPlayers, category]);
+  const displayed = sortedAndFilteredPlayers.slice(0, visibleCount);
 
-  const handleCategoryChange = (newCat: Category) => {
-    setCategory(newCat);
+  const handleRoleChange = (roleId: string) => {
+    setSelectedRole(roleId);
     setVisibleCount(50);
   };
 
@@ -259,7 +269,6 @@ export default function RankingsPage() {
 
   const podiumTheme = [
     {
-      // rank 1
       ring: "border-[#f59e0b]/70",
       bg: "bg-gradient-to-b from-[#2a1a04] via-[#120b02] to-[#050300]",
       chip: "bg-[#f59e0b] text-black",
@@ -270,7 +279,6 @@ export default function RankingsPage() {
       extra: "fcl-glow",
     },
     {
-      // rank 2
       ring: "border-[#94a3b8]/60",
       bg: "bg-gradient-to-b from-[#1b2230] via-[#0d1119] to-[#04070b]",
       chip: "bg-[#cbd5e1] text-black",
@@ -281,7 +289,6 @@ export default function RankingsPage() {
       extra: "",
     },
     {
-      // rank 3
       ring: "border-[#d97706]/60",
       bg: "bg-gradient-to-b from-[#241406] via-[#120a03] to-[#050300]",
       chip: "bg-[#d97706] text-white",
@@ -293,15 +300,13 @@ export default function RankingsPage() {
     },
   ];
 
-  // Podium visual order: #2 left, #1 center, #3 right
   const podiumOrder = ["order-1", "order-2", "order-3"];
-  const podiumOrderMap = [1, 0, 2]; // idx -> display position
+  const podiumOrderMap = [1, 0, 2];
 
   return (
-    <div className="min-h-screen bg-[#020617] text-white selection:bg-[#1877F2]/30 selection:text-white overflow-x-hidden">
+    <div className="min-h-screen bg-[#020617] text-white selection:bg-[#1877F2]/30 selection:text-white overflow-x-hidden pb-24">
       <style>{STYLES}</style>
 
-      {/* Background glow */}
       <div className="pointer-events-none fixed inset-0 -z-0">
         <div className="absolute -top-40 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-[#1877F2]/10 blur-[120px]" />
         <div className="absolute top-1/3 -right-40 h-[320px] w-[320px] rounded-full bg-[#f59e0b]/5 blur-[110px]" />
@@ -310,23 +315,34 @@ export default function RankingsPage() {
       <main className="relative z-10 mx-auto max-w-6xl px-3 py-6 sm:px-6 sm:py-10">
         {/* ===== HEADER ===== */}
         <header className="fcl-up mb-6 sm:mb-10">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#60a5fa]">
-              FCL Complete Leaderboard
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f59e0b]/15 px-2.5 py-0.5 text-[10px] font-bold text-[#fbbf24]">
-              <span className="fcl-live h-1.5 w-1.5 rounded-full bg-[#f59e0b]" />
-              MVP SYSTEM LIVE
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-[#60a5fa]">
+                FCL Complete Leaderboard
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f59e0b]/15 px-2.5 py-0.5 text-[10px] font-bold text-[#fbbf24]">
+                <span className="fcl-live h-1.5 w-1.5 rounded-full bg-[#f59e0b]" />
+                MVP SYSTEM LIVE
+              </span>
+            </div>
+
+            <Link
+              href="/records"
+              className="group inline-flex items-center gap-2.5 rounded-2xl border-2 border-amber-500/70 bg-gradient-to-r from-amber-500/35 via-amber-600/25 to-[#0b1220] px-5 py-3 text-xs sm:text-sm font-black text-amber-200 shadow-xl shadow-amber-500/25 transition-all duration-300 hover:border-amber-400 hover:scale-105 hover:shadow-amber-500/40"
+            >
+              <span className="text-base sm:text-lg animate-bounce">🏆</span>
+              <span>Hall of Fame & Records</span>
+              <span className="transition-transform group-hover:translate-x-1">→</span>
+            </Link>
           </div>
 
-          <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
               <h1 className="text-3xl font-black leading-tight sm:text-5xl">
                 Official Player Rankings
               </h1>
-              <p className="mt-2 max-w-xl text-xs leading-relaxed text-[#94a3b8] sm:text-sm">
-                {players.length} জন প্লেয়ারের সম্পূর্ণ র‍্যাঙ্কিং। যেকোনো প্লেয়ারে ট্যাপ করলে তার অফিসিয়াল স্ট্যাট কার্ড দেখতে ও এক্সপোর্ট করতে পারবেন।
+              <p className="mt-2 max-w-2xl text-xs sm:text-sm leading-relaxed text-[#94a3b8]">
+                এইখানে পাবেন অল-টাইম MVP পয়েন্ট র‍্যাঙ্কিং। যেখানে আপনি আপনার পছন্দের রোলের প্লেয়ারদের পজিশন দেখতে পারেন। টুর্নামেন্ট ইতিহাস ও রেকর্ড দেখতে ওপরের Hall of Fame বাটনে ক্লিক করুন।
               </p>
             </div>
 
@@ -434,7 +450,6 @@ export default function RankingsPage() {
                           isFirst ? "fcl-shine px-1.5 pb-3 pt-4 sm:px-6 sm:pb-7 sm:pt-9" : "px-1.5 pb-2.5 pt-3 sm:px-5 sm:pb-6 sm:pt-6"
                         } transition-transform duration-300 hover:-translate-y-1.5 sm:hover:-translate-y-2`}
                       >
-                        {/* Rank chip */}
                         <div className="flex justify-center">
                           <span
                             className={`rounded-full px-2 py-0.5 text-[8px] font-black tracking-wider sm:px-3 sm:py-1 sm:text-[10px] ${theme.chip}`}
@@ -446,7 +461,6 @@ export default function RankingsPage() {
                           </span>
                         </div>
 
-                        {/* Photo */}
                         <div className="relative mx-auto mt-2.5 sm:mt-5">
                           {isFirst && (
                             <span className="fcl-float absolute -top-3.5 left-1/2 z-10 -translate-x-1/2 text-base sm:-top-7 sm:text-3xl">
@@ -469,7 +483,6 @@ export default function RankingsPage() {
                           </div>
                         </div>
 
-                        {/* Name (full) */}
                         <h3
                           className={`mt-2.5 break-words text-center font-black leading-tight text-white transition group-hover:text-[#60a5fa] sm:mt-4 ${
                             isFirst ? "text-[11px] sm:text-2xl" : "text-[10px] sm:text-lg"
@@ -479,7 +492,6 @@ export default function RankingsPage() {
                         </h3>
                         <p className="mt-0.5 text-center text-[8px] text-[#94a3b8] sm:text-xs">{player.role}</p>
 
-                        {/* Points */}
                         <div className="mt-2 rounded-xl border border-white/10 bg-black/60 px-1 py-1.5 text-center sm:mt-4 sm:rounded-2xl sm:py-3">
                           <p className="hidden text-[9px] font-black uppercase tracking-[0.25em] text-[#94a3b8] sm:block">
                             All-Time Rating
@@ -490,7 +502,6 @@ export default function RankingsPage() {
                           </p>
                         </div>
 
-                        {/* Mini stats */}
                         <div className="mt-1.5 grid grid-cols-3 gap-1 text-center sm:mt-3 sm:gap-2">
                           <div className="rounded-lg border border-white/5 bg-black/40 py-1 sm:rounded-xl sm:py-2">
                             <p className="text-[10px] font-black text-[#22c55e] sm:text-base">{(player.runs ?? 0).toLocaleString()}</p>
@@ -514,30 +525,46 @@ export default function RankingsPage() {
           )
         )}
 
-        {/* ===== CATEGORY BUTTONS ===== */}
-        <nav className="mb-5 grid grid-cols-3 gap-2 sm:mb-6 sm:gap-2.5 lg:grid-cols-6" aria-label="Ranking category">
-          {CATEGORIES.map((tab) => {
-            const active = category === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleCategoryChange(tab.id)}
-                aria-pressed={active}
-                className={`flex flex-col items-center justify-center gap-0.5 rounded-2xl px-1.5 py-2.5 text-center font-bold transition duration-300 sm:flex-row sm:gap-2 sm:px-3 sm:py-3 ${
-                  active
-                    ? tab.id === "mvp"
-                      ? "bg-gradient-to-r from-[#f59e0b] to-[#d97706] text-black shadow-lg shadow-[#f59e0b]/30"
-                      : "bg-[#1877F2] text-white shadow-lg shadow-[#1877F2]/30"
-                    : "border border-[#1e293b] bg-[#0b1220]/80 text-[#94a3b8] hover:border-[#1877F2]/40 hover:text-white"
-                }`}
-              >
-                <span className="text-base sm:text-lg">{tab.icon}</span>
-                <span className="text-[10px] leading-tight sm:hidden">{tab.short}</span>
-                <span className="hidden text-xs leading-tight sm:inline lg:text-[11px] xl:text-xs">{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+        {/* ===== STICKY PLAYER ROLE FILTER BUTTONS (All Players ওপরে লম্বা এবং নিচে ৩:৩ লেআউট) ===== */}
+        <div className="sticky top-0 z-30 -mx-3 mb-6 bg-[#020617]/95 px-3 py-3 backdrop-blur-xl sm:mx-0 sm:px-0 sm:bg-transparent sm:backdrop-blur-none">
+          <div className="flex flex-col gap-2">
+            {/* ওপরের লম্বা 'All Players' বাটন */}
+            <button
+              onClick={() => handleRoleChange("All")}
+              aria-pressed={selectedRole === "All"}
+              className={`flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-center font-black transition duration-300 shadow-md ${
+                selectedRole === "All"
+                  ? "bg-[#1877F2] text-white shadow-lg shadow-[#1877F2]/40 scale-[1.01]"
+                  : "border border-[#1e293b] bg-[#0b1220]/90 text-[#94a3b8] hover:border-[#1877F2]/40 hover:text-white"
+              }`}
+            >
+              <span className="text-lg">🌐</span>
+              <span className="text-sm font-black">All Players</span>
+            </button>
+
+            {/* নিচের ৩:৩ (প্রতি সারিতে ৩টি করে) রোল ফিল্টার বাটন */}
+            <div className="grid grid-cols-3 gap-2 sm:gap-3" aria-label="Player role filter">
+              {ROLES.map((role) => {
+                const active = selectedRole === role.id;
+                return (
+                  <button
+                    key={role.id}
+                    onClick={() => handleRoleChange(role.id)}
+                    aria-pressed={active}
+                    className={`flex items-center justify-center gap-2 rounded-2xl px-3 py-3 text-center font-bold transition duration-300 shadow-md ${
+                      active
+                        ? "bg-[#1877F2] text-white shadow-lg shadow-[#1877F2]/40 scale-[1.02]"
+                        : "border border-[#1e293b] bg-[#0b1220]/90 text-[#94a3b8] hover:border-[#1877F2]/40 hover:text-white"
+                    }`}
+                  >
+                    <span className="text-base sm:text-lg">{role.icon}</span>
+                    <span className="text-xs sm:text-sm font-black truncate">{role.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
         {/* ===== RANKINGS ===== */}
         {loading ? (
@@ -546,31 +573,28 @@ export default function RankingsPage() {
               Calculating full rankings & MVP points, please wait...
             </div>
           </div>
-        ) : filteredRankings.length === 0 ? (
+        ) : sortedAndFilteredPlayers.length === 0 ? (
           <div className="rounded-3xl border border-[#1e293b] bg-[#0b1220] p-10 text-center">
             <p className="text-3xl">🔎</p>
             <p className="mt-3 text-sm font-bold text-white">No player found</p>
-            <p className="mt-1 text-xs text-[#94a3b8]">Try a different name or nickname.</p>
+            <p className="mt-1 text-xs text-[#94a3b8]">Try a different name or role filter.</p>
           </div>
         ) : (
           <div className="space-y-5">
             {/* ---------- MOBILE / TABLET: card list ---------- */}
             <div className="space-y-2.5 lg:hidden">
               {displayed.map(({ player, rank }, index) => {
-                const primary = getPrimary(player, category);
+                const tier = getPlayerTier(player);
+                const pts = calculateFclPoints(player);
                 return (
                   <div
-                    key={category + player.name + rank}
+                    key={player.name + rank}
                     role="button"
                     tabIndex={0}
                     onClick={() => setSelectedPlayer(player)}
                     onKeyDown={(e) => openOnKey(e, player)}
                     style={{ animationDelay: `${Math.min(index, 10) * 35}ms` }}
-                    className={`fcl-row cursor-pointer rounded-2xl border p-3 transition active:bg-[#1877F2]/10 ${
-                      rank === 1 && category === "mvp"
-                        ? "border-[#f59e0b]/40 bg-gradient-to-r from-[#1c1203] to-[#0b1220]"
-                        : "border-[#1e293b] bg-[#0b1220]"
-                    }`}
+                    className="fcl-row cursor-pointer rounded-2xl border border-[#1e293b] bg-[#0b1220] p-3 transition active:bg-[#1877F2]/10"
                   >
                     <div className="flex items-center gap-2.5">
                       <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-xs font-black ${rankBadge(rank)}`}>
@@ -592,12 +616,17 @@ export default function RankingsPage() {
                           <span className="rounded-md border border-[#1e293b] bg-[#030712] px-1.5 py-0.5 text-[9px] text-[#94a3b8]">
                             {player.role || "Player"}
                           </span>
+                          {tier && (
+                            <span className="text-[9px] font-bold" style={{ color: tier.color }}>
+                              {tier.name}
+                            </span>
+                          )}
                           {player.nickName && <span className="break-words text-[10px] text-[#64748b]">@{player.nickName}</span>}
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className={`text-lg font-black leading-none ${primary.text}`}>{primary.value.toLocaleString()}</p>
-                        <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">{primary.label}</p>
+                        <p className="text-lg font-black leading-none text-amber-400">{pts.toLocaleString()}</p>
+                        <p className="mt-1 text-[9px] font-bold uppercase tracking-wider text-[#64748b]">MVP PTS</p>
                       </div>
                     </div>
 
@@ -634,35 +663,34 @@ export default function RankingsPage() {
 
             {/* ---------- DESKTOP: premium table ---------- */}
             <div className="hidden overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220]/90 shadow-2xl backdrop-blur lg:block">
-              <div className="grid grid-cols-[56px_minmax(0,2.4fr)_minmax(0,1fr)_repeat(3,64px)_84px_64px_minmax(0,1.4fr)] items-center gap-3 border-b border-[#1e293b] bg-[#070d19] px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-[#64748b]">
+              <div className="grid grid-cols-[56px_minmax(0,2.4fr)_minmax(0,1.4fr)_repeat(5,64px)_minmax(0,1.2fr)] items-center gap-3 border-b border-[#1e293b] bg-[#070d19] px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-[#64748b]">
                 <div className="text-center">Rank</div>
                 <div>Player</div>
-                <div>Role</div>
+                <div>Role & Tier</div>
                 <div className="text-center">Mat</div>
                 <div className="text-center">Runs</div>
                 <div className="text-center">Wkts</div>
-                <div className="text-center">6s / 4s</div>
+                <div className="text-center">6s</div>
                 <div className="text-center">Titles</div>
-                <div className="text-right">{category === "mvp" ? "MVP Rating" : "Primary Stat"}</div>
+                <div className="text-right">MVP Rating</div>
               </div>
 
               <div className="divide-y divide-[#172033]/60">
                 {displayed.map(({ player, rank }, index) => {
-                  const primary = getPrimary(player, category);
-                  const pct = Math.max(3, Math.round((primary.value / maxValue) * 100));
+                  const tier = getPlayerTier(player);
+                  const pts = calculateFclPoints(player);
+                  const maxPts = calculateFclPoints(sortedAndFilteredPlayers[0].player) || 1;
+                  const pct = Math.max(3, Math.round((pts / maxPts) * 100));
+
                   return (
                     <div
-                      key={category + player.name + rank}
+                      key={player.name + rank}
                       role="button"
                       tabIndex={0}
                       onClick={() => setSelectedPlayer(player)}
                       onKeyDown={(e) => openOnKey(e, player)}
                       style={{ animationDelay: `${Math.min(index, 12) * 30}ms` }}
-                      className={`fcl-row group grid cursor-pointer grid-cols-[56px_minmax(0,2.4fr)_minmax(0,1fr)_repeat(3,64px)_84px_64px_minmax(0,1.4fr)] items-center gap-3 px-5 py-3 text-sm transition ${
-                        category === "mvp" && rank === 1
-                          ? "bg-[#f59e0b]/5 hover:bg-[#f59e0b]/12"
-                          : "hover:bg-[#1877F2]/10"
-                      }`}
+                      className="fcl-row group grid cursor-pointer grid-cols-[56px_minmax(0,2.4fr)_minmax(0,1.4fr)_repeat(5,64px)_minmax(0,1.2fr)] items-center gap-3 px-5 py-3 text-sm transition hover:bg-[#1877F2]/10"
                     >
                       <div className="flex justify-center">
                         <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl text-xs font-black ${rankBadge(rank)}`}>
@@ -693,28 +721,27 @@ export default function RankingsPage() {
                         <span className="inline-block rounded-md border border-[#1e293b] bg-[#030712] px-2 py-0.5 text-[10px] text-[#94a3b8]">
                           {player.role || "Player"}
                         </span>
+                        {tier && (
+                          <span className="block mt-0.5 text-[10px] font-bold" style={{ color: tier.color }}>
+                            {tier.name}
+                          </span>
+                        )}
                       </div>
 
                       <div className="text-center font-bold text-white">{player.matches ?? 0}</div>
                       <div className="text-center font-bold text-[#22c55e]">{player.runs ?? 0}</div>
                       <div className="text-center font-bold text-[#f59e0b]">{player.wickets ?? 0}</div>
-                      <div className="text-center text-xs">
-                        <span className="font-bold text-[#c084fc]">{player.sixes ?? 0}</span>
-                        <span className="text-[#475569]"> / </span>
-                        <span className="font-bold text-[#38bdf8]">{player.fours ?? 0}</span>
-                      </div>
-                      <div className="text-center text-xs">
-                        🏆 <span className="font-bold text-[#f59e0b]">{player.champion ?? 0}</span>
-                      </div>
+                      <div className="text-center font-bold text-[#c084fc]">{player.sixes ?? 0}</div>
+                      <div className="text-center font-bold text-amber-300">🏆{player.champion ?? 0}</div>
 
                       <div className="min-w-0">
                         <div className="flex items-baseline justify-end gap-1.5">
-                          <span className={`text-lg font-black ${primary.text}`}>{primary.value.toLocaleString()}</span>
-                          <span className="text-[10px] font-bold uppercase text-[#64748b]">{primary.label}</span>
+                          <span className="text-lg font-black text-amber-400">{pts.toLocaleString()}</span>
+                          <span className="text-[10px] font-bold uppercase text-[#64748b]">PTS</span>
                         </div>
                         <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[#030712]">
                           <div
-                            className={`fcl-bar h-full rounded-full bg-gradient-to-r ${primary.bar}`}
+                            className="fcl-bar h-full rounded-full bg-gradient-to-r from-amber-600 to-amber-400"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -726,13 +753,13 @@ export default function RankingsPage() {
             </div>
 
             {/* ===== LOAD MORE ===== */}
-            {visibleCount < filteredRankings.length && (
+            {visibleCount < sortedAndFilteredPlayers.length && (
               <div className="flex justify-center pt-2">
                 <button
                   onClick={() => setVisibleCount((prev) => prev + 50)}
                   className="w-full rounded-2xl border border-[#1877F2]/40 bg-[#1877F2]/10 px-6 py-3.5 text-xs font-black text-[#60a5fa] shadow-lg transition hover:bg-[#1877F2] hover:text-white sm:w-auto sm:px-10 sm:text-sm"
                 >
-                  আরও ৫০ জন লোড করুন ({filteredRankings.length - visibleCount} জন বাকি আছে) ↓
+                  আরও ৫০ জন লোড করুন ({sortedAndFilteredPlayers.length - visibleCount} জন বাকি আছে) ↓
                 </button>
               </div>
             )}
