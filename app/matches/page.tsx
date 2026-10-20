@@ -200,11 +200,24 @@ function useMediaQuery(query: string) {
 function StatTile({ cat, count, active, onClick }: { cat: (typeof CATEGORIES)[number]; count: number; active: boolean; onClick: () => void }) {
   const t = TONE[cat.key];
   return (
-    <button onClick={onClick} aria-pressed={active} className={`group relative min-w-[112px] shrink-0 snap-start overflow-hidden rounded-2xl border bg-white p-3.5 text-left shadow-sm transition active:scale-95 dark:bg-[#0b1220] lg:min-w-0 lg:rounded-3xl lg:p-5 lg:hover:-translate-y-0.5 lg:hover:shadow-lg ${active ? t.ring : "border-slate-200 dark:border-[#1e293b]"}`}>
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`group relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-xl border bg-white px-1 pb-2 pt-2.5 text-center shadow-sm transition active:scale-95 dark:bg-[#0b1220] lg:flex-row lg:justify-start lg:gap-3 lg:rounded-2xl lg:px-4 lg:py-3.5 lg:text-left lg:hover:-translate-y-0.5 lg:hover:shadow-lg ${
+        active ? t.ring : "border-slate-200 dark:border-[#1e293b]"
+      }`}
+    >
       <span className={`absolute inset-x-0 top-0 h-[3px] ${t.bar} ${active ? "opacity-100" : "opacity-40"}`} />
-      <span className={`flex h-9 w-9 items-center justify-center rounded-xl border text-lg lg:h-11 lg:w-11 lg:text-xl ${t.soft}`}>{cat.icon}</span>
-      <p className={`mt-2.5 text-2xl font-black tabular-nums leading-none lg:mt-4 lg:text-4xl ${t.text}`}>{count}</p>
-      <p className="mt-1 text-[11px] font-semibold text-slate-500 dark:text-[#94a3b8] lg:text-xs">{cat.key === "all" ? "Total Matches" : cat.short}</p>
+      <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-sm lg:h-11 lg:w-11 lg:rounded-xl lg:text-xl ${t.soft}`}>
+        {cat.icon}
+      </span>
+      <span className="mt-1 flex min-w-0 flex-col items-center lg:mt-0 lg:items-start">
+        <span className={`text-lg font-black tabular-nums leading-none lg:text-3xl ${t.text}`}>{count}</span>
+        <span className="mt-0.5 max-w-full truncate text-[10px] font-semibold text-slate-500 dark:text-[#94a3b8] lg:mt-1 lg:text-xs">
+          <span className="lg:hidden">{cat.short}</span>
+          <span className="hidden lg:inline">{cat.key === "all" ? "Total Matches" : cat.short}</span>
+        </span>
+      </span>
     </button>
   );
 }
@@ -268,6 +281,9 @@ function MobileMatchRow({ match, onOpen }: { match: MatchItem; onOpen: (m: Match
   );
 }
 
+/* ───────── ম্যাচ মডাল ─────────
+   • মোবাইলে ফেসবুক পোস্টের লিংকটি এখন একদম উপরে (ক্লোজ বাটনের পাশে) রাখা হয়েছে যাতে স্ক্রোল করে নিচে যাওয়া না লাগে।
+   • পিসিতে আগের মতো নিচে ফুটারেও রাখা হয়েছে।                                     */
 function MatchModal({ match, onClose }: { match: MatchItem; onClose: () => void }) {
   const style = getCategoryStyle(match.category);
   useEffect(() => {
@@ -282,26 +298,42 @@ function MatchModal({ match, onClose }: { match: MatchItem; onClose: () => void 
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true">
       <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[28px] border border-slate-200 bg-white shadow-2xl dark:border-[#1e293b] dark:bg-[#0b1220] sm:max-w-2xl sm:rounded-[28px]">
+      <div className="relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[28px] border border-slate-200 bg-white shadow-2xl dark:border-[#1e293b] dark:bg-[#0b1220] sm:max-h-[90dvh] sm:max-w-2xl sm:rounded-[28px]">
         <span className={`h-1 w-full shrink-0 ${style.bar}`} />
         <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-slate-300 dark:bg-[#1e293b] sm:hidden" />
+        
+        {/* মোডাল হেডার */}
         <div className="flex shrink-0 items-start justify-between gap-3 p-5 pb-3 sm:p-7 sm:pb-4">
           <div className="min-w-0">
             <CatBadge category={match.category} />
             <p className="mt-2 text-xs font-bold text-slate-500 dark:text-[#94a3b8]">📅 {formatExcelDate(match.date)} {match.month || match.year ? ` (${match.month} ${match.year})` : ""}</p>
           </div>
-          <button onClick={onClose} aria-label="Close" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-[#172033] dark:text-white dark:hover:bg-[#1e293b]">✕</button>
+          
+          <div className="flex items-center gap-2">
+            {/* 📱 মোবাইলের জন্য একদম উপরে ফেসবুক পোস্টের লিংক বাটন */}
+            {match.link && (
+              <a href={match.link} target="_blank" rel="noopener noreferrer" className="flex sm:hidden items-center gap-1 rounded-full bg-[#1877F2] px-3 py-1.5 text-[11px] font-black text-white shadow-md">
+                <span>View Facebook Post</span>
+                <span>↗</span>
+              </a>
+            )}
+            <button onClick={onClose} aria-label="Close" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700 transition hover:bg-slate-200 dark:bg-[#172033] dark:text-white dark:hover:bg-[#1e293b]">✕</button>
+          </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 sm:px-7">
+
+        {/* মোডাল বডি */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-4 sm:px-7">
           <h2 className="break-words text-xl font-black leading-snug sm:text-2xl">{match.title}</h2>
           <div className="mt-4 break-words rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm leading-relaxed text-slate-700 dark:border-[#172033] dark:bg-[#030714] dark:text-[#cbd5e1] sm:p-6">{renderTextWithHighlights(match.summary)}</div>
         </div>
-        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-[#1e293b] sm:px-7 sm:py-4">
-          <span className="hidden text-xs font-bold text-slate-400 sm:block">FCL Official Match Record</span>
+
+        {/* মোডাল ফুটার (পিসির জন্য নিচে ফুল বাটন) */}
+        <div className="hidden sm:flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white p-4 dark:border-[#1e293b] dark:bg-[#0b1220] sm:px-7 sm:py-4">
+          <span className="text-xs font-bold text-slate-400">FCL Official Match Record</span>
           {match.link ? (
-            <a href={match.link} target="_blank" rel="noopener noreferrer" className="inline-flex w-full items-center justify-center gap-1.5 rounded-2xl bg-[#1877F2] px-5 py-3 text-xs font-black text-white shadow-lg shadow-[#1877F2]/25 transition hover:bg-blue-600 sm:w-auto">
+            <a href={match.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#1877F2] px-5 py-3 text-xs font-black text-white shadow-lg shadow-[#1877F2]/25 transition hover:bg-blue-600">
               <span>View Official Facebook Post</span>
               <span>↗</span>
             </a>
@@ -460,7 +492,7 @@ export default function MatchesPage() {
   );
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-slate-50 pb-20 text-slate-900 transition-colors duration-300 selection:bg-[#1877F2]/30 selection:text-white dark:bg-[#020617] dark:text-white">
+    <div className="relative min-h-screen overflow-x-clip bg-slate-50 pb-20 text-slate-900 transition-colors duration-300 selection:bg-[#1877F2]/30 selection:text-white dark:bg-[#020617] dark:text-white">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[460px] bg-[radial-gradient(ellipse_at_top,rgba(24,119,242,0.16),transparent_65%)]" />
 
       <main className="relative mx-auto max-w-[1400px] px-4 pt-6 sm:px-6 lg:px-10 lg:pt-12">
@@ -476,8 +508,8 @@ export default function MatchesPage() {
                 </span>
               </div>
               <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl lg:text-6xl">Match Directory</h1>
-              <p className="mt-2 hidden text-sm leading-relaxed text-slate-600 dark:text-[#94a3b8] sm:block lg:text-base">
-                Tournament home pages, series games, friendly matches and test match archives — browse by category, year and month.
+              <p className="mt-2 text-[13px] leading-relaxed text-slate-600 dark:text-[#94a3b8] lg:text-base">
+                FCL-এর সব ম্যাচের ডিজিটাল আর্কাইভ। এখানে পাবেন টুর্নামেন্ট হোম, সিরিজ, ফ্রেন্ডলি ও টেস্ট ম্যাচের বিস্তারিত সামারি — ক্যাটাগরি, বছর ও মাস অনুযায়ী খুঁজে নিন, আর প্রতিটি ম্যাচের অফিসিয়াল ফেসবুক পোস্টও দেখে নিন।
               </p>
             </div>
 
@@ -492,10 +524,12 @@ export default function MatchesPage() {
           </div>
         </header>
 
-        <div className="-mx-4 mb-5 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 lg:mx-0 lg:mb-8 lg:grid lg:grid-cols-5 lg:gap-4 lg:overflow-visible lg:px-0 lg:pb-0">
-          {CATEGORIES.map((cat) => (
-            <StatTile key={cat.key} cat={cat} count={loading ? 0 : counts[cat.key] ?? 0} active={selectedCategory === cat.key} onClick={() => setSelectedCategory(cat.key)} />
-          ))}
+        <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-slate-200/70 bg-slate-50/90 px-4 py-2.5 backdrop-blur-xl dark:border-[#1e293b]/70 dark:bg-[#020617]/90 sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:mb-6 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none dark:lg:bg-transparent">
+          <div className="grid grid-cols-5 gap-1.5 lg:gap-3">
+            {CATEGORIES.map((cat) => (
+              <StatTile key={cat.key} cat={cat} count={loading ? 0 : counts[cat.key] ?? 0} active={selectedCategory === cat.key} onClick={() => setSelectedCategory(cat.key)} />
+            ))}
+          </div>
         </div>
 
         <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-xl backdrop-blur-md dark:border-[#1e293b] dark:bg-[#0b1220]/80 sm:p-5 lg:mb-8">
