@@ -133,16 +133,6 @@ const ROLES = [
   "Promising Player",
 ];
 
-const ROLE_ICONS: Record<string, string> = {
-  All: "🌐",
-  "VIP All-Rounder": "👑",
-  "Bowling All-Rounder": "⚡",
-  "All-Rounder": "⭐",
-  Batsman: "🏏",
-  Bowler: "🎯",
-  "Promising Player": "🌱",
-};
-
 const SORTS = [
   { key: "name", label: "Name (A–Z)", short: "A–Z", icon: "🔤" },
   { key: "points", label: "FCL Points", short: "Points", icon: "💯" },
@@ -162,7 +152,7 @@ const ROLE_STYLE: Record<
     badge: "border-amber-400/40 bg-amber-400/10 text-amber-600 dark:text-amber-300",
     bar: "bg-amber-400",
     dot: "bg-amber-400",
-    text: "text-amber-400",
+    text: "text-amber-500 dark:text-amber-400",
     ring: "border-amber-400/50 bg-amber-500/10",
     icon: "👑",
     rule: "Batting Avg ≥ 13 and Wicket Avg ≥ 1.5",
@@ -171,7 +161,7 @@ const ROLE_STYLE: Record<
     badge: "border-violet-400/40 bg-violet-400/10 text-violet-600 dark:text-violet-300",
     bar: "bg-violet-400",
     dot: "bg-violet-400",
-    text: "text-violet-400",
+    text: "text-violet-500 dark:text-violet-400",
     ring: "border-violet-400/50 bg-violet-500/10",
     icon: "⚡",
     rule: "Batting Avg ≥ 9 and Wicket Avg ≥ 1.2",
@@ -180,7 +170,7 @@ const ROLE_STYLE: Record<
     badge: "border-emerald-400/40 bg-emerald-400/10 text-emerald-600 dark:text-emerald-300",
     bar: "bg-emerald-400",
     dot: "bg-emerald-400",
-    text: "text-emerald-400",
+    text: "text-emerald-500 dark:text-emerald-400",
     ring: "border-emerald-400/50 bg-emerald-500/10",
     icon: "⭐",
     rule: "Batting Avg ≥ 9 and Wicket Avg ≥ 0.8",
@@ -189,7 +179,7 @@ const ROLE_STYLE: Record<
     badge: "border-sky-400/40 bg-sky-400/10 text-sky-600 dark:text-sky-300",
     bar: "bg-sky-400",
     dot: "bg-sky-400",
-    text: "text-sky-400",
+    text: "text-sky-500 dark:text-sky-400",
     ring: "border-sky-400/50 bg-sky-500/10",
     icon: "🛡️",
     rule: "Batting Avg > 10 and Wicket Avg < 0.8",
@@ -198,7 +188,7 @@ const ROLE_STYLE: Record<
     badge: "border-rose-400/40 bg-rose-400/10 text-rose-600 dark:text-rose-300",
     bar: "bg-rose-400",
     dot: "bg-rose-400",
-    text: "text-rose-400",
+    text: "text-rose-500 dark:text-rose-400",
     ring: "border-rose-400/50 bg-rose-500/10",
     icon: "🎯",
     rule: "Wicket Avg ≥ 1.0 and Batting Avg < 10",
@@ -207,7 +197,7 @@ const ROLE_STYLE: Record<
     badge: "border-slate-400/40 bg-slate-400/10 text-slate-600 dark:text-slate-300",
     bar: "bg-slate-400",
     dot: "bg-slate-400",
-    text: "text-slate-300",
+    text: "text-slate-500 dark:text-slate-300",
     ring: "border-slate-400/50 bg-slate-500/10",
     icon: "🌱",
     rule: "Other developing or rookie players",
@@ -270,7 +260,7 @@ function RoleBadge({ role, small }: { role: string; small?: boolean }) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border font-bold ${s.badge} ${
-        small ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-[11px]"
+        small ? "px-2.5 py-0.5 text-[10px]" : "px-3 py-1 text-[11px]"
       }`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
@@ -296,7 +286,7 @@ function Tile({
   tone,
 }: {
   label: string;
-  value: number;
+  value: string | number;
   tone?: "amber" | "blue";
 }) {
   const color =
@@ -306,9 +296,9 @@ function Tile({
       ? "text-[#1877F2] dark:text-[#60a5fa]"
       : "text-slate-900 dark:text-white";
   return (
-    <div className="rounded-2xl bg-slate-50 px-2 py-2.5 text-center dark:bg-[#0f1830]">
-      <p className={`text-base font-black tabular-nums leading-none ${color}`}>{value.toLocaleString()}</p>
-      <p className="mt-1.5 text-[10px] font-medium text-slate-400 dark:text-[#64748b]">{label}</p>
+    <div className="rounded-2xl bg-slate-50 px-2 py-2 text-center dark:bg-[#0f1830]">
+      <p className={`text-sm font-black tabular-nums leading-none ${color}`}>{value}</p>
+      <p className="mt-1 text-[9px] font-medium text-slate-400 dark:text-[#64748b]">{label}</p>
     </div>
   );
 }
@@ -318,14 +308,6 @@ const Icon = {
     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" />
-    </svg>
-  ),
-  sliders: (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <path d="M4 6h10M18 6h2M4 12h2M10 12h10M4 18h12M20 18h0" />
-      <circle cx="16" cy="6" r="2" />
-      <circle cx="8" cy="12" r="2" />
-      <circle cx="18" cy="18" r="2" />
     </svg>
   ),
   grid: (
@@ -444,6 +426,7 @@ type ItemProps = {
   onOpen: (p: Player) => void;
 };
 
+/* 🖥️ পিসি কার্ড: সমস্ত ইনফরমেশন ও স্ট্যাটস সমেত পূর্ণাঙ্গ রূপ */
 function DesktopCard({ player, rank, showRank, maxPoints, onOpen }: ItemProps) {
   const s = getRoleStyle(player.role);
   const points = calculateFclPoints(player);
@@ -477,8 +460,11 @@ function DesktopCard({ player, rank, showRank, maxPoints, onOpen }: ItemProps) {
 
       <div className="mt-5 grid grid-cols-3 gap-2">
         <Tile label="Matches" value={Number(player.matches) || 0} />
-        <Tile label="Runs" value={Number(player.runs) || 0} />
-        <Tile label="Wickets" value={Number(player.wickets) || 0} tone="amber" />
+        <Tile label="Runs (Max)" value={`${Number(player.runs) || 0} (${player.maxRuns || 0})`} tone="blue" />
+        <Tile label="Wickets (Max)" value={`${Number(player.wickets) || 0} (${player.maxWickets || 0})`} tone="amber" />
+        <Tile label="Innings / NO" value={`${player.innings || 0} / ${player.notOut || 0}`} />
+        <Tile label="Boundaries" value={`4s:${player.fours || 0} | 6s:${player.sixes || 0}`} />
+        <Tile label="Tournaments" value={player.totalTournament || 0} />
       </div>
 
       <div className="mt-4">
@@ -531,75 +517,168 @@ function DesktopRow({ player, rank, showRank, onOpen }: ItemProps) {
   );
 }
 
-function MobileCard({ player, rank, showRank, onOpen }: ItemProps) {
+/* ───────── 📱 মোবাইল কার্ড (লাইট/ডার্ক দুই মোডেই কাজ করে) ───────── */
+function MobilePlayerCard({ player, rank, showRank, onOpen }: ItemProps) {
   const s = getRoleStyle(player.role);
+  const points = calculateFclPoints(player);
   return (
     <button
       onClick={() => onOpen(player)}
-      className="relative flex flex-col items-center overflow-hidden rounded-3xl border border-slate-200 bg-white px-3 pb-3.5 pt-5 text-center shadow-sm active:scale-[0.98] dark:border-[#1e293b] dark:bg-[#0b1220]"
+      className="group relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 pl-4 text-left shadow-sm transition active:scale-[0.98] dark:border-[#1e293b] dark:bg-[#0b1220]"
     >
-      <span className={`absolute inset-x-0 top-0 h-[3px] ${s.bar} opacity-80`} />
-      {showRank && (
-        <span className="absolute left-2.5 top-3">
-          <RankChip rank={rank} />
-        </span>
-      )}
-      <Avatar player={player} className="h-16 w-16 rounded-2xl" />
-      <h3 className="mt-2.5 line-clamp-2 min-h-[2.25rem] text-[13px] font-bold leading-tight">{player.name}</h3>
-      <div className="mt-1.5">
-        <RoleBadge role={player.role} small />
+      <span className={`absolute inset-y-0 left-0 w-1 ${s.bar}`} />
+
+      <div className="relative shrink-0">
+        <Avatar player={player} className="h-14 w-14 rounded-2xl" />
+        {showRank && (
+          <span className="absolute -left-1.5 -top-1.5">
+            <RankChip rank={rank} />
+          </span>
+        )}
       </div>
-      <div className="mt-3 grid w-full grid-cols-3 gap-1 border-t border-slate-100 pt-3 dark:border-[#172033]">
-        <MiniStat label="M" value={Number(player.matches) || 0} />
-        <MiniStat label="R" value={Number(player.runs) || 0} />
-        <MiniStat label="W" value={Number(player.wickets) || 0} amber />
+
+      <div className="min-w-0 flex-1">
+        <h4 className="truncate text-sm font-black">{player.name}</h4>
+        <div className="mt-1 flex items-center gap-1.5">
+          <RoleBadge role={player.role} small />
+          {player.nickName && (
+            <span className="truncate text-[10px] text-slate-500 dark:text-[#94a3b8]">@{player.nickName}</span>
+          )}
+        </div>
+        <div className="mt-2 flex items-center gap-1.5">
+          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-600 dark:bg-[#172033] dark:text-slate-300">
+            M {Number(player.matches) || 0}
+          </span>
+          <span className="rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-sky-600 dark:text-sky-300">
+            R {Number(player.runs) || 0}
+          </span>
+          <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-amber-600 dark:text-amber-300">
+            W {Number(player.wickets) || 0}
+          </span>
+        </div>
       </div>
-      <div className="mt-2.5 w-full rounded-xl bg-[#1877F2]/10 py-1.5">
-        <span className="text-sm font-black tabular-nums text-[#1877F2] dark:text-[#60a5fa]">
-          {calculateFclPoints(player).toLocaleString()}
-        </span>
-        <span className="ml-1 text-[10px] font-semibold text-slate-500 dark:text-[#94a3b8]">pts</span>
+
+      <div className="shrink-0 text-right">
+        <p className="text-lg font-black leading-none tabular-nums text-[#1877F2] dark:text-[#60a5fa]">
+          {points.toLocaleString()}
+        </p>
+        <p className="mt-1 text-[9px] font-semibold text-slate-400 dark:text-[#64748b]">FCL Points</p>
       </div>
     </button>
   );
 }
 
-function MiniStat({ label, value, amber }: { label: string; value: number; amber?: boolean }) {
-  return (
-    <div>
-      <p className={`text-[13px] font-black tabular-nums ${amber ? "text-amber-600 dark:text-[#f59e0b]" : ""}`}>
-        {value.toLocaleString()}
-      </p>
-      <p className="text-[9px] font-semibold text-slate-400 dark:text-[#64748b]">{label}</p>
-    </div>
-  );
-}
+/* ───────── 📱 মোবাইল ফিল্টার + সর্ট প্যানেল ─────────
+   • All বাটন আলাদা, পুরো প্রস্থে
+   • বাকি ৬টা রোল ৩ কলাম × ২ সারিতে
+   • সর্টিং এখন সরাসরি স্ক্রিনেই                              */
+function MobileFilterPanel({
+  selectedRole,
+  setSelectedRole,
+  sortBy,
+  setSortBy,
+  roleCounts,
+}: {
+  selectedRole: string;
+  setSelectedRole: (r: string) => void;
+  sortBy: SortKey;
+  setSortBy: (k: SortKey) => void;
+  roleCounts: Record<string, number>;
+}) {
+  const roles = ROLES.filter((r) => r !== "All");
+  const allActive = selectedRole === "All";
 
-function MobileRow({ player, rank, showRank, onOpen }: ItemProps) {
   return (
-    <li>
+    <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]/80">
+      {/* All বাটন */}
       <button
-        onClick={() => onOpen(player)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-slate-50 dark:active:bg-[#0f1830]"
+        onClick={() => setSelectedRole("All")}
+        aria-pressed={allActive}
+        className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 transition active:scale-[0.98] ${
+          allActive
+            ? "border-[#1877F2] bg-gradient-to-r from-[#1877F2] to-[#3b82f6] text-white shadow-lg shadow-[#1877F2]/30"
+            : "border-slate-200 bg-slate-50 text-slate-700 dark:border-[#1e293b] dark:bg-[#0f1830] dark:text-slate-200"
+        }`}
       >
-        {showRank && <RankChip rank={rank} />}
-        <Avatar player={player} className="h-12 w-12 rounded-2xl" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold">{player.name}</p>
-          <div className="mt-1">
-            <RoleBadge role={player.role} small />
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-sm font-black tabular-nums text-[#60a5fa]">
-            {calculateFclPoints(player).toLocaleString()}
-          </p>
-          <p className="text-[10px] text-slate-500 dark:text-[#64748b]">
-            {player.runs ?? 0}r · {player.wickets ?? 0}w
-          </p>
-        </div>
+        <span className="flex items-center gap-2.5">
+          <span className="text-lg">🌐</span>
+          <span className="text-sm font-black">All Players</span>
+        </span>
+        <span
+          className={`rounded-full px-2.5 py-0.5 text-[11px] font-black tabular-nums ${
+            allActive ? "bg-white/25" : "bg-slate-200 text-slate-600 dark:bg-[#172033] dark:text-[#94a3b8]"
+          }`}
+        >
+          {roleCounts.All ?? 0}
+        </span>
       </button>
-    </li>
+
+      {/* ৬টা রোল, ৩ × ২ */}
+      <div className="grid grid-cols-3 gap-2">
+        {roles.map((role) => {
+          const s = getRoleStyle(role);
+          const active = selectedRole === role;
+          return (
+            <button
+              key={role}
+              onClick={() => setSelectedRole(role)}
+              aria-pressed={active}
+              className={`relative flex flex-col items-center gap-1.5 overflow-hidden rounded-2xl border px-1.5 pb-2.5 pt-3 transition active:scale-95 ${
+                active
+                  ? `${s.ring} shadow-md`
+                  : "border-slate-200 bg-white dark:border-[#1e293b] dark:bg-[#0b1220]"
+              }`}
+            >
+              {active && <span className={`absolute inset-x-0 top-0 h-[3px] ${s.bar}`} />}
+              <span className={`flex h-9 w-9 items-center justify-center rounded-full border text-lg ${s.ring}`}>
+                {s.icon}
+              </span>
+              <span
+                className={`flex min-h-[24px] items-center text-center text-[10px] font-black leading-tight ${
+                  active ? s.text : "text-slate-600 dark:text-slate-300"
+                }`}
+              >
+                {role}
+              </span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-bold tabular-nums ${
+                  active
+                    ? "bg-white/40 text-slate-700 dark:bg-white/15 dark:text-white"
+                    : "bg-slate-100 text-slate-500 dark:bg-[#172033] dark:text-[#94a3b8]"
+                }`}
+              >
+                {roleCounts[role] ?? 0}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* সর্টিং */}
+      <div>
+        <p className="mb-2 px-0.5 text-[11px] font-bold text-slate-500 dark:text-[#94a3b8]">Sort by</p>
+        <div className="-mx-3.5 flex gap-2 overflow-x-auto px-3.5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {SORTS.map((s) => {
+            const active = sortBy === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setSortBy(s.key)}
+                aria-pressed={active}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[11px] font-bold transition active:scale-95 ${
+                  active
+                    ? "border-amber-400 bg-gradient-to-br from-amber-400/25 to-amber-500/10 text-amber-500 shadow-sm"
+                    : "border-slate-200 bg-white text-slate-600 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8]"
+                }`}
+              >
+                <span className="text-sm">{s.icon}</span>
+                {s.short}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -616,7 +695,6 @@ export default function PlayersPage() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
   const [showCriteria, setShowCriteria] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
 
   const isDesktop = useMediaQuery("(min-width: 1024px)");
 
@@ -732,6 +810,13 @@ export default function PlayersPage() {
     onOpen: open,
   });
 
+  const headerStats = [
+    { label: "Players", value: players.length, icon: "👥", color: "text-[#1877F2] dark:text-[#60a5fa]" },
+    { label: "Matches", value: totals.matches, icon: "⚡", color: "text-emerald-600 dark:text-emerald-300" },
+    { label: "Runs", value: totals.runs, icon: "🏏", color: "text-sky-600 dark:text-sky-300" },
+    { label: "Wickets", value: totals.wickets, icon: "🎯", color: "text-amber-600 dark:text-amber-300" },
+  ];
+
   const SearchBox = (
     <div className="relative w-full">
       <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#64748b]">
@@ -756,8 +841,9 @@ export default function PlayersPage() {
     </div>
   );
 
+  /* পিসি সাইডবারের সর্ট বাটন */
   const SortButtons = (
-    <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap">
+    <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
       {SORTS.map((s) => {
         const active = sortBy === s.key;
         return (
@@ -765,42 +851,14 @@ export default function PlayersPage() {
             key={s.key}
             onClick={() => setSortBy(s.key)}
             aria-pressed={active}
-            className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl border p-3 text-center transition ${
+            className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-center transition ${
               active
-                ? "border-amber-400 bg-gradient-to-br from-amber-400/20 to-amber-500/10 text-amber-500 shadow-md shadow-amber-500/10"
+                ? "border-amber-400 bg-gradient-to-br from-amber-400/20 to-amber-500/10 text-amber-500 shadow-sm"
                 : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8] dark:hover:text-white"
             }`}
           >
-            <span className="text-xl">{s.icon}</span>
-            <span className="text-xs font-black">{s.short}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-
-  const RoleButtons = (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-      {ROLES.map((role) => {
-        const active = selectedRole === role;
-        const icon = ROLE_ICONS[role] || "🏏";
-        const count = roleCounts[role] ?? 0;
-        return (
-          <button
-            key={role}
-            onClick={() => setSelectedRole(role)}
-            aria-pressed={active}
-            className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl border p-3.5 text-center transition ${
-              active
-                ? "border-amber-400 bg-gradient-to-br from-amber-400/20 to-amber-500/10 text-amber-500 shadow-md shadow-amber-500/10"
-                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8] dark:hover:text-white"
-            }`}
-          >
-            <span className="text-2xl">{icon}</span>
-            <span className="text-xs font-black truncate max-w-full">{role}</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-[#172033] dark:text-[#94a3b8]">
-              {count}
-            </span>
+            <span className="text-sm">{s.icon}</span>
+            <span className="text-[11px] font-bold">{s.short}</span>
           </button>
         );
       })}
@@ -810,11 +868,11 @@ export default function PlayersPage() {
   const renderContent = () => {
     if (loading) {
       return (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
           {Array.from({ length: isDesktop ? 6 : 4 }).map((_, i) => (
             <div
               key={i}
-              className="h-56 animate-pulse rounded-3xl border border-slate-200 bg-white dark:border-[#1e293b] dark:bg-[#0b1220] lg:h-72"
+              className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-[#0b1220]"
             />
           ))}
         </div>
@@ -867,22 +925,11 @@ export default function PlayersPage() {
       );
     }
 
-    if (view === "grid") {
-      return (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {visiblePlayers.map((p, i) => (
-            <MobileCard key={p.id ?? p.name + i} {...itemProps(p, i)} />
-          ))}
-        </div>
-      );
-    }
     return (
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-[#1e293b] dark:bg-[#0b1220]">
-        <ul className="divide-y divide-slate-100 dark:divide-[#172033]">
-          {visiblePlayers.map((p, i) => (
-            <MobileRow key={p.id ?? p.name + i} {...itemProps(p, i)} />
-          ))}
-        </ul>
+      <div className="space-y-2.5">
+        {visiblePlayers.map((p, i) => (
+          <MobilePlayerCard key={p.id ?? p.name + i} {...itemProps(p, i)} />
+        ))}
       </div>
     );
   };
@@ -907,17 +954,13 @@ export default function PlayersPage() {
           </div>
 
           <div className="mt-5 grid grid-cols-4 gap-2 sm:gap-3 lg:mt-8 lg:max-w-3xl lg:gap-4">
-            {[
-              { label: "Players", value: players.length },
-              { label: "Matches", value: totals.matches },
-              { label: "Runs", value: totals.runs },
-              { label: "Wickets", value: totals.wickets },
-            ].map((s) => (
+            {headerStats.map((s) => (
               <div
                 key={s.label}
                 className="rounded-2xl border border-slate-200 bg-white px-2 py-3 text-center shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]/80 lg:rounded-3xl lg:px-5 lg:py-4 lg:text-left"
               >
-                <p className="text-lg font-black tabular-nums leading-none lg:text-3xl">
+                <p className="text-base leading-none lg:hidden">{s.icon}</p>
+                <p className={`mt-1.5 text-lg font-black tabular-nums leading-none lg:mt-0 lg:text-3xl ${s.color}`}>
                   {loading ? "–" : s.value.toLocaleString()}
                 </p>
                 <p className="mt-1.5 text-[10px] font-medium text-slate-500 dark:text-[#94a3b8] lg:text-xs">{s.label}</p>
@@ -1001,26 +1044,20 @@ export default function PlayersPage() {
           </aside>
 
           <div className="min-w-0">
-            <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-slate-200/70 bg-slate-50/90 px-4 pb-3 pt-3 backdrop-blur-xl dark:border-[#1e293b]/70 dark:bg-[#020617]/90 sm:-mx-6 sm:px-6 lg:hidden">
-              <div className="flex items-center gap-2">
-                {SearchBox}
-                <button
-                  onClick={() => setShowFilters(true)}
-                  aria-label="Sort and layout"
-                  className="relative flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#94a3b8]"
-                >
-                  {Icon.sliders}
-                  {sortBy !== "name" && (
-                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-400" />
-                  )}
-                </button>
-              </div>
+            {/* 📱 মোবাইল: শুধু সার্চ বার sticky */}
+            <div className="sticky top-0 z-30 -mx-4 mb-3 border-b border-slate-200/70 bg-slate-50/90 px-4 pb-3 pt-3 backdrop-blur-xl dark:border-[#1e293b]/70 dark:bg-[#020617]/90 sm:-mx-6 sm:px-6 lg:hidden">
+              {SearchBox}
+            </div>
 
-              {/* রোল সিলেকশন গ্রিড বাটন (ছবি স্টাইল) */}
-              <div className="mt-3">
-                <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-slate-400">Filter by Role</p>
-                {RoleButtons}
-              </div>
+            {/* 📱 মোবাইল: রোল + সর্ট প্যানেল */}
+            <div className="mb-4 lg:hidden">
+              <MobileFilterPanel
+                selectedRole={selectedRole}
+                setSelectedRole={setSelectedRole}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                roleCounts={roleCounts}
+              />
             </div>
 
             {!loading && filteredPlayers.length > 0 && (
@@ -1095,25 +1132,6 @@ export default function PlayersPage() {
           </button>
         </div>
       </div>
-
-      <Sheet open={showFilters} onClose={() => setShowFilters(false)} title="Sort & layout">
-        <div className="space-y-6">
-          <div>
-            <p className="mb-2.5 text-xs font-bold text-slate-500 dark:text-[#94a3b8]">Sort by</p>
-            {SortButtons}
-          </div>
-          <div>
-            <p className="mb-2.5 text-xs font-bold text-slate-500 dark:text-[#94a3b8]">Layout</p>
-            <ViewToggle view={view} setView={setView} />
-          </div>
-          <button
-            onClick={() => setShowFilters(false)}
-            className="w-full rounded-2xl bg-[#1877F2] py-3.5 text-sm font-black text-white shadow-lg shadow-[#1877F2]/30"
-          >
-            Show {filteredPlayers.length} players
-          </button>
-        </div>
-      </Sheet>
 
       <Sheet open={showCriteria} onClose={() => setShowCriteria(false)} title="How roles are determined">
         <CriteriaContent />
