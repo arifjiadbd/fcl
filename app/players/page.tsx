@@ -426,7 +426,7 @@ type ItemProps = {
   onOpen: (p: Player) => void;
 };
 
-/* 🖥️ পিসি কার্ড: সমস্ত ইনফরমেশন ও স্ট্যাটস সমেত পূর্ণাঙ্গ রূপ */
+/* 🖥️ পিসি কার্ড: শুধু ম্যাচ, রান ও উইকেট — ছোট ও পরিচ্ছন্ন */
 function DesktopCard({ player, rank, showRank, maxPoints, onOpen }: ItemProps) {
   const s = getRoleStyle(player.role);
   const points = calculateFclPoints(player);
@@ -462,9 +462,6 @@ function DesktopCard({ player, rank, showRank, maxPoints, onOpen }: ItemProps) {
         <Tile label="Matches" value={Number(player.matches) || 0} />
         <Tile label="Runs (Max)" value={`${Number(player.runs) || 0} (${player.maxRuns || 0})`} tone="blue" />
         <Tile label="Wickets (Max)" value={`${Number(player.wickets) || 0} (${player.maxWickets || 0})`} tone="amber" />
-        <Tile label="Innings / NO" value={`${player.innings || 0} / ${player.notOut || 0}`} />
-        <Tile label="Boundaries" value={`4s:${player.fours || 0} | 6s:${player.sixes || 0}`} />
-        <Tile label="Tournaments" value={player.totalTournament || 0} />
       </div>
 
       <div className="mt-4">
@@ -568,10 +565,7 @@ function MobilePlayerCard({ player, rank, showRank, onOpen }: ItemProps) {
   );
 }
 
-/* ───────── 📱 মোবাইল ফিল্টার + সর্ট প্যানেল ─────────
-   • All বাটন আলাদা, পুরো প্রস্থে
-   • বাকি ৬টা রোল ৩ কলাম × ২ সারিতে
-   • সর্টিং এখন সরাসরি স্ক্রিনেই                              */
+/* ───────── 📱 মোবাইল ফিল্টার + সর্ট প্যানেল ───────── */
 function MobileFilterPanel({
   selectedRole,
   setSelectedRole,
@@ -590,7 +584,6 @@ function MobileFilterPanel({
 
   return (
     <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-3.5 shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]/80">
-      {/* All বাটন */}
       <button
         onClick={() => setSelectedRole("All")}
         aria-pressed={allActive}
@@ -613,7 +606,6 @@ function MobileFilterPanel({
         </span>
       </button>
 
-      {/* ৬টা রোল, ৩ × ২ */}
       <div className="grid grid-cols-3 gap-2">
         {roles.map((role) => {
           const s = getRoleStyle(role);
@@ -654,7 +646,6 @@ function MobileFilterPanel({
         })}
       </div>
 
-      {/* সর্টিং */}
       <div>
         <p className="mb-2 px-0.5 text-[11px] font-bold text-slate-500 dark:text-[#94a3b8]">Sort by</p>
         <div className="-mx-3.5 flex gap-2 overflow-x-auto px-3.5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -841,7 +832,6 @@ export default function PlayersPage() {
     </div>
   );
 
-  /* পিসি সাইডবারের সর্ট বাটন */
   const SortButtons = (
     <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
       {SORTS.map((s) => {
@@ -936,11 +926,30 @@ export default function PlayersPage() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-[#020617] dark:text-white">
+      {/* অ্যানিমেশন স্টাইল ও গ্লো এফেক্ট */}
+      <style jsx global>{`
+        @keyframes pulse-glow {
+          0%, 100% {
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.25), inset 0 0 15px rgba(24, 119, 242, 0.15);
+            border-color: rgba(245, 158, 11, 0.5);
+            transform: scale(1);
+          }
+          50% {
+            box-shadow: 0 0 35px rgba(245, 158, 11, 0.55), inset 0 0 25px rgba(24, 119, 242, 0.3);
+            border-color: rgba(245, 158, 11, 0.9);
+            transform: scale(1.02);
+          }
+        }
+        .auction-animated-card {
+          animation: pulse-glow 3s infinite ease-in-out;
+        }
+      `}</style>
+
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[460px] bg-[radial-gradient(ellipse_at_top,rgba(24,119,242,0.16),transparent_65%)]" />
 
       <main className="relative mx-auto max-w-[1400px] px-4 pb-32 pt-6 sm:px-6 lg:px-10 lg:pb-20 lg:pt-12">
         <header className="mb-6 lg:mb-10">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="max-w-2xl">
               <span className="inline-flex items-center gap-2 rounded-full border border-[#1877F2]/40 bg-[#1877F2]/10 px-3 py-1 text-[11px] font-semibold text-[#60a5fa]">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#60a5fa]" />
@@ -951,6 +960,23 @@ export default function PlayersPage() {
                 Search any player, filter by role, and open a profile to view and download the Official Card.
               </p>
             </div>
+
+            {/* ⚔️ পিসিতে উপরে ডানে আরও বড় ও অ্যানিমেটেড অকশন/তুলনা কার্ড */}
+            <Link
+              href="/players/compare"
+              className="auction-animated-card group hidden w-full lg:w-[400px] shrink-0 items-center gap-5 rounded-[28px] border-2 bg-gradient-to-br from-amber-500/20 via-[#1877F2]/15 to-slate-900/90 p-6 transition hover:brightness-110 lg:flex shadow-2xl"
+            >
+              <span className="text-4xl sm:text-5xl animate-bounce">⚔️</span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-base sm:text-lg font-black leading-snug text-white tracking-wide">
+                  অকশনের আগে খেলোয়াড়দের পারফরম্যান্স তুলনা করুন!
+                </h2>
+                <p className="mt-1 text-xs text-slate-300">সেরা স্কোয়াড গড়ে তুলতে তুলনা শুরু করুন</p>
+                <span className="mt-3 inline-flex items-center rounded-xl bg-gradient-to-r from-[#1877F2] to-blue-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-[#1877F2]/40 transition group-hover:scale-105">
+                  তুলনা শুরু করুন →
+                </span>
+              </div>
+            </Link>
           </div>
 
           <div className="mt-5 grid grid-cols-4 gap-2 sm:gap-3 lg:mt-8 lg:max-w-3xl lg:gap-4">
@@ -1025,20 +1051,6 @@ export default function PlayersPage() {
                 >
                   How roles are determined
                 </button>
-              </div>
-
-              <div className="relative overflow-hidden rounded-[28px] border border-amber-400/40 bg-gradient-to-br from-amber-400/15 via-[#1877F2]/10 to-transparent p-5">
-                <span className="text-3xl">⚔️</span>
-                <h2 className="mt-3 text-sm font-black leading-snug">অকশনের আগে খেলোয়াড়দের পারফরম্যান্স তুলনা করুন!</h2>
-                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-[#94a3b8]">
-                  একাধিক খেলোয়াড়ের স্ট্যাটস পাশাপাশি যাচাই করে সেরা স্কোয়াড গড়ে তুলুন।
-                </p>
-                <Link
-                  href="/players/compare"
-                  className="mt-4 flex items-center justify-center rounded-2xl bg-[#1877F2] px-4 py-3 text-sm font-black text-white shadow-lg shadow-[#1877F2]/30 transition hover:bg-blue-600"
-                >
-                  তুলনা শুরু করুন →
-                </Link>
               </div>
             </div>
           </aside>
