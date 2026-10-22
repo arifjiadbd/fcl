@@ -373,21 +373,24 @@ function Sheet({
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal="true">
-      <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
-      <div className="relative max-h-[88vh] w-full overflow-y-auto rounded-t-[28px] border border-slate-200 bg-white p-5 shadow-2xl dark:border-[#1e293b] dark:bg-[#0b1220] md:max-w-2xl md:rounded-[28px] md:p-7">
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300 dark:bg-[#1e293b] md:hidden" />
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-black">{title}</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
+      <button aria-label="Close" onClick={onClose} className="absolute inset-0 bg-black/80 backdrop-blur-md transition-opacity animate-fadeIn" />
+      <div className="relative flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-[32px] border border-slate-200/20 bg-white/95 p-6 shadow-2xl backdrop-blur-xl dark:border-[#1e293b] dark:bg-[#0b1220]/95 sm:p-7 animate-scaleUp">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200/50 pb-4 dark:border-[#1e293b]">
+          <h3 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">{title}</h3>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:text-slate-900 dark:bg-[#172033] dark:text-[#94a3b8] dark:hover:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 dark:bg-[#172033] dark:text-[#94a3b8] dark:hover:text-white"
           >
             ✕
           </button>
         </div>
-        {children}
+        
+        {/* ভেতরের অংশ যাতে সুন্দরভাবে স্ক্রোল হয় */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-4 pr-1 [scrollbar-width:thin]">
+          {children}
+        </div>
       </div>
     </div>
   );

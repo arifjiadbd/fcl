@@ -196,7 +196,7 @@ function Avatar({ player, size = 44 }: { player: Player; size?: number }) {
 
   return (
     <div className="relative shrink-0 overflow-hidden rounded-full border border-[#1e293b] bg-[#0b1220]" style={{ width: size, height: size }}>
-      <img src={photoPath} alt={player?.name || "Player"} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = "/FCL Cricket Avatar Placeholder.jpg"; }} />
+      <img src={photoPath} alt={player?.name || "Player"} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = `/FCL Cricket Avatar Placeholder.jpg`; }} />
     </div>
   );
 }
@@ -216,10 +216,8 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
   };
 
   const chips = tab === "records" ? [] : tab === "clubs" ? CLUB_CHIPS : COUNT_CHIPS;
-  const accent = ACCENT[tab] || "#f59e0b";
   const tabInfo = MOBILE_TABS.find((t) => t.id === tab);
 
-  // Tournament history grouped
   const tournamentHistory = useMemo(() => {
     if (!tournamentsData || tournamentsData.length === 0) return [];
     const map = new Map<string, { tournament: string; champion?: string; runnerUp?: string; topScorer?: string; topWicket?: string }>();
@@ -247,16 +245,29 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
       { id: "sixes", label: "Six Machine", icon: "💥", fn: (p: Player) => p.sixes || 0, unit: "Sixes" },
       { id: "hattricks", label: "Hat-Trick Master", icon: "🎩", fn: (p: Player) => p.hatTricks || 0, unit: "Hat-tricks" },
       { id: "points", label: "FCL Points", icon: "💯", fn: (p: Player) => calculateFclPoints(p), unit: "Points" },
+      { id: "fours", label: "Boundary Kings", icon: "🔷", fn: (p: Player) => p.fours || 0, unit: "Fours" },
+      { id: "runnersup", label: "Runners-Up", icon: "🥈", fn: (p: Player) => p.runnersUp || 0, unit: "Times" },
+      { id: "motcpot", label: "MOT / CPOT", icon: "⭐", fn: motTotal, unit: "Awards" },
+      { id: "runking", label: "Tour. Run King", icon: "👑", fn: (p: Player) => p.highestRunScorer || 0, unit: "Times" },
+      { id: "wicketking", label: "Tour. Wicket King", icon: "🛡️", fn: (p: Player) => p.topWicketTaker || 0, unit: "Times" },
+      { id: "mom", label: "Man of the Match", icon: "🎖️", fn: (p: Player) => p.mom || 0, unit: "Awards" },
+      { id: "cpom", label: "CP of Match", icon: "🏅", fn: (p: Player) => p.cpom || 0, unit: "Awards" },
+      { id: "innings", label: "Most Innings", icon: "📋", fn: (p: Player) => p.innings || 0, unit: "Innings" },
+      { id: "notout", label: "Most Not Outs", icon: "🧱", fn: (p: Player) => p.notOut || 0, unit: "Not Outs" },
+      { id: "maxruns", label: "Highest Tour. Runs", icon: "🚀", fn: (p: Player) => p.maxRuns || 0, unit: "Runs" },
+      { id: "maxwickets", label: "Highest Wicket", icon: "🔥", fn: (p: Player) => p.maxWickets || 0, unit: "Wickets" },
+      { id: "tournaments", label: "Tournaments", icon: "🗓️", fn: (p: Player) => p.totalTournament || 0, unit: "Tours" },
     ];
     return defs.map((d) => ({ ...d, player: top(d.fn), value: top(d.fn) ? d.fn(top(d.fn)) : 0 })).filter((d) => d.player);
   }, [players]);
 
   const rows = useMemo(() => {
     const by = (fn: (p: Player) => number) => [...players].sort((a, b) => fn(b) - fn(a));
+    if (tab === "tournaments_history") return [];
     if (tab === "clubs") {
       const out: any[] = [];
       TIERS.filter((t) => chip === "All" || chip === t.key).forEach((t) => {
-        players.filter(t.test).forEach((p, i) => out.push({ key: t.key + p.name + i, player: p, tierKey: t.key }));
+        players.filter(t.test).forEach((p, i) => out.push({ key: t.key + p.name + i, player: p, tierKey: t.key, badge: `${t.icon} ${t.title}`, meta: `${p.matches} Matches`, value: `${p.runs}R | ${p.wickets}W`, unit: "" }));
       });
       return out;
     }
@@ -268,7 +279,7 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
       .filter((p) => c.v(p) > 0)
       .filter((p) => !q || p.name.toLowerCase().includes(q) || (p.nickName || "").toLowerCase().includes(q))
       .slice(0, limit)
-      .map((p, i) => ({ key: (p.id ?? p.name) + "-" + i, player: p, value: c.v(p), unit: c.unit }));
+      .map((p, i) => ({ key: (p.id ?? p.name) + "-" + i, player: p, badge: c.badge(p), meta: c.meta(p), value: c.v(p), unit: c.unit }));
   }, [players, tab, chip, query]);
 
   return (
@@ -278,7 +289,7 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
           <Link href="/" className="flex h-9 w-9 items-center justify-center rounded-full text-2xl text-slate-300">‹</Link>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-black tracking-tight truncate">FCL Record Corner</h1>
-            <p className="text-[10px] text-slate-400 truncate">{tabInfo?.label || "Hall of Fame"}</p>
+            <p className="text-[10px] text-slate-400 truncate">{tab === "tournaments_history" ? "Tournament History" : tabInfo?.label || "Hall of Fame"}</p>
           </div>
           <Link href="/rankings" className="rounded-full bg-amber-500 px-3 py-1.5 text-xs font-black text-black">Rankings</Link>
           <button onClick={() => setShowSearch((s) => !s)} aria-label="Search" className="flex h-9 w-9 items-center justify-center rounded-full border border-[#1e293b] bg-[#0b1220]">🔍</button>
@@ -290,6 +301,15 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
 
       {/* Mobile Category Grid / Selector */}
       <div className="mx-3 mt-3 rounded-3xl bg-[#0a1324] p-3 border border-[#1e293b]">
+        <button
+          onClick={() => changeTab("tournaments_history")}
+          className={`mb-2.5 flex w-full items-center justify-center gap-2 rounded-2xl p-2.5 text-xs font-black transition ${
+            tab === "tournaments_history" ? "bg-amber-500 text-black shadow-lg" : "bg-[#0f1b33] text-amber-400 border border-amber-500/30"
+          }`}
+        >
+          <span>🏆</span> <span>Tournament History Archive</span>
+        </button>
+
         <div className="grid grid-cols-4 gap-2">
           {(expanded ? MOBILE_TABS : MOBILE_TABS.slice(0, 8)).map((t) => (
             <button
@@ -309,7 +329,7 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
         </button>
       </div>
 
-      {chips.length > 0 && tab !== "clubs" && (
+      {chips.length > 0 && tab !== "clubs" && tab !== "tournaments_history" && (
         <div className="mx-3 mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {chips.map((c) => (
             <button key={c} onClick={() => setChip(c)} className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${chip === c ? "bg-emerald-500 text-white" : "border border-[#1e293b] bg-[#0b1220] text-slate-300"}`}>
@@ -322,6 +342,21 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
       <main className="px-3 pt-4">
         {loading ? (
           <div className="py-20 text-center text-xs font-bold text-amber-400 animate-pulse">Loading FCL Records...</div>
+        ) : tab === "tournaments_history" ? (
+          <div className="space-y-3">
+            <h2 className="text-sm font-black text-amber-400 px-1">🏆 Tournament History Archive</h2>
+            {tournamentHistory.map((item, i) => (
+              <div key={i} className="rounded-2xl border border-[#1e293b] bg-[#0b1220] p-4 space-y-2 shadow-lg">
+                <h3 className="text-sm font-black text-amber-400 border-b border-[#1e293b] pb-2">🏟️ {item.tournament}</h3>
+                <div className="text-xs space-y-1 text-slate-300">
+                  <p>🏆 <strong className="text-white">Champion:</strong> {item.champion || "—"}</p>
+                  <p>🥈 <strong className="text-white">Runner-Up:</strong> {item.runnerUp || "—"}</p>
+                  <p>🏏 <strong className="text-white">Top Scorer:</strong> {item.topScorer || "—"}</p>
+                  <p>🎯 <strong className="text-white">Top Wicket:</strong> {item.topWicket || "—"}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : tab === "records" ? (
           <div className="space-y-3">
             <h2 className="text-sm font-black text-amber-400 px-1">⭐ Hall of Fame — Top Record Holders</h2>
@@ -455,6 +490,7 @@ function DesktopRecords({ players, tournamentsData, loading, onSelect }: { playe
       { id: "notout", label: "Most Not Outs", icon: "🧱", fn: (p: Player) => p.notOut || 0, unit: "Not Outs" },
       { id: "maxruns", label: "Highest Tour. Runs", icon: "🚀", fn: (p: Player) => p.maxRuns || 0, unit: "Runs" },
       { id: "maxwickets", label: "Highest Wicket", icon: "🔥", fn: (p: Player) => p.maxWickets || 0, unit: "Wickets" },
+      { id: "tournaments", label: "Tournaments", icon: "🗓️", fn: (p: Player) => p.totalTournament || 0, unit: "Tours" },
     ];
     return defs.map((d) => ({ ...d, player: top(d.fn), value: top(d.fn) ? d.fn(top(d.fn)) : 0 })).filter((d) => d.player);
   }, [players]);
@@ -479,7 +515,6 @@ function DesktopRecords({ players, tournamentsData, loading, onSelect }: { playe
   const featured = holders.slice(0, 3);
   const others = holders.slice(3);
 
-  // Tournament history grouped
   const tournamentHistory = useMemo(() => {
     if (!tournamentsData || tournamentsData.length === 0) return [];
     const map = new Map<string, { tournament: string; champion?: string; runnerUp?: string; topScorer?: string; topWicket?: string }>();
