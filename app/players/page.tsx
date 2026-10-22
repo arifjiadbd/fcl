@@ -514,7 +514,7 @@ function DesktopRow({ player, rank, showRank, onOpen }: ItemProps) {
   );
 }
 
-/* ───────── 📱 মোবাইল কার্ড (লাইট/ডার্ক দুই মোডেই কাজ করে) ───────── */
+/* ───────── 📱 মোবাইল কার্ড ───────── */
 function MobilePlayerCard({ player, rank, showRank, onOpen }: ItemProps) {
   const s = getRoleStyle(player.role);
   const points = calculateFclPoints(player);
@@ -926,7 +926,6 @@ export default function PlayersPage() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-[#020617] dark:text-white">
-      {/* অ্যানিমেশন স্টাইল ও গ্লো এফেক্ট */}
       <style jsx global>{`
         @keyframes pulse-glow {
           0%, 100% {
@@ -961,17 +960,17 @@ export default function PlayersPage() {
               </p>
             </div>
 
-            {/* ⚔️ পিসিতে উপরে ডানে আরও বড় ও অ্যানিমেটেড অকশন/তুলনা কার্ড */}
+            {/* 🌟 অকশন তুলনা কার্ড (ডেস্কটপ ও মোবাইল উভয় ভিউতেই হেডার সেকশনে দৃশ্যমান করা হয়েছে) */}
             <Link
               href="/players/compare"
-              className="auction-animated-card group hidden w-full lg:w-[400px] shrink-0 items-center gap-5 rounded-[28px] border-2 bg-gradient-to-br from-amber-500/20 via-[#1877F2]/15 to-slate-900/90 p-6 transition hover:brightness-110 lg:flex shadow-2xl"
+              className="auction-animated-card group flex w-full lg:w-[400px] shrink-0 items-center gap-5 rounded-[28px] border-2 bg-gradient-to-br from-amber-500/20 via-[#1877F2]/15 to-slate-900/90 p-5 sm:p-6 transition hover:brightness-110 shadow-2xl"
             >
               <span className="text-4xl sm:text-5xl animate-bounce">⚔️</span>
               <div className="min-w-0 flex-1">
-                <h2 className="text-base sm:text-lg font-black leading-snug text-white tracking-wide">
+                <h2 className="text-sm sm:text-lg font-black leading-snug text-white tracking-wide">
                   অকশনের আগে খেলোয়াড়দের পারফরম্যান্স তুলনা করুন!
                 </h2>
-                <p className="mt-1 text-xs text-slate-300">সেরা স্কোয়াড গড়ে তুলতে তুলনা শুরু করুন</p>
+                <p className="mt-1 text-xs text-slate-300">সেরা স্কোয়াড গড়ে তুলতে তুলনা শুরু করুন</p>
                 <span className="mt-3 inline-flex items-center rounded-xl bg-gradient-to-r from-[#1877F2] to-blue-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-[#1877F2]/40 transition group-hover:scale-105">
                   তুলনা শুরু করুন →
                 </span>
@@ -999,6 +998,17 @@ export default function PlayersPage() {
           <aside className="hidden lg:block">
             <div className="sticky top-6 space-y-5">
               <div className="space-y-5 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]">
+                {/* How roles are determined বাটন (ডেস্কটপ) */}
+                <button
+                  onClick={() => setShowCriteria(true)}
+                  className="flex w-full items-center justify-between rounded-xl border border-[#1877F2]/40 bg-[#1877F2]/10 px-4 py-3 text-xs font-bold text-[#60a5fa] transition hover:bg-[#1877F2]/25 shadow-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm">ℹ️</span> How roles are determined
+                  </span>
+                  <span>→</span>
+                </button>
+
                 {SearchBox}
 
                 <div>
@@ -1044,25 +1054,27 @@ export default function PlayersPage() {
                   <p className="mb-2.5 text-xs font-bold text-slate-500 dark:text-[#94a3b8]">Layout</p>
                   <ViewToggle view={view} setView={setView} />
                 </div>
-
-                <button
-                  onClick={() => setShowCriteria(true)}
-                  className="w-full rounded-xl border border-[#1877F2]/40 bg-[#1877F2]/10 px-4 py-2.5 text-xs font-bold text-[#60a5fa] transition hover:bg-[#1877F2]/20"
-                >
-                  How roles are determined
-                </button>
               </div>
             </div>
           </aside>
 
           <div className="min-w-0">
-            {/* 📱 মোবাইল: শুধু সার্চ বার sticky */}
             <div className="sticky top-0 z-30 -mx-4 mb-3 border-b border-slate-200/70 bg-slate-50/90 px-4 pb-3 pt-3 backdrop-blur-xl dark:border-[#1e293b]/70 dark:bg-[#020617]/90 sm:-mx-6 sm:px-6 lg:hidden">
               {SearchBox}
             </div>
 
-            {/* 📱 মোবাইল: রোল + সর্ট প্যানেল */}
+            {/* 🌟 মোবাইল ফিল্টার প্যানেলের ঠিক উপরে 'How roles are determined' বাটন যুক্ত করা হয়েছে */}
             <div className="mb-4 lg:hidden">
+              <button
+                onClick={() => setShowCriteria(true)}
+                className="mb-3 flex w-full items-center justify-between rounded-2xl border border-[#1877F2]/40 bg-white p-3.5 px-4 text-xs font-bold text-[#1877F2] shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220] dark:text-[#60a5fa]"
+              >
+                <span className="flex items-center gap-2.5 text-sm">
+                  <span>ℹ️</span> How roles are determined
+                </span>
+                <span className="rounded-full bg-[#1877F2]/10 px-2.5 py-1 text-[11px]">দেখুন →</span>
+              </button>
+
               <MobileFilterPanel
                 selectedRole={selectedRole}
                 setSelectedRole={setSelectedRole}
@@ -1126,24 +1138,6 @@ export default function PlayersPage() {
           </div>
         </div>
       </main>
-
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:hidden">
-        <div className="pointer-events-auto flex w-full max-w-md items-center gap-2 rounded-full border border-slate-200 bg-white/90 p-1.5 shadow-2xl shadow-black/30 backdrop-blur-xl dark:border-[#1e293b] dark:bg-[#0b1220]/90">
-          <Link
-            href="/players/compare"
-            className="flex flex-1 items-center justify-center gap-2 rounded-full bg-[#1877F2] px-4 py-3 text-sm font-black text-white shadow-lg shadow-[#1877F2]/30"
-          >
-            <span>⚔️</span> তুলনা করুন
-          </Link>
-          <button
-            onClick={() => setShowCriteria(true)}
-            aria-label="How roles are determined"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-base font-black text-[#1877F2] dark:bg-[#172033] dark:text-[#60a5fa]"
-          >
-            ?
-          </button>
-        </div>
-      </div>
 
       <Sheet open={showCriteria} onClose={() => setShowCriteria(false)} title="How roles are determined">
         <CriteriaContent />
