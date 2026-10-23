@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, memo } from "react";
 import Link from "next/link";
 import PlayerCardModal from "../../components/PlayerCardModal";
 
@@ -63,6 +63,9 @@ interface TournamentRecord {
   topWicket: number;
 }
 
+/* teammate count map: lowercase player name -> number of unique teammates */
+type TeamCounts = Map<string, number>;
+
 /* ═════════════════════════ SHARED HELPERS ═════════════════════════ */
 
 export const calculateFclPoints = (p: Player): number => {
@@ -82,6 +85,48 @@ export const calculateFclPoints = (p: Player): number => {
 };
 
 const motTotal = (p: Player) => (Number(p.mot) || 0) + (Number(p.cpot) || 0);
+
+const nameKey = (s?: string) => (s || "").trim().toLowerCase();
+
+/**
+ * ⚡ একবারই পুরো ডাটা স্ক্যান করে সবার সতীর্থ সংখ্যা বের করা হয়।
+ * আগে প্রতিটি প্লেয়ারের জন্য (এবং সর্টের প্রতিটি তুলনায়) পুরো ডাটা আবার স্ক্যান হতো — সেটাই স্লো করছিল।
+ */
+function buildTeammateCounts(data: TournamentRecord[]): TeamCounts {
+  const out: TeamCounts = new Map();
+  if (!data || data.length === 0) return out;
+
+  const squads = new Map<string, Set<string>>(); // "tour__team" -> players
+  const playerSquads = new Map<string, Set<string>>(); // player -> squad keys
+
+  for (const r of data) {
+    const tour = (r.tournament || "").trim();
+    const team = (r.team || "").trim();
+    const name = nameKey(r.playerName);
+    if (!tour || !team || !name) continue;
+    const key = `${tour}__${team}`;
+
+    let sq = squads.get(key);
+    if (!sq) { sq = new Set(); squads.set(key, sq); }
+    sq.add(name);
+
+    let ps = playerSquads.get(name);
+    if (!ps) { ps = new Set(); playerSquads.set(name, ps); }
+    ps.add(key);
+  }
+
+  playerSquads.forEach((keys, name) => {
+    const mates = new Set<string>();
+    keys.forEach((k) => {
+      squads.get(k)!.forEach((m) => { if (m !== name) mates.add(m); });
+    });
+    out.set(name, mates.size);
+  });
+
+  return out;
+}
+
+const teammateCountOf = (p: Player, tm: TeamCounts) => tm.get(nameKey(p.name)) || 0;
 
 type MTabId = string;
 
@@ -128,44 +173,7 @@ const SAFE_WK = (p: Player) => {
   return "0.00";
 };
 
-function getPlayerTeammateCount(p: Player, tournamentsData: TournamentRecord[]): number {
-  if (!p || !tournamentsData || tournamentsData.length === 0) return 0;
-  const pNameLower = (p.name || "").trim().toLowerCase();
-  
-  const playerTourTeams = new Map<string, string>();
-  tournamentsData.forEach(r => {
-    if ((r.playerName || "").trim().toLowerCase() === pNameLower) {
-      if (r.tournament && r.team) playerTourTeams.set(r.tournament.trim(), r.team.trim());
-    }
-  });
-
-  const tourTeamPlayers = new Map<string, Set<string>>();
-  tournamentsData.forEach(r => {
-    const tour = (r.tournament || "").trim();
-    const team = (r.team || "").trim();
-    const rName = (r.playerName || "").trim();
-    if (tour && team && rName) {
-      const key = `${tour}__${team}`;
-      if (!tourTeamPlayers.has(key)) tourTeamPlayers.set(key, new Set());
-      tourTeamPlayers.get(key)!.add(rName.toLowerCase());
-    }
-  });
-
-  const uniqueTeammates = new Set<string>();
-  playerTourTeams.forEach((team, tour) => {
-    const key = `${tour}__${team}`;
-    const members = tourTeamPlayers.get(key);
-    if (members) {
-      members.forEach(m => {
-        if (m !== pNameLower) uniqueTeammates.add(m);
-      });
-    }
-  });
-
-  return uniqueTeammates.size;
-}
-
-const MOBILE_CFG: Record<string, { v: (p: Player, tData: TournamentRecord[]) => number; badge: (p: Player) => string; meta: (p: Player) => string; unit: string }> = {
+const MOBILE_CFG: Record<string, { v: (p: Player, tm: TeamCounts) => number; badge: (p: Player) => string; meta: (p: Player) => string; unit: string }> = {
   points: { v: (p) => calculateFclPoints(p), badge: (p) => `${p.runs} Runs • ${p.wickets} Wkts`, meta: (p) => `${p.matches} Matches`, unit: "Pts" },
   runs: { v: (p) => p.runs, badge: (p) => `Avg ${p.runAvg ?? "0.00"}`, meta: (p) => `${p.matches} Matches`, unit: "Runs" },
   wickets: { v: (p) => p.wickets, badge: (p) => `Wk Avg ${SAFE_WK(p)}`, meta: (p) => `${p.matches} Matches`, unit: "Wkts" },
@@ -186,8 +194,28 @@ const MOBILE_CFG: Record<string, { v: (p: Player, tData: TournamentRecord[]) => 
   maxruns: { v: (p) => p.maxRuns || 0, badge: () => "Best Batting Score", meta: (p) => `${p.runs} Career Runs`, unit: "Runs" },
   maxwickets: { v: (p) => p.maxWickets || 0, badge: () => "In A Tournament", meta: (p) => `${p.wickets} Career Wkts`, unit: "Wkts" },
   tournaments: { v: (p) => p.totalTournament || 0, badge: (p) => `${p.matches} Matches`, meta: (p) => `@${p.nickName || "Player"}`, unit: "Tours" },
-  teammates_record: { v: (p, tData) => getPlayerTeammateCount(p, tData), badge: (p) => `${p.matches} Matches`, meta: (p) => `@${p.nickName || "Player"}`, unit: "Players" },
+  teammates_record: { v: (p, tm) => teammateCountOf(p, tm), badge: (p) => `${p.matches} Matches`, meta: (p) => `@${p.nickName || "Player"}`, unit: "Players" },
 };
+
+/**
+ * ⚡ আগে-থেকে মান বের করে (decorate) তারপর সর্ট — সর্টের ভিতরে ভারী ফাংশন চলে না।
+ */
+function rankPlayers(
+  players: Player[],
+  getV: (p: Player) => number,
+  q: string,
+  limit: number
+): { player: Player; value: number }[] {
+  const list: { player: Player; value: number }[] = [];
+  for (const p of players) {
+    const value = getV(p);
+    if (value <= 0) continue;
+    if (q && !p.name.toLowerCase().includes(q) && !(p.nickName || "").toLowerCase().includes(q)) continue;
+    list.push({ player: p, value });
+  }
+  list.sort((a, b) => b.value - a.value);
+  return limit === Infinity ? list : list.slice(0, limit);
+}
 
 const GROUPS: { title: string; ids: string[] }[] = [
   { title: "Overview", ids: ["tournaments_history", "teammates_record", "records", "clubs"] },
@@ -234,8 +262,8 @@ const ACCENT: Record<string, string> = {
 
 const TIER_COLOR: Record<string, string> = { Bronze: "#cd7f32", Silver: "#cbd5e1", Gold: "#fbbf24", Diamond: "#67e8f9" };
 
-function buildHolders(players: Player[], tournamentsData: TournamentRecord[]) {
-  const top = (fn: (p: Player) => number) => [...players].sort((a, b) => fn(b) - fn(a))[0];
+function buildHolders(players: Player[], tm: TeamCounts) {
+  if (!players || players.length === 0) return [];
   const defs = [
     { id: "champions", label: "Most Titles", icon: "🏆", fn: (p: Player) => p.champion || 0, unit: "Titles" },
     { id: "runs", label: "All-Time Runs", icon: "🏏", fn: (p: Player) => p.runs, unit: "Runs" },
@@ -257,12 +285,22 @@ function buildHolders(players: Player[], tournamentsData: TournamentRecord[]) {
     { id: "maxruns", label: "Highest Tour. Runs", icon: "🚀", fn: (p: Player) => p.maxRuns || 0, unit: "Runs" },
     { id: "maxwickets", label: "Highest Wicket", icon: "🔥", fn: (p: Player) => p.maxWickets || 0, unit: "Wickets" },
     { id: "tournaments", label: "Tournaments", icon: "🗓️", fn: (p: Player) => p.totalTournament || 0, unit: "Tours" },
-    { id: "teammates_record", label: "Most Teammates", icon: "🤝", fn: (p: Player) => getPlayerTeammateCount(p, tournamentsData), unit: "Players" },
+    { id: "teammates_record", label: "Most Teammates", icon: "🤝", fn: (p: Player) => teammateCountOf(p, tm), unit: "Players" },
   ];
-  return defs.map((d) => ({ ...d, player: top(d.fn), value: top(d.fn) ? d.fn(top(d.fn)) : 0 })).filter((d) => d.player);
+
+  // ⚡ সর্ট না করে এক লুপে সেরা প্লেয়ার বের করা হচ্ছে
+  return defs.map((d) => {
+    let best = players[0];
+    let bestV = d.fn(best);
+    for (let i = 1; i < players.length; i++) {
+      const v = d.fn(players[i]);
+      if (v > bestV) { bestV = v; best = players[i]; }
+    }
+    return { ...d, player: best, value: bestV };
+  });
 }
 
-function Avatar({ player, size = 44 }: { player: Player; size?: number }) {
+const Avatar = memo(function Avatar({ player, size = 44 }: { player: Player; size?: number }) {
   const rawPhoto = player?.photo || player?.photoUrl;
   const photoPath = rawPhoto && rawPhoto !== "—" && rawPhoto !== ""
     ? (rawPhoto.startsWith("/") ? rawPhoto : `/players/${rawPhoto}`)
@@ -270,10 +308,19 @@ function Avatar({ player, size = 44 }: { player: Player; size?: number }) {
 
   return (
     <div className="relative shrink-0 overflow-hidden rounded-full border border-[#1e293b] bg-[#0b1220]" style={{ width: size, height: size }}>
-      <img src={photoPath} alt={player?.name || "Player"} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.src = `/FCL Cricket Avatar Placeholder.jpg`; }} />
+      <img
+        src={photoPath}
+        alt={player?.name || "Player"}
+        loading="lazy"
+        decoding="async"
+        width={size}
+        height={size}
+        className="h-full w-full object-cover"
+        onError={(e) => { e.currentTarget.src = `/FCL Cricket Avatar Placeholder.jpg`; }}
+      />
     </div>
   );
-}
+});
 
 /* ═════════════════════════ TOURNAMENT HISTORY ═════════════════════════ */
 
@@ -419,7 +466,9 @@ function useTourState(data: TournamentRecord[]) {
     const g = new Map<string, Tour[]>();
     [...tours].sort((a, b) => a.name.localeCompare(b.name)).forEach((t) => {
       const k = letterOf(t.name);
-      g.set(k, [...(g.get(k) || []), t]);
+      const arr = g.get(k);
+      if (arr) arr.push(t);
+      else g.set(k, [t]);
     });
     return Array.from(g.entries()).sort(([a], [b]) => (a === "#" ? 1 : b === "#" ? -1 : a.localeCompare(b)));
   }, [tours]);
@@ -428,6 +477,13 @@ function useTourState(data: TournamentRecord[]) {
 }
 
 function SquadChips({ names, tour, players, onSelect }: { names: string[]; tour: Tour; players: Player[]; onSelect: (p: Player) => void }) {
+  // ⚡ প্রতিটি চিপের জন্য players.find না করে একবার Map বানানো হচ্ছে
+  const byName = useMemo(() => {
+    const m = new Map<string, Player>();
+    players.forEach((p) => m.set(nameKey(p.name), p));
+    return m;
+  }, [players]);
+
   if (!names.length) return <p className="text-xs text-slate-500">স্কোয়াডের তথ্য নেই</p>;
   const badge = (n: string) =>
     (tour.scorers.includes(n) ? "🏏" : "") +
@@ -437,7 +493,7 @@ function SquadChips({ names, tour, players, onSelect }: { names: string[]; tour:
   return (
     <div className="flex flex-wrap gap-1.5">
       {names.map((n) => {
-        const p = players.find((x) => (x.name || "").toLowerCase() === n.toLowerCase());
+        const p = byName.get(nameKey(n));
         return (
           <button
             key={n}
@@ -776,67 +832,22 @@ function TournamentHistoryDesktop({ players, onSelect, data }: { players: Player
   );
 }
 
-/* ═════════════════════════ TEAMMATES RECORD VIEW (পডিয়াম ডিজাইন ও সার্চসহ) ═════════════ */
-function TeammatesRecordView({ players, tournamentsData, onSelect }: { players: Player[]; tournamentsData: TournamentRecord[]; onSelect: (p: Player) => void }) {
+/* ═════════════════════════ TEAMMATES RECORD VIEW (পডিয়াম ডিজাইন ও সার্চসহ) ═════════════ */
+function TeammatesRecordView({ players, teamCounts, onSelect }: { players: Player[]; teamCounts: TeamCounts; onSelect: (p: Player) => void }) {
   const [query, setQuery] = useState("");
   const [chip, setChip] = useState("Top 10");
 
+  // ⚡ আর নতুন করে গণনা নেই — আগে থেকে বানানো teamCounts থেকে শুধু সর্ট হচ্ছে
   const teammatesRanking = useMemo(() => {
-    if (!players || players.length === 0 || !tournamentsData || tournamentsData.length === 0) return [];
-
-    const playerTourTeams = new Map<string, Map<string, string>>();
-    tournamentsData.forEach(r => {
-      const pName = (r.playerName || "").trim().toLowerCase();
-      const tour = (r.tournament || "").trim();
-      const team = (r.team || "").trim();
-      if (pName && tour && team) {
-        if (!playerTourTeams.has(pName)) playerTourTeams.set(pName, new Map());
-        playerTourTeams.get(pName)!.set(tour, team);
-      }
-    });
-
-    const tourTeamPlayers = new Map<string, Set<string>>();
-    tournamentsData.forEach(r => {
-      const tour = (r.tournament || "").trim();
-      const team = (r.team || "").trim();
-      const pName = (r.playerName || "").trim();
-      if (tour && team && pName) {
-        const key = `${tour}__${team}`;
-        if (!tourTeamPlayers.has(key)) tourTeamPlayers.set(key, new Set());
-        tourTeamPlayers.get(key)!.add(pName);
-      }
-    });
-
-    const counts = players.map(p => {
-      const pNameLower = p.name.toLowerCase().trim();
-      const myTours = playerTourTeams.get(pNameLower);
-      const uniqueTeammates = new Set<string>();
-
-      if (myTours) {
-        myTours.forEach((team, tour) => {
-          const key = `${tour}__${team}`;
-          const members = tourTeamPlayers.get(key);
-          if (members) {
-            members.forEach(m => {
-              if (m !== pNameLower) uniqueTeammates.add(m);
-            });
-          }
-        });
-      }
-
-      return {
-        player: p,
-        teammateCount: uniqueTeammates.size
-      };
-    });
-
-    return counts.sort((a, b) => b.teammateCount - a.teammateCount);
-  }, [players, tournamentsData]);
+    const arr = players.map((p) => ({ player: p, teammateCount: teammateCountOf(p, teamCounts) }));
+    arr.sort((a, b) => b.teammateCount - a.teammateCount);
+    return arr;
+  }, [players, teamCounts]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = q ? teammatesRanking.filter(item => 
-      item.player.name.toLowerCase().includes(q) || 
+    const list = q ? teammatesRanking.filter(item =>
+      item.player.name.toLowerCase().includes(q) ||
       (item.player.nickName || "").toLowerCase().includes(q)
     ) : teammatesRanking;
 
@@ -919,7 +930,7 @@ function TeammatesRecordView({ players, tournamentsData, onSelect }: { players: 
                 <button
                   key={item.player.id || item.player.name}
                   onClick={() => onSelect(item.player)}
-                  className="group grid w-full grid-cols-[56px_1fr_220px_160px_110px] items-center gap-4 px-5 py-3 text-left transition hover:bg-white/[0.04]"
+                  className="group grid w-full grid-cols-[56px_1fr_220px_160px_110px] items-center gap-4 px-5 py-3 text-left transition hover:bg-white/[0.04] [content-visibility:auto] [contain-intrinsic-size:56px]"
                 >
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#16223b] text-xs font-black text-slate-400">{rankNum}</span>
                   <span className="flex min-w-0 items-center gap-3">
@@ -943,7 +954,7 @@ function TeammatesRecordView({ players, tournamentsData, onSelect }: { players: 
 }
 
 /* ═════════════════════════ MOBILE RECORDS ═════════════════════════ */
-function MobileRecords({ players, tournamentsData, loading, onSelect }: { players: Player[]; tournamentsData: TournamentRecord[]; loading: boolean; onSelect: (p: Player) => void }) {
+function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect }: { players: Player[]; tournamentsData: TournamentRecord[]; teamCounts: TeamCounts; loading: boolean; onSelect: (p: Player) => void }) {
   const [tab, setTab] = useState<MTabId>("tournaments_history");
   const [chip, setChip] = useState("Top 10");
   const [expanded, setExpanded] = useState(false);
@@ -959,11 +970,14 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
   const chips = tab === "records" ? [] : tab === "clubs" ? CLUB_CHIPS : COUNT_CHIPS;
   const tabInfo = MOBILE_TABS.find((t) => t.id === tab);
 
-  const holders = useMemo(() => buildHolders(players, tournamentsData), [players, tournamentsData]);
+  // ⚡ শুধু Record Holders ট্যাবে গেলেই হিসাব হবে
+  const holders = useMemo(
+    () => (tab === "records" ? buildHolders(players, teamCounts) : []),
+    [tab, players, teamCounts]
+  );
 
   const rows = useMemo(() => {
-    const by = (fn: (p: Player) => number) => [...players].sort((a, b) => fn(b) - fn(a));
-    if (tab === "tournaments_history" || tab === "teammates_record") return [];
+    if (tab === "tournaments_history" || tab === "teammates_record" || tab === "records") return [];
     if (tab === "clubs") {
       const out: any[] = [];
       TIERS.filter((t) => chip === "All" || chip === t.key).forEach((t) => {
@@ -975,12 +989,15 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
     if (!c) return [];
     const limit = chip === "All" ? Infinity : parseInt(chip.replace("Top ", "")) || 10;
     const q = query.trim().toLowerCase();
-    return by((p) => c.v(p, tournamentsData))
-      .filter((p) => c.v(p, tournamentsData) > 0)
-      .filter((p) => !q || p.name.toLowerCase().includes(q) || (p.nickName || "").toLowerCase().includes(q))
-      .slice(0, limit)
-      .map((p, i) => ({ key: (p.id ?? p.name) + "-" + i, player: p, badge: c.badge(p), meta: c.meta(p), value: c.v(p, tournamentsData), unit: c.unit }));
-  }, [players, tournamentsData, tab, chip, query]);
+    return rankPlayers(players, (p) => c.v(p, teamCounts), q, limit).map(({ player: p, value }, i) => ({
+      key: (p.id ?? p.name) + "-" + i,
+      player: p,
+      badge: c.badge(p),
+      meta: c.meta(p),
+      value,
+      unit: c.unit,
+    }));
+  }, [players, teamCounts, tab, chip, query]);
 
   return (
     <div className="min-h-screen bg-[#020617] pb-28 text-white selection:bg-amber-500/30 selection:text-white">
@@ -1011,7 +1028,7 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
               : "bg-gradient-to-r from-[#172033] to-[#0f172a] text-amber-400 border border-amber-500/40 hover:border-amber-500"
           }`}
         >
-          <span className="text-lg">🏆</span> 
+          <span className="text-lg">🏆</span>
           <span className="tracking-wide uppercase">Tournament History Archive</span>
         </button>
 
@@ -1050,7 +1067,7 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
         ) : tab === "tournaments_history" ? (
           <TournamentHistoryMobile data={tournamentsData} players={players} onSelect={onSelect} />
         ) : tab === "teammates_record" ? (
-          <TeammatesRecordView players={players} tournamentsData={tournamentsData} onSelect={onSelect} />
+          <TeammatesRecordView players={players} teamCounts={teamCounts} onSelect={onSelect} />
         ) : tab === "records" ? (
           <div className="space-y-3">
             <h2 className="text-sm font-black text-amber-400 px-1">⭐ Hall of Fame — Top Record Holders</h2>
@@ -1116,7 +1133,7 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
           <div className="space-y-2.5">
             <p className="px-1 text-xs font-bold text-slate-400">{tabInfo?.icon} {tabInfo?.label}</p>
             {rows.map((r: any, idx: number) => (
-              <button key={r.key} onClick={() => onSelect(r.player)} className="flex w-full items-center gap-3 rounded-2xl border border-[#1e293b] bg-[#0b1220] p-3 text-left">
+              <button key={r.key} onClick={() => onSelect(r.player)} className="flex w-full items-center gap-3 rounded-2xl border border-[#1e293b] bg-[#0b1220] p-3 text-left [content-visibility:auto] [contain-intrinsic-size:64px]">
                 <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black ${idx === 0 ? "bg-amber-500 text-black" : "bg-[#16223b] text-slate-400"}`}>{idx + 1}</span>
                 <Avatar player={r.player} size={38} />
                 <div className="min-w-0 flex-1">
@@ -1147,7 +1164,7 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
 }
 
 /* ═════════════════════════ DESKTOP RECORDS ═════════════════════════ */
-function DesktopRecords({ players, tournamentsData, loading, onSelect }: { players: Player[]; tournamentsData: TournamentRecord[]; loading: boolean; onSelect: (p: Player) => void }) {
+function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelect }: { players: Player[]; tournamentsData: TournamentRecord[]; teamCounts: TeamCounts; loading: boolean; onSelect: (p: Player) => void }) {
   const [tab, setTab] = useState("tournaments_history");
   const [chip, setChip] = useState("Top 10");
   const [query, setQuery] = useState("");
@@ -1171,20 +1188,25 @@ function DesktopRecords({ players, tournamentsData, loading, onSelect }: { playe
     tournaments: totalTournamentsCount,
   }), [players, totalTournamentsCount]);
 
-  const holders = useMemo(() => buildHolders(players, tournamentsData), [players, tournamentsData]);
+  // ⚡ শুধু Record Holders ট্যাবে গেলেই হিসাব হবে
+  const holders = useMemo(
+    () => (tab === "records" ? buildHolders(players, teamCounts) : []),
+    [tab, players, teamCounts]
+  );
 
   const rows = useMemo(() => {
     const c = MOBILE_CFG[tab];
     if (!c) return [];
     const limit = chip === "All" ? Infinity : parseInt(chip.replace("Top ", "")) || 10;
     const q = query.trim().toLowerCase();
-    return [...players]
-      .sort((a, b) => c.v(b, tournamentsData) - c.v(a, tournamentsData))
-      .filter((p) => c.v(p, tournamentsData) > 0)
-      .filter((p) => !q || p.name.toLowerCase().includes(q) || (p.nickName || "").toLowerCase().includes(q))
-      .slice(0, limit)
-      .map((p) => ({ player: p, badge: c.badge(p), meta: c.meta(p), value: c.v(p, tournamentsData), unit: c.unit }));
-  }, [players, tournamentsData, tab, chip, query]);
+    return rankPlayers(players, (p) => c.v(p, teamCounts), q, limit).map(({ player: p, value }) => ({
+      player: p,
+      badge: c.badge(p),
+      meta: c.meta(p),
+      value,
+      unit: c.unit,
+    }));
+  }, [players, teamCounts, tab, chip, query]);
 
   const podium = rows.slice(0, 3);
   const rest = rows.slice(3);
@@ -1231,15 +1253,15 @@ function DesktopRecords({ players, tournamentsData, loading, onSelect }: { playe
         <div className="mt-8 grid grid-cols-[270px_1fr] gap-8">
           <aside className="self-start">
             <nav className="sticky top-6 max-h-[calc(100vh-3rem)] space-y-5 overflow-y-auto rounded-3xl border border-[#1e293b] bg-[#0b1220]/80 p-4 [scrollbar-width:thin]">
-              <button 
-                onClick={() => setTab("tournaments_history")} 
+              <button
+                onClick={() => setTab("tournaments_history")}
                 className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-black transition-all ${
-                  tab === "tournaments_history" 
-                    ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-lg shadow-amber-500/30 border border-amber-300 scale-[1.02]" 
+                  tab === "tournaments_history"
+                    ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-lg shadow-amber-500/30 border border-amber-300 scale-[1.02]"
                     : "text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20"
                 }`}
               >
-                <span className="text-xl">🏆</span> 
+                <span className="text-xl">🏆</span>
                 <span className="tracking-wide">Tournament History</span>
               </button>
 
@@ -1272,7 +1294,7 @@ function DesktopRecords({ players, tournamentsData, loading, onSelect }: { playe
             ) : tab === "tournaments_history" ? (
               <TournamentHistoryDesktop data={tournamentsData} players={players} onSelect={onSelect} />
             ) : tab === "teammates_record" ? (
-              <TeammatesRecordView players={players} tournamentsData={tournamentsData} onSelect={onSelect} />
+              <TeammatesRecordView players={players} teamCounts={teamCounts} onSelect={onSelect} />
             ) : tab === "records" ? (
               <div>
                 <div className="mb-5"><h2 className="text-2xl font-black">Hall of Fame</h2><p className="mt-1 text-sm text-slate-400">{DESC.records}</p></div>
@@ -1372,7 +1394,7 @@ function DesktopRecords({ players, tournamentsData, loading, onSelect }: { playe
                     </div>
                     <div className="max-h-[640px] divide-y divide-[#172033]/70 overflow-y-auto [scrollbar-width:thin]">
                       {rest.map((r, idx) => (
-                        <button key={idx} onClick={() => onSelect(r.player)} className="group grid w-full grid-cols-[56px_1fr_220px_160px_110px] items-center gap-4 px-5 py-3 text-left transition hover:bg-white/[0.04]">
+                        <button key={idx} onClick={() => onSelect(r.player)} className="group grid w-full grid-cols-[56px_1fr_220px_160px_110px] items-center gap-4 px-5 py-3 text-left transition hover:bg-white/[0.04] [content-visibility:auto] [contain-intrinsic-size:56px]">
                           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#16223b] text-xs font-black text-slate-400">{idx + 4}</span>
                           <span className="flex min-w-0 items-center gap-3"><Avatar player={r.player} size={34} /><span className="min-w-0"><span className="block truncate text-sm font-bold text-white">{r.player.name}</span><span className="block truncate text-[11px] text-slate-500">@{r.player.nickName || "Player"}</span></span></span>
                           <span className="truncate text-xs text-slate-300">{r.badge}</span>
@@ -1393,32 +1415,56 @@ function DesktopRecords({ players, tournamentsData, loading, onSelect }: { playe
 }
 
 /* ═════════════════════════ PAGE ═════════════════════════ */
+
+/** ⚡ স্ক্রিন সাইজ দেখে শুধু একটা লেআউটই রেন্ডার হবে (আগে মোবাইল + ডেস্কটপ দুটোই একসাথে চলত) */
+function useIsDesktop(): boolean | null {
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return isDesktop;
+}
+
 export default function RecordsPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [tournamentsData, setTournamentsData] = useState<TournamentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
+    let alive = true;
     fetch("/api/fcl-data")
       .then((res) => res.json())
       .then((data) => {
+        if (!alive) return;
         if (Array.isArray(data)) setPlayers(data);
         else if (data.players && Array.isArray(data.players)) setPlayers(data.players);
         if (data.tournaments && Array.isArray(data.tournaments)) setTournamentsData(data.tournaments);
         setLoading(false);
       })
-      .catch((err) => { console.error("Error loading records:", err); setLoading(false); });
+      .catch((err) => { console.error("Error loading records:", err); if (alive) setLoading(false); });
+    return () => { alive = false; };
   }, []);
+
+  // ⚡ সতীর্থ সংখ্যা পুরো পেইজের জন্য মাত্র একবার হিসাব হয়
+  const teamCounts = useMemo(() => buildTeammateCounts(tournamentsData), [tournamentsData]);
+
+  const handleSelect = (p: Player) => setSelectedPlayer(p);
 
   return (
     <div className="min-h-screen bg-[#020617] text-white selection:bg-amber-500/30 selection:text-white">
-      <div className="md:hidden">
-        <MobileRecords players={players} tournamentsData={tournamentsData} loading={loading} onSelect={(p) => setSelectedPlayer(p)} />
-      </div>
-      <div className="hidden md:block">
-        <DesktopRecords players={players} tournamentsData={tournamentsData} loading={loading} onSelect={(p) => setSelectedPlayer(p)} />
-      </div>
+      {isDesktop === null ? (
+        <div className="flex min-h-screen items-center justify-center text-xs font-bold text-amber-400 animate-pulse">Loading FCL Records...</div>
+      ) : isDesktop ? (
+        <DesktopRecords players={players} tournamentsData={tournamentsData} teamCounts={teamCounts} loading={loading} onSelect={handleSelect} />
+      ) : (
+        <MobileRecords players={players} tournamentsData={tournamentsData} teamCounts={teamCounts} loading={loading} onSelect={handleSelect} />
+      )}
       <PlayerCardModal selectedPlayer={selectedPlayer} onClose={() => setSelectedPlayer(null)} tournamentsData={tournamentsData || []} allPlayers={players || []} />
     </div>
   );
