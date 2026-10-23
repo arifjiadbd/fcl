@@ -88,6 +88,17 @@ const motTotal = (p: Player) => (Number(p.mot) || 0) + (Number(p.cpot) || 0);
 
 const nameKey = (s?: string) => (s || "").trim().toLowerCase();
 
+/** সার্চ: নাম বা ডাকনাম মিললে true (q অবশ্যই lowercase + trim করা) */
+const matchPlayer = (p: Player, q: string) =>
+  !q || p.name.toLowerCase().includes(q) || (p.nickName || "").toLowerCase().includes(q);
+
+/** Record Holders সার্চ: প্লেয়ারের নাম/ডাকনাম অথবা ক্যাটাগরির নাম মিললে থাকবে */
+function filterHolders<T extends { player: Player; label: string }>(list: T[], query: string): T[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return list;
+  return list.filter((h) => matchPlayer(h.player, q) || h.label.toLowerCase().includes(q));
+}
+
 /**
  * ⚡ একবারই পুরো ডাটা স্ক্যান করে সবার সতীর্থ সংখ্যা বের করা হয়।
  * আগে প্রতিটি প্লেয়ারের জন্য (এবং সর্টের প্রতিটি তুলনায়) পুরো ডাটা আবার স্ক্যান হতো — সেটাই স্লো করছিল।
@@ -148,8 +159,6 @@ const MOBILE_TABS: { id: MTabId; label: string; icon: string }[] = [
   { id: "runking", label: "Tour. Run King", icon: "👑" },
   { id: "wicketking", label: "Tour. Wicket King", icon: "🛡️" },
   { id: "matches", label: "Most Matches", icon: "⚡" },
-  { id: "mom", label: "Man of Match", icon: "🎖️" },
-  { id: "cpom", label: "CP of Match", icon: "🏅" },
   { id: "innings", label: "Most Innings", icon: "📋" },
   { id: "notout", label: "Most Not Outs", icon: "🧱" },
   { id: "maxruns", label: "Highest Tour. Runs", icon: "🚀" },
@@ -157,11 +166,12 @@ const MOBILE_TABS: { id: MTabId; label: string; icon: string }[] = [
   { id: "tournaments", label: "Tournaments", icon: "🗓️" },
 ];
 
+// ⚡ এলিট ক্লাবের ক্রাইটেরিয়া আপডেট করা হলো যাতে নির্দিষ্ট রানের মধ্যে উইকেট বেশি থাকলেও সঠিক ক্লাবে আসে
 const TIERS = [
   { key: "Diamond", icon: "💎", title: "Diamond All-Rounder", range: "2500+ Runs • 150+ Wkts", test: (p: Player) => p.runs >= 2500 && p.wickets >= 150 },
-  { key: "Gold", icon: "🥇", title: "Gold All-Rounder", range: "2000–2500 Runs • 100–150 Wkts", test: (p: Player) => p.runs >= 2000 && p.runs < 2500 && p.wickets >= 100 && p.wickets < 150 },
-  { key: "Silver", icon: "🥈", title: "Silver All-Rounder", range: "1000–2000 Runs • 50–100 Wkts", test: (p: Player) => p.runs >= 1000 && p.runs < 2000 && p.wickets >= 50 && p.wickets < 100 },
-  { key: "Bronze", icon: "🥉", title: "Bronze All-Rounder", range: "500–1000 Runs • 50–100 Wkts", test: (p: Player) => p.runs >= 500 && p.runs < 1000 && p.wickets >= 50 && p.wickets < 100 },
+  { key: "Gold", icon: "🥇", title: "Gold All-Rounder", range: "2000–2500 Runs • 100+ Wkts", test: (p: Player) => p.runs >= 2000 && p.runs < 2500 && p.wickets >= 100 },
+  { key: "Silver", icon: "🥈", title: "Silver All-Rounder", range: "1000–2000 Runs • 50+ Wkts", test: (p: Player) => p.runs >= 1000 && p.runs < 2000 && p.wickets >= 50 },
+  { key: "Bronze", icon: "🥉", title: "Bronze All-Rounder", range: "500–1000 Runs • 50+ Wkts", test: (p: Player) => p.runs >= 500 && p.runs < 1000 && p.wickets >= 50 },
 ];
 
 const COUNT_CHIPS = ["Top 5", "Top 10", "Top 20", "Top 50", "All"];
@@ -187,8 +197,6 @@ const MOBILE_CFG: Record<string, { v: (p: Player, tm: TeamCounts) => number; bad
   runking: { v: (p) => p.highestRunScorer || 0, badge: () => "Tournament Top Scorer", meta: (p) => `${p.runs} Runs`, unit: "Times" },
   wicketking: { v: (p) => p.topWicketTaker || 0, badge: () => "Tournament Top Bowler", meta: (p) => `${p.wickets} Wkts`, unit: "Times" },
   matches: { v: (p) => p.matches, badge: (p) => `${p.runs} Runs • ${p.wickets} Wkts`, meta: (p) => `@${p.nickName || "Player"}`, unit: "Matches" },
-  mom: { v: (p) => p.mom || 0, badge: () => "Man of the Match", meta: (p) => `${p.matches} Matches`, unit: "Awards" },
-  cpom: { v: (p) => p.cpom || 0, badge: () => "Champion Player of Match", meta: (p) => `${p.matches} Matches`, unit: "Awards" },
   innings: { v: (p) => p.innings || 0, badge: (p) => `${p.runs} Runs`, meta: (p) => `${p.matches} Matches`, unit: "Inn" },
   notout: { v: (p) => p.notOut || 0, badge: (p) => `${p.innings ?? 0} Innings`, meta: (p) => `${p.runs} Runs`, unit: "NO" },
   maxruns: { v: (p) => p.maxRuns || 0, badge: () => "Best Batting Score", meta: (p) => `${p.runs} Career Runs`, unit: "Runs" },
@@ -221,7 +229,7 @@ const GROUPS: { title: string; ids: string[] }[] = [
   { title: "Overview", ids: ["tournaments_history", "teammates_record", "records", "clubs"] },
   { title: "Batting", ids: ["runs", "sixes", "fours", "maxruns", "innings", "notout"] },
   { title: "Bowling", ids: ["wickets", "hattricks", "maxwickets"] },
-  { title: "Trophies & Honours", ids: ["champions", "runnersup", "finals", "motcpot", "mom", "cpom", "runking", "wicketking"] },
+  { title: "Trophies & Honours", ids: ["champions", "runnersup", "finals", "motcpot", "runking", "wicketking"] },
   { title: "Overall", ids: ["points", "matches", "tournaments"] },
 ];
 
@@ -242,8 +250,6 @@ const DESC: Record<string, string> = {
   runking: "টুর্নামেন্টে সর্বোচ্চ রানের মালিক হয়েছেন যতবার",
   wicketking: "টুর্নামেন্টে সর্বোচ্চ উইকেটের মালিক হয়েছেন যতবার",
   matches: "সবচেয়ে বেশি ম্যাচ খেলা",
-  mom: "ম্যান অফ দ্য ম্যাচ",
-  cpom: "কুল প্লেয়ার অফ দ্য ম্যাচ",
   innings: "সবচেয়ে বেশি ইনিংস",
   notout: "সবচেয়ে বেশি নট-আউট",
   maxruns: "এক টুর্নামেন্টে সর্বোচ্চ ব্যক্তিগত রান",
@@ -255,8 +261,8 @@ const DESC: Record<string, string> = {
 const ACCENT: Record<string, string> = {
   tournaments_history: "#f59e0b", teammates_record: "#38bdf8", records: "#f59e0b", points: "#f59e0b", runs: "#60a5fa", wickets: "#fb7185", sixes: "#c084fc",
   fours: "#38bdf8", hattricks: "#f472b6", champions: "#fbbf24", runnersup: "#cbd5e1", finals: "#22d3ee",
-  motcpot: "#c084fc", runking: "#fb923c", wicketking: "#22d3ee", matches: "#34d399", mom: "#fbbf24",
-  cpom: "#fbbf24", innings: "#60a5fa", notout: "#94a3b8", maxruns: "#f87171", maxwickets: "#fb923c",
+  motcpot: "#c084fc", runking: "#fb923c", wicketking: "#22d3ee", matches: "#34d399",
+  innings: "#60a5fa", notout: "#94a3b8", maxruns: "#f87171", maxwickets: "#fb923c",
   tournaments: "#34d399", clubs: "#a78bfa",
 };
 
@@ -278,8 +284,6 @@ function buildHolders(players: Player[], tm: TeamCounts) {
     { id: "motcpot", label: "MOT / CPOT", icon: "⭐", fn: motTotal, unit: "Awards" },
     { id: "runking", label: "Tour. Run King", icon: "👑", fn: (p: Player) => p.highestRunScorer || 0, unit: "Times" },
     { id: "wicketking", label: "Tour. Wicket King", icon: "🛡️", fn: (p: Player) => p.topWicketTaker || 0, unit: "Times" },
-    { id: "mom", label: "Man of the Match", icon: "🎖️", fn: (p: Player) => p.mom || 0, unit: "Awards" },
-    { id: "cpom", label: "CP of Match", icon: "🏅", fn: (p: Player) => p.cpom || 0, unit: "Awards" },
     { id: "innings", label: "Most Innings", icon: "📋", fn: (p: Player) => p.innings || 0, unit: "Innings" },
     { id: "notout", label: "Most Not Outs", icon: "🧱", fn: (p: Player) => p.notOut || 0, unit: "Not Outs" },
     { id: "maxruns", label: "Highest Tour. Runs", icon: "🚀", fn: (p: Player) => p.maxRuns || 0, unit: "Runs" },
@@ -477,7 +481,6 @@ function useTourState(data: TournamentRecord[]) {
 }
 
 function SquadChips({ names, tour, players, onSelect }: { names: string[]; tour: Tour; players: Player[]; onSelect: (p: Player) => void }) {
-  // ⚡ প্রতিটি চিপের জন্য players.find না করে একবার Map বানানো হচ্ছে
   const byName = useMemo(() => {
     const m = new Map<string, Player>();
     players.forEach((p) => m.set(nameKey(p.name), p));
@@ -833,11 +836,10 @@ function TournamentHistoryDesktop({ players, onSelect, data }: { players: Player
 }
 
 /* ═════════════════════════ TEAMMATES RECORD VIEW (পডিয়াম ডিজাইন ও সার্চসহ) ═════════════ */
-function TeammatesRecordView({ players, teamCounts, onSelect }: { players: Player[]; teamCounts: TeamCounts; onSelect: (p: Player) => void }) {
+function TeammatesRecordView({ players, teamCounts, onSelect, compact = false }: { players: Player[]; teamCounts: TeamCounts; onSelect: (p: Player) => void; compact?: boolean }) {
   const [query, setQuery] = useState("");
   const [chip, setChip] = useState("Top 10");
 
-  // ⚡ আর নতুন করে গণনা নেই — আগে থেকে বানানো teamCounts থেকে শুধু সর্ট হচ্ছে
   const teammatesRanking = useMemo(() => {
     const arr = players.map((p) => ({ player: p, teammateCount: teammateCountOf(p, teamCounts) }));
     arr.sort((a, b) => b.teammateCount - a.teammateCount);
@@ -859,30 +861,31 @@ function TeammatesRecordView({ players, teamCounts, onSelect }: { players: Playe
   const rest = filtered.slice(3);
   const podiumOrder = podium.length === 3 ? [1, 0, 2] : podium.map((_, i) => i);
   const medal = ["#fbbf24", "#cbd5e1", "#cd7f32"];
+  const list = query ? filtered : rest;
 
   return (
-    <div>
-      <div className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div className="min-w-0">
+      <div className={compact ? "mb-4 flex flex-col gap-3" : "mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end"}>
         <div>
-          <h2 className="text-2xl font-black">🤝 Most Teammates</h2>
-          <p className="mt-1 text-sm text-slate-400">{DESC.teammates_record}</p>
+          <h2 className={`${compact ? "text-lg" : "text-2xl"} font-black`}>🤝 Most Teammates</h2>
+          <p className={`mt-1 text-slate-400 ${compact ? "text-xs" : "text-sm"}`}>{DESC.teammates_record}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm opacity-60">🔍</span>
+        <div className={compact ? "flex flex-col gap-2.5" : "flex flex-wrap items-center gap-3"}>
+          <div className={compact ? "relative w-full" : "relative"}>
+            <span className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-sm opacity-60 ${compact ? "left-3" : "left-3.5"}`}>🔍</span>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search player..."
-              className="w-64 rounded-full border border-[#1e293b] bg-[#0b1220] py-2 pl-10 pr-4 text-sm text-white outline-none focus:border-amber-500"
+              className={`rounded-full border border-[#1e293b] bg-[#0b1220] text-white outline-none focus:border-amber-500 ${compact ? "w-full py-2 pl-9 pr-3 text-xs" : "w-64 py-2 pl-10 pr-4 text-sm"}`}
             />
           </div>
-          <div className="flex gap-1.5 rounded-full border border-[#1e293b] bg-[#0b1220] p-1">
+          <div className={`flex rounded-full border border-[#1e293b] bg-[#0b1220] p-1 ${compact ? "w-full justify-between gap-0.5" : "gap-1.5"}`}>
             {COUNT_CHIPS.map((c) => (
               <button
                 key={c}
                 onClick={() => setChip(c)}
-                className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${chip === c ? "text-black" : "text-slate-400 hover:text-white"}`}
+                className={`rounded-full font-bold transition ${compact ? "flex-1 px-1 py-1.5 text-[11px]" : "px-4 py-1.5 text-xs"} ${chip === c ? "text-black" : "text-slate-400 hover:text-white"}`}
                 style={chip === c ? { background: "#38bdf8" } : undefined}
               >
                 {c}
@@ -893,39 +896,68 @@ function TeammatesRecordView({ players, teamCounts, onSelect }: { players: Playe
       </div>
 
       {podium.length > 0 && !query && (
-        <div className="grid grid-cols-3 items-end gap-5">
+        <div className={`grid grid-cols-3 items-end ${compact ? "gap-2" : "gap-5"}`}>
           {podiumOrder.map((i) => {
             const r = podium[i];
             if (!r) return null;
             const m = medal[i];
             const first = i === 0;
+            const pad = compact
+              ? first ? "px-1.5 pb-4 pt-8" : "px-1.5 pb-3 pt-7"
+              : first ? "px-6 pb-8 pt-9" : "px-6 pb-6 pt-7";
             return (
               <button
                 key={r.player.id || r.player.name}
                 onClick={() => onSelect(r.player)}
-                className={`group relative overflow-hidden rounded-3xl border text-center transition duration-300 hover:-translate-y-1 ${first ? "px-6 pb-8 pt-9" : "px-6 pb-6 pt-7"}`}
+                className={`group relative min-w-0 overflow-hidden border text-center transition duration-300 hover:-translate-y-1 ${compact ? "rounded-2xl" : "rounded-3xl"} ${pad}`}
                 style={{ borderColor: `${m}55`, background: `linear-gradient(180deg, ${m}${first ? "26" : "16"}, #0b1220 70%)` }}
               >
-                <span className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-xl text-sm font-black text-black" style={{ background: m }}>{i + 1}</span>
-                <div className="flex justify-center"><Avatar player={r.player} size={first ? 76 : 62} /></div>
-                <p className={`mt-4 truncate font-black text-white ${first ? "text-xl" : "text-lg"}`}>{r.player.name}</p>
-                <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">@{r.player.nickName || "Player"}</p>
-                <p className={`mt-4 font-black tabular-nums leading-none ${first ? "text-5xl" : "text-4xl"}`} style={{ color: m }}>{r.teammateCount}</p>
-                <p className="mt-1.5 text-xs font-semibold text-slate-400">Players</p>
+                <span
+                  className={`absolute flex items-center justify-center font-black text-black ${compact ? "left-1.5 top-1.5 h-6 w-6 rounded-lg text-xs" : "left-4 top-4 h-8 w-8 rounded-xl text-sm"}`}
+                  style={{ background: m }}
+                >
+                  {i + 1}
+                </span>
+                <div className="flex justify-center"><Avatar player={r.player} size={compact ? (first ? 52 : 42) : (first ? 76 : 62)} /></div>
+                <p className={`truncate font-black text-white ${compact ? `mt-2 px-0.5 ${first ? "text-xs" : "text-[11px]"}` : `mt-4 ${first ? "text-xl" : "text-lg"}`}`}>{r.player.name}</p>
+                <p className={`truncate font-semibold text-slate-400 ${compact ? "px-0.5 text-[10px]" : "mt-0.5 text-xs"}`}>@{r.player.nickName || "Player"}</p>
+                <p className={`font-black tabular-nums leading-none ${compact ? `mt-2 ${first ? "text-3xl" : "text-2xl"}` : `mt-4 ${first ? "text-5xl" : "text-4xl"}`}`} style={{ color: m }}>{r.teammateCount}</p>
+                <p className={`font-semibold text-slate-400 ${compact ? "mt-0.5 text-[10px]" : "mt-1.5 text-xs"}`}>Players</p>
               </button>
             );
           })}
         </div>
       )}
 
-      {(query ? filtered : rest).length > 0 && (
-        <div className="mt-6 overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220]">
-          <div className="grid grid-cols-[56px_1fr_220px_160px_110px] gap-4 border-b border-[#172033] px-5 py-3 text-xs font-bold text-slate-500">
-            <span>Rank</span><span>Player</span><span>Details</span><span>Info</span><span className="text-right">Teammates</span>
-          </div>
-          <div className="max-h-[640px] divide-y divide-[#172033]/70 overflow-y-auto [scrollbar-width:thin]">
-            {(query ? filtered : rest).map((item, idx) => {
+      {list.length > 0 && (
+        <div className={`overflow-hidden border border-[#1e293b] bg-[#0b1220] ${compact ? "mt-3 rounded-2xl" : "mt-6 rounded-3xl"}`}>
+          {!compact && (
+            <div className="grid grid-cols-[56px_1fr_220px_160px_110px] gap-4 border-b border-[#172033] px-5 py-3 text-xs font-bold text-slate-500">
+              <span>Rank</span><span>Player</span><span>Details</span><span>Info</span><span className="text-right">Teammates</span>
+            </div>
+          )}
+          <div className={`divide-y divide-[#172033]/70 ${compact ? "" : "max-h-[640px] overflow-y-auto [scrollbar-width:thin]"}`}>
+            {list.map((item, idx) => {
               const rankNum = query ? idx + 1 : idx + 4;
+              if (compact) {
+                return (
+                  <button
+                    key={item.player.id || item.player.name}
+                    onClick={() => onSelect(item.player)}
+                    className="grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-2.5 text-left transition active:bg-white/[0.04] [content-visibility:auto] [contain-intrinsic-size:52px]"
+                  >
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#16223b] text-[11px] font-black text-slate-400">{rankNum}</span>
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <Avatar player={item.player} size={32} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-xs font-bold text-white">{item.player.name}</span>
+                        <span className="block truncate text-[10px] text-slate-500">@{item.player.nickName || "Player"} • {item.player.matches} Matches</span>
+                      </span>
+                    </span>
+                    <span className="text-right text-base font-black tabular-nums text-sky-400">{item.teammateCount}</span>
+                  </button>
+                );
+              }
               return (
                 <button
                   key={item.player.id || item.player.name}
@@ -963,21 +995,16 @@ function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect
 
   const changeTab = (id: MTabId) => {
     setTab(id);
+    setQuery("");
     setChip(id === "clubs" ? "All" : "Top 10");
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const chips = tab === "records" ? [] : tab === "clubs" ? CLUB_CHIPS : COUNT_CHIPS;
+  const chips = tab === "clubs" ? CLUB_CHIPS : COUNT_CHIPS;
   const tabInfo = MOBILE_TABS.find((t) => t.id === tab);
 
-  // ⚡ শুধু Record Holders ট্যাবে গেলেই হিসাব হবে
-  const holders = useMemo(
-    () => (tab === "records" ? buildHolders(players, teamCounts) : []),
-    [tab, players, teamCounts]
-  );
-
   const rows = useMemo(() => {
-    if (tab === "tournaments_history" || tab === "teammates_record" || tab === "records") return [];
+    if (tab === "tournaments_history" || tab === "teammates_record") return [];
     if (tab === "clubs") {
       const out: any[] = [];
       TIERS.filter((t) => chip === "All" || chip === t.key).forEach((t) => {
@@ -1006,7 +1033,7 @@ function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect
           <Link href="/" className="flex h-9 w-9 items-center justify-center rounded-full text-2xl text-slate-300">‹</Link>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-black tracking-tight truncate">FCL Record Corner</h1>
-            <p className="text-[10px] text-slate-400 truncate">{tab === "tournaments_history" ? "Tournament History" : tab === "teammates_record" ? "Teammates Leaderboard" : tabInfo?.label || "Hall of Fame"}</p>
+            <p className="text-[10px] text-slate-400 truncate">{tab === "tournaments_history" ? "Tournament History" : tab === "teammates_record" ? "Teammates Leaderboard" : tabInfo?.label || "Elite Clubs"}</p>
           </div>
           <Link href="/rankings" className="rounded-full bg-amber-500 px-3 py-1.5 text-xs font-black text-black">Rankings</Link>
           {tab !== "tournaments_history" && tab !== "teammates_record" && (
@@ -1067,25 +1094,7 @@ function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect
         ) : tab === "tournaments_history" ? (
           <TournamentHistoryMobile data={tournamentsData} players={players} onSelect={onSelect} />
         ) : tab === "teammates_record" ? (
-          <TeammatesRecordView players={players} teamCounts={teamCounts} onSelect={onSelect} />
-        ) : tab === "records" ? (
-          <div className="space-y-3">
-            <h2 className="text-sm font-black text-amber-400 px-1">⭐ Hall of Fame — Top Record Holders</h2>
-            {holders.map((h, i) => (
-              <button key={h.id} onClick={() => onSelect(h.player)} className="flex w-full items-center gap-3 rounded-2xl border border-[#1e293b] bg-[#0b1220] p-3 text-left transition active:scale-[0.98]">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-xs font-black text-amber-400">{i + 1}</span>
-                <Avatar player={h.player} size={40} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-slate-400">{h.icon} {h.label}</p>
-                  <p className="text-sm font-black text-white truncate">{h.player.name}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-base font-black text-amber-400">{Number(h.value).toLocaleString()}</p>
-                  <p className="text-[10px] text-slate-500">{h.unit}</p>
-                </div>
-              </button>
-            ))}
-          </div>
+          <TeammatesRecordView players={players} teamCounts={teamCounts} onSelect={onSelect} compact />
         ) : tab === "clubs" ? (
           <div className="space-y-4">
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -1097,7 +1106,8 @@ function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect
             </div>
             {TIERS.filter((t) => chip === "All" || chip === t.key).map((t) => {
               const c = TIER_COLOR[t.key];
-              const list = players.filter(t.test);
+              const list = players.filter(t.test).filter((p) => matchPlayer(p, query.trim().toLowerCase()));
+              if (query.trim() && list.length === 0) return null;
               return (
                 <div key={t.key} className="rounded-3xl border bg-[#0b1220] p-4 shadow-xl" style={{ borderColor: `${c}40` }}>
                   <div className="flex items-start justify-between border-b border-[#1e293b] pb-2.5">
@@ -1154,7 +1164,7 @@ function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect
       <nav className="fixed bottom-3 left-3 right-3 z-40 md:hidden">
         <div className="flex items-center justify-between rounded-3xl border border-[#1e293b] bg-[#0b1220]/95 px-5 py-2 shadow-2xl backdrop-blur">
           <Link href="/" className="flex flex-col items-center text-[10px] font-semibold text-slate-400"><span>🏠</span>Home</Link>
-          <button onClick={() => changeTab("records")} className="flex flex-col items-center rounded-2xl bg-amber-500/15 px-3 py-1 text-[10px] font-black text-amber-400"><span>🌟</span>Records</button>
+          <button onClick={() => changeTab("teammates_record")} className="flex flex-col items-center rounded-2xl bg-amber-500/15 px-3 py-1 text-[10px] font-black text-amber-400"><span>🤝</span>Teammates</button>
           <Link href="/rankings" className="flex flex-col items-center text-[10px] font-semibold text-slate-400"><span>🚀</span>Rankings</Link>
           <button onClick={() => changeTab("clubs")} className="flex flex-col items-center text-[10px] font-semibold text-slate-400"><span>💎</span>Clubs</button>
         </div>
@@ -1174,6 +1184,7 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
 
   const changeTab = (id: string) => {
     setTab(id);
+    setQuery("");
     setChip(id === "clubs" ? "All" : "Top 10");
   };
 
@@ -1188,13 +1199,8 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
     tournaments: totalTournamentsCount,
   }), [players, totalTournamentsCount]);
 
-  // ⚡ শুধু Record Holders ট্যাবে গেলেই হিসাব হবে
-  const holders = useMemo(
-    () => (tab === "records" ? buildHolders(players, teamCounts) : []),
-    [tab, players, teamCounts]
-  );
-
   const rows = useMemo(() => {
+    if (tab === "tournaments_history" || tab === "teammates_record") return [];
     const c = MOBILE_CFG[tab];
     if (!c) return [];
     const limit = chip === "All" ? Infinity : parseInt(chip.replace("Top ", "")) || 10;
@@ -1212,8 +1218,6 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
   const rest = rows.slice(3);
   const podiumOrder = podium.length === 3 ? [1, 0, 2] : podium.map((_, i) => i);
   const medal = ["#fbbf24", "#cbd5e1", "#cd7f32"];
-  const featured = holders.slice(0, 3);
-  const others = holders.slice(3);
 
   return (
     <div className="relative min-h-screen bg-[#020617] text-white">
@@ -1295,42 +1299,6 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
               <TournamentHistoryDesktop data={tournamentsData} players={players} onSelect={onSelect} />
             ) : tab === "teammates_record" ? (
               <TeammatesRecordView players={players} teamCounts={teamCounts} onSelect={onSelect} />
-            ) : tab === "records" ? (
-              <div>
-                <div className="mb-5"><h2 className="text-2xl font-black">Hall of Fame</h2><p className="mt-1 text-sm text-slate-400">{DESC.records}</p></div>
-                <div className="grid grid-cols-3 gap-5">
-                  {featured.map((h) => {
-                    const c = ACCENT[h.id];
-                    return (
-                      <button key={h.id} onClick={() => onSelect(h.player)} className="group relative overflow-hidden rounded-3xl border p-6 text-left transition hover:-translate-y-1" style={{ borderColor: `${c}45`, background: `linear-gradient(160deg, ${c}22, #0b1220 55%, #050914)` }}>
-                        <span className="pointer-events-none absolute -right-4 -top-6 select-none text-[110px] opacity-[0.07]">{h.icon}</span>
-                        <p className="text-sm font-bold" style={{ color: c }}>{h.icon} {h.label}</p>
-                        <p className="mt-5 text-6xl font-black tabular-nums leading-none" style={{ color: c }}>{Number(h.value).toLocaleString()}</p>
-                        <p className="mt-1.5 text-xs font-semibold text-slate-400">{h.unit}</p>
-                        <div className="mt-6 flex items-center gap-3 border-t border-white/10 pt-4">
-                          <Avatar player={h.player} size={42} />
-                          <div className="min-w-0 flex-1"><p className="text-sm font-black text-white truncate">{h.player.name}</p><p className="text-xs text-slate-400 truncate">@{h.player.nickName || "Player"}</p></div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-5 grid grid-cols-3 gap-4 xl:grid-cols-4">
-                  {others.map((h) => {
-                    const c = ACCENT[h.id] || "#f59e0b";
-                    return (
-                      <button key={h.id} onClick={() => onSelect(h.player)} className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-4 text-left transition hover:-translate-y-0.5 hover:bg-[#0f192c]">
-                        <p className="text-xs font-bold text-slate-400">{h.icon} {h.label}</p>
-                        <p className="mt-3 text-3xl font-black tabular-nums leading-none" style={{ color: c }}>{Number(h.value).toLocaleString()}</p>
-                        <div className="mt-3 flex items-center gap-2.5 border-t border-[#172033] pt-3">
-                          <Avatar player={h.player} size={30} />
-                          <p className="text-xs font-bold text-white truncate">{h.player.name}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
             ) : tab === "clubs" ? (
               <div>
                 <div className="mb-5"><h2 className="text-2xl font-black">💎 Elite Milestone Clubs</h2><p className="mt-1 text-sm text-slate-400">{DESC.clubs}</p></div>
@@ -1416,7 +1384,6 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
 
 /* ═════════════════════════ PAGE ═════════════════════════ */
 
-/** ⚡ স্ক্রিন সাইজ দেখে শুধু একটা লেআউটই রেন্ডার হবে (আগে মোবাইল + ডেস্কটপ দুটোই একসাথে চলত) */
 function useIsDesktop(): boolean | null {
   const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
   useEffect(() => {
@@ -1451,7 +1418,6 @@ export default function RecordsPage() {
     return () => { alive = false; };
   }, []);
 
-  // ⚡ সতীর্থ সংখ্যা পুরো পেইজের জন্য মাত্র একবার হিসাব হয়
   const teamCounts = useMemo(() => buildTeammateCounts(tournamentsData), [tournamentsData]);
 
   const handleSelect = (p: Player) => setSelectedPlayer(p);
