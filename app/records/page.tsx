@@ -220,18 +220,61 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
 
   const tournamentHistory = useMemo(() => {
     if (!tournamentsData || tournamentsData.length === 0) return [];
-    const map = new Map<string, { tournament: string; champion?: string; runnerUp?: string; topScorer?: string; topWicket?: string }>();
+    const map = new Map<string, { 
+      tournament: string; 
+      time?: string; 
+      championTeam?: string; 
+      championPlayers: string[]; 
+      runnerUpTeam?: string; 
+      runnerUpPlayers: string[]; 
+      topScorer?: string; 
+      topWicket?: string;
+      motPlayer?: string;
+      cpotPlayer?: string;
+      allPlayersCount: Set<string>;
+    }>();
+
     tournamentsData.forEach((t) => {
       const name = t.tournament || "Tournament";
-      if (!map.has(name)) map.set(name, { tournament: name });
+      if (!map.has(name)) {
+        map.set(name, { 
+          tournament: name, 
+          time: t.time || "", 
+          championPlayers: [],
+          runnerUpPlayers: [],
+          allPlayersCount: new Set<string>() 
+        });
+      }
       const item = map.get(name)!;
+      if (t.playerName) item.allPlayersCount.add(t.playerName);
+
       const cr = (t.chamRu || "").toUpperCase();
-      if (cr.includes("CHAM") || cr.includes("WIN") || cr.includes("CHAMPION")) item.champion = t.playerName;
-      if (cr.includes("RU") || cr.includes("RUNNER")) item.runnerUp = t.playerName;
+      if (cr.includes("CHAM") || cr.includes("WIN") || cr.includes("CHAMPION")) {
+        item.championTeam = t.team || "Champion Team";
+        if (t.playerName && !item.championPlayers.includes(t.playerName)) {
+          item.championPlayers.push(t.playerName);
+        }
+      } else if (cr.includes("RU") || cr.includes("RUNNER")) {
+        item.runnerUpTeam = t.team || "Runner-Up Team";
+        if (t.playerName && !item.runnerUpPlayers.includes(t.playerName)) {
+          item.runnerUpPlayers.push(t.playerName);
+        }
+      } else {
+        if (t.team && !item.championTeam) item.championTeam = t.team;
+      }
+
       if (Number(t.topScorer) === 1) item.topScorer = t.playerName;
       if (Number(t.topWicket) === 1) item.topWicket = t.playerName;
+      
+      const motCpotStr = (t.motCpot || "").toUpperCase();
+      if (motCpotStr.includes("MOT") || Number(t.mom) > 0) item.motPlayer = t.playerName;
+      if (motCpotStr.includes("CPOT") || Number(t.cpom) > 0) item.cpotPlayer = t.playerName;
     });
-    return Array.from(map.values());
+
+    return Array.from(map.values()).map(item => ({
+      ...item,
+      totalPlayersCount: item.allPlayersCount.size
+    }));
   }, [tournamentsData]);
 
   const holders = useMemo(() => {
@@ -343,19 +386,69 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
         {loading ? (
           <div className="py-20 text-center text-xs font-bold text-amber-400 animate-pulse">Loading FCL Records...</div>
         ) : tab === "tournaments_history" ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <h2 className="text-sm font-black text-amber-400 px-1">🏆 Tournament History Archive</h2>
-            {tournamentHistory.map((item, i) => (
-              <div key={i} className="rounded-2xl border border-[#1e293b] bg-[#0b1220] p-4 space-y-2 shadow-lg">
-                <h3 className="text-sm font-black text-amber-400 border-b border-[#1e293b] pb-2">🏟️ {item.tournament}</h3>
-                <div className="text-xs space-y-1 text-slate-300">
-                  <p>🏆 <strong className="text-white">Champion:</strong> {item.champion || "—"}</p>
-                  <p>🥈 <strong className="text-white">Runner-Up:</strong> {item.runnerUp || "—"}</p>
-                  <p>🏏 <strong className="text-white">Top Scorer:</strong> {item.topScorer || "—"}</p>
-                  <p>🎯 <strong className="text-white">Top Wicket:</strong> {item.topWicket || "—"}</p>
+            <p className="text-xs text-slate-400 px-1">প্রতিটি টুর্নামেন্টের সময়কাল, মোট অংশগ্রহণকারী খেলোয়াড়, চ্যাম্পিয়ন ও রানার্স-আপ স্কোয়াড এবং সেরা পারফর্মারদের ইতিহাস।</p>
+            <div className="space-y-4">
+              {tournamentHistory.map((item, i) => (
+                <div key={i} className="rounded-3xl border border-[#1e293b] bg-gradient-to-br from-[#0b1220] via-[#080e1a] to-[#04070b] p-4 shadow-xl space-y-4">
+                  <div className="flex items-start justify-between border-b border-[#1e293b] pb-3">
+                    <div>
+                      <h3 className="text-base font-black text-amber-400">🏟️ {item.tournament}</h3>
+                      {item.time && <p className="mt-0.5 text-[11px] font-bold text-sky-400">📅 সময়কাল: {item.time}</p>}
+                    </div>
+                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-black text-emerald-400">
+                      👥 {item.totalPlayersCount}
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-amber-400">🏆 Champion Team</span>
+                      <span className="text-[11px] font-bold text-slate-300">{item.championTeam || "—"}</span>
+                    </div>
+                    <div className="pt-1">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Full Squad:</p>
+                      <p className="mt-0.5 text-[11px] font-semibold text-white leading-relaxed">
+                        {item.championPlayers.length > 0 ? item.championPlayers.join(", ") : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-500/30 bg-slate-500/5 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-black text-slate-300">🥈 Runner-Up Team</span>
+                      <span className="text-[11px] font-bold text-slate-400">{item.runnerUpTeam || "—"}</span>
+                    </div>
+                    <div className="pt-1">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Full Squad:</p>
+                      <p className="mt-0.5 text-[11px] font-semibold text-white leading-relaxed">
+                        {item.runnerUpPlayers.length > 0 ? item.runnerUpPlayers.join(", ") : "—"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-xl bg-black/40 p-2.5 border border-[#1e293b]">
+                      <p className="text-[9px] font-bold text-slate-500 uppercase">🏏 Top Scorer</p>
+                      <p className="mt-1 font-black text-emerald-400 truncate">{item.topScorer || "—"}</p>
+                    </div>
+                    <div className="rounded-xl bg-black/40 p-2.5 border border-[#1e293b]">
+                      <p className="text-[9px] font-bold text-slate-500 uppercase">🎯 Top Wicket</p>
+                      <p className="mt-1 font-black text-amber-400 truncate">{item.topWicket || "—"}</p>
+                    </div>
+                    <div className="rounded-xl bg-black/40 p-2.5 border border-[#1e293b]">
+                      <p className="text-[9px] font-bold text-slate-500 uppercase">⭐ MOT</p>
+                      <p className="mt-1 font-black text-purple-400 truncate">{item.motPlayer || "—"}</p>
+                    </div>
+                    <div className="rounded-xl bg-black/40 p-2.5 border border-[#1e293b]">
+                      <p className="text-[9px] font-bold text-slate-500 uppercase">🏅 CPOT</p>
+                      <p className="mt-1 font-black text-sky-400 truncate">{item.cpotPlayer || "—"}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ) : tab === "records" ? (
           <div className="space-y-3">
@@ -388,20 +481,29 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
               const c = TIER_COLOR[t.key];
               const list = players.filter(t.test);
               return (
-                <div key={t.key} className="rounded-3xl border bg-[#0b1220] p-4" style={{ borderColor: `${c}40` }}>
-                  <div className="flex items-center justify-between border-b border-[#1e293b] pb-2">
-                    <h3 className="text-sm font-black" style={{ color: c }}>{t.icon} {t.title}</h3>
-                    <span className="text-xs font-bold" style={{ color: c }}>{list.length}</span>
+                <div key={t.key} className="rounded-3xl border bg-[#0b1220] p-4 shadow-xl" style={{ borderColor: `${c}40` }}>
+                  <div className="flex items-start justify-between border-b border-[#1e293b] pb-2.5">
+                    <div>
+                      <h3 className="text-sm font-black" style={{ color: c }}>{t.icon} {t.title}</h3>
+                      <p className="mt-0.5 text-[11px] text-slate-400">{t.range}</p>
+                    </div>
+                    <span className="text-xs font-bold rounded-full border px-2 py-0.5" style={{ borderColor: `${c}60`, color: c }}>{list.length}</span>
                   </div>
-                  <div className="mt-2 space-y-1.5">
+                  <div className="mt-3 space-y-2">
                     {list.map((p, idx) => (
-                      <button key={idx} onClick={() => onSelect(p)} className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-white/[0.04]">
-                        <Avatar player={p} size={32} />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-bold text-white">{p.name}</p>
-                          <p className="text-[10px] text-slate-400">{p.matches} Matches</p>
+                      <button key={idx} onClick={() => onSelect(p)} className="flex w-full items-center justify-between rounded-2xl bg-white/[0.03] p-2.5 text-left transition hover:bg-white/[0.06]">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Avatar player={p} size={36} />
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-black text-white">{p.name}</p>
+                            <p className="text-[10px] text-slate-400">@{p.nickName || "Player"} • {p.matches} Matches</p>
+                          </div>
                         </div>
-                        <div className="text-right text-xs font-black text-emerald-400">{p.runs}R | {p.wickets}W</div>
+                        <div className="text-right text-xs font-black shrink-0">
+                          <span className="text-[#22c55e]">{p.runs}R</span>
+                          <span className="text-slate-500 mx-1">|</span>
+                          <span className="text-[#fbbf24]">{p.wickets}W</span>
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -517,18 +619,61 @@ function DesktopRecords({ players, tournamentsData, loading, onSelect }: { playe
 
   const tournamentHistory = useMemo(() => {
     if (!tournamentsData || tournamentsData.length === 0) return [];
-    const map = new Map<string, { tournament: string; champion?: string; runnerUp?: string; topScorer?: string; topWicket?: string }>();
+    const map = new Map<string, { 
+      tournament: string; 
+      time?: string; 
+      championTeam?: string; 
+      championPlayers: string[]; 
+      runnerUpTeam?: string; 
+      runnerUpPlayers: string[]; 
+      topScorer?: string; 
+      topWicket?: string;
+      motPlayer?: string;
+      cpotPlayer?: string;
+      allPlayersCount: Set<string>;
+    }>();
+
     tournamentsData.forEach((t) => {
       const name = t.tournament || "Tournament";
-      if (!map.has(name)) map.set(name, { tournament: name });
+      if (!map.has(name)) {
+        map.set(name, { 
+          tournament: name, 
+          time: t.time || "", 
+          championPlayers: [],
+          runnerUpPlayers: [],
+          allPlayersCount: new Set<string>() 
+        });
+      }
       const item = map.get(name)!;
+      if (t.playerName) item.allPlayersCount.add(t.playerName);
+
       const cr = (t.chamRu || "").toUpperCase();
-      if (cr.includes("CHAM") || cr.includes("WIN") || cr.includes("CHAMPION")) item.champion = t.playerName;
-      if (cr.includes("RU") || cr.includes("RUNNER")) item.runnerUp = t.playerName;
+      if (cr.includes("CHAM") || cr.includes("WIN") || cr.includes("CHAMPION")) {
+        item.championTeam = t.team || "Champion Team";
+        if (t.playerName && !item.championPlayers.includes(t.playerName)) {
+          item.championPlayers.push(t.playerName);
+        }
+      } else if (cr.includes("RU") || cr.includes("RUNNER")) {
+        item.runnerUpTeam = t.team || "Runner-Up Team";
+        if (t.playerName && !item.runnerUpPlayers.includes(t.playerName)) {
+          item.runnerUpPlayers.push(t.playerName);
+        }
+      } else {
+        if (t.team && !item.championTeam) item.championTeam = t.team;
+      }
+
       if (Number(t.topScorer) === 1) item.topScorer = t.playerName;
       if (Number(t.topWicket) === 1) item.topWicket = t.playerName;
+      
+      const motCpotStr = (t.motCpot || "").toUpperCase();
+      if (motCpotStr.includes("MOT") || Number(t.mom) > 0) item.motPlayer = t.playerName;
+      if (motCpotStr.includes("CPOT") || Number(t.cpom) > 0) item.cpotPlayer = t.playerName;
     });
-    return Array.from(map.values());
+
+    return Array.from(map.values()).map(item => ({
+      ...item,
+      totalPlayersCount: item.allPlayersCount.size
+    }));
   }, [tournamentsData]);
 
   return (
@@ -599,16 +744,63 @@ function DesktopRecords({ players, tournamentsData, loading, onSelect }: { playe
             ) : tab === "tournaments_history" ? (
               <div className="space-y-4">
                 <h2 className="text-2xl font-black">🏆 Tournament History Archive</h2>
-                <p className="text-sm text-slate-400">প্রতিটি টুর্নামেন্টের চ্যাম্পিয়ন, রানার্স-আপ ও সেরা পারফর্মারদের ইতিহাস।</p>
-                <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
+                <p className="text-sm text-slate-400">প্রতিটি টুর্নামেন্টের সময়কাল, মোট অংশগ্রহণকারী খেলোয়াড়, চ্যাম্পিয়ন ও রানার্স-আপ স্কোয়াড এবং সেরা পারফর্মারদের ইতিহাস।</p>
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   {tournamentHistory.map((item, i) => (
-                    <div key={i} className="rounded-3xl border border-[#1e293b] bg-[#0b1220] p-5 shadow-xl space-y-3">
-                      <h3 className="text-base font-black text-amber-400 border-b border-[#1e293b] pb-2">🏟️ {item.tournament}</h3>
-                      <div className="text-xs space-y-1.5 text-slate-300">
-                        <p>🏆 <strong className="text-white">Champion:</strong> {item.champion || "—"}</p>
-                        <p>🥈 <strong className="text-white">Runner-Up:</strong> {item.runnerUp || "—"}</p>
-                        <p>🏏 <strong className="text-white">Top Scorer:</strong> {item.topScorer || "—"}</p>
-                        <p>🎯 <strong className="text-white">Top Wicket:</strong> {item.topWicket || "—"}</p>
+                    <div key={i} className="rounded-3xl border border-[#1e293b] bg-gradient-to-br from-[#0b1220] via-[#080e1a] to-[#04070b] p-6 shadow-xl space-y-5">
+                      <div className="flex items-start justify-between border-b border-[#1e293b] pb-4">
+                        <div>
+                          <h3 className="text-xl font-black text-amber-400">🏟️ {item.tournament}</h3>
+                          {item.time && <p className="mt-1 text-xs font-bold text-sky-400">📅 সময়কাল: {item.time}</p>}
+                        </div>
+                        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-black text-emerald-400">
+                          👥 {item.totalPlayersCount} Players
+                        </span>
+                      </div>
+
+                      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-amber-400">🏆 Champion Team</span>
+                          <span className="text-xs font-bold text-slate-300">{item.championTeam || "—"}</span>
+                        </div>
+                        <div className="pt-1">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Full Squad:</p>
+                          <p className="mt-1 text-xs font-semibold text-white leading-relaxed">
+                            {item.championPlayers.length > 0 ? item.championPlayers.join(", ") : "—"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-500/30 bg-slate-500/5 p-4 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-300">🥈 Runner-Up Team</span>
+                          <span className="text-xs font-bold text-slate-400">{item.runnerUpTeam || "—"}</span>
+                        </div>
+                        <div className="pt-1">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Full Squad:</p>
+                          <p className="mt-1 text-xs font-semibold text-white leading-relaxed">
+                            {item.runnerUpPlayers.length > 0 ? item.runnerUpPlayers.join(", ") : "—"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5 text-xs">
+                        <div className="rounded-xl bg-black/40 p-3 border border-[#1e293b]">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase">🏏 Top Scorer</p>
+                          <p className="mt-1 font-black text-emerald-400 truncate">{item.topScorer || "—"}</p>
+                        </div>
+                        <div className="rounded-xl bg-black/40 p-3 border border-[#1e293b]">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase">🎯 Top Wicket</p>
+                          <p className="mt-1 font-black text-amber-400 truncate">{item.topWicket || "—"}</p>
+                        </div>
+                        <div className="rounded-xl bg-black/40 p-3 border border-[#1e293b]">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase">⭐ MOT</p>
+                          <p className="mt-1 font-black text-purple-400 truncate">{item.motPlayer || "—"}</p>
+                        </div>
+                        <div className="rounded-xl bg-black/40 p-3 border border-[#1e293b]">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase">🏅 CPOT</p>
+                          <p className="mt-1 font-black text-sky-400 truncate">{item.cpotPlayer || "—"}</p>
+                        </div>
                       </div>
                     </div>
                   ))}
