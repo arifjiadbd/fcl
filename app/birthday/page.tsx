@@ -59,17 +59,25 @@ const MONTH_BN = [
 
 const FALLBACK_PHOTO = "/FCL Cricket Avatar Placeholder.jpg";
 
-// রেন্ডম ৪-৫টি ভিন্ন উইশ মেসেজের কালেকশন
+// ৫টি বাংলা (আপনি সম্বোধন, শুদ্ধ বাংলা) এবং ৫টি ইংরেজি উইশ মেসেজ
+// কোটেশন চিহ্ন (“ ”) কার্ডে আলাদা ডেকোরেশন হিসেবে বসে, তাই এখানে দেওয়া হয়নি
 const WISH_MESSAGES = [
-  (name: string) => `“প্রিয় ${name}, আজ তোমার বিশেষ দিন! মাঠের প্রতিটি ছক্কা-চারের মতোই জীবনটাও হোক আনন্দে ভরা। সুস্বাস্থ্য, সাফল্য আর অফুরন্ত হাসিতে ভরে উঠুক আগামীর প্রতিটি দিন। অনেক অনেক শুভেচ্ছা ও ভালোবাসা!”`,
-  (name: string) => `“শুভ জন্মদিন, ${name}! তোমার অদম্য স্পৃহা ও দারুণ পারফরম্যান্স আমাদের সবসময়inspired করে। আজকের এই দিনে প্রার্থনা করি তোমার প্রতিটি ম্যাচ ও জীবনের প্রতিটি পদক্ষেপে জয় আসুক।”`,
-  (name: string) => `“বার্থডে বয় ${name}-কে জানাই ফ্যামিলির পক্ষ থেকে লাল গোলাপের শুভেচ্ছা। মাঠে যেমন ফাইটার, বাস্তব জীবনেও তেমনই সব বাধা পেরিয়ে সফলতার শিখরে পৌঁছে যাও—এই কামনা রইল!”`,
-  (name: string) => `“শুভ জন্মদিন ${name}! তোমার অসাধারণ খেলা আর দলের প্রতি ভালোবাসা আমাদের গর্বিত করে। তোমার জীবনটা হোক চার-ছক্কায় ভরপুর এক রঙিন ইনিংস। অনেক শুভকামনা!”`,
+  (name: string) => `প্রিয় ${name}, আজ আপনার বিশেষ দিন। মাঠের প্রতিটি চার-ছক্কার মতোই আপনার জীবনও আনন্দে ভরে উঠুক। সুস্বাস্থ্য, সাফল্য ও অফুরন্ত হাসিতে কাটুক আগামীর প্রতিটি দিন। শুভ জন্মদিন!`,
+  (name: string) => `শুভ জন্মদিন, ${name}! আপনার অসাধারণ খেলা ও দলের প্রতি নিষ্ঠা আমাদের সবসময় অনুপ্রাণিত করে। আজকের দিনে কামনা করি, আপনার প্রতিটি ইনিংস জয়ের বার্তা বয়ে আনুক।`,
+  (name: string) => `জন্মদিনের শুভেচ্ছা, ${name}! এফসিএল পরিবারের পক্ষ থেকে আপনাকে জানাই ভালোবাসা ও অভিনন্দন। মাঠে যেমন লড়াকু, জীবনেও সব বাধা পেরিয়ে সাফল্যের শিখরে পৌঁছান—এই কামনা করি।`,
+  (name: string) => `শুভ জন্মদিন ${name}! আপনার চমৎকার পারফরম্যান্স আমাদের সবসময় গর্বিত করে। আপনার জীবন হোক চার-ছক্কায় ভরপুর এক দুর্দান্ত ইনিংস। অনেক অনেক শুভকামনা রইল।`,
+  (name: string) => `আশা করি আজকের দিনটি আপনার জন্য দারুণ কিছু বয়ে আনবে, ${name}। মাঠে যেমন সেরাটা দেন, জীবনের প্রতিটি ক্ষেত্রেও তেমনই জয় ছিনিয়ে আনুন—এই শুভকামনা রইল।`,
+  (name: string) => `Happy Birthday, ${name}! May your special day bring you immense joy, great health, and countless wonderful moments both on and off the cricket field. Cheers to another great year!`,
+  (name: string) => `Wishing a fantastic birthday to our star player, ${name}! Your passion, dedication, and fighting spirit on the pitch always inspire us. Keep shining and smashing records!`,
+  (name: string) => `Happy Birthday ${name}! May this year bring you closer to all your goals and fill your life with success, happiness, and memorable victories with the team.`,
+  (name: string) => `Cheers to a true champion, ${name}! Wishing you a wonderful birthday filled with love, laughter, and great achievements in every match you play.`,
+  (name: string) => `Happy Birthday to our MVP, ${name}! Thank you for always giving your best performance. May your life's innings be filled with endless boundaries of success!`,
 ];
 
-// প্লেয়ারের নাম বা আইডি দিয়ে ইউনিক কিন্তু রেন্ডম মেসেজ সিলেক্ট করার ফাংশন
-function getPlayerWish(player: Player) {
-  const seed = (player.id || 0) + player.name.length;
+// salt = পেজ লোডে একবার র‍্যান্ডম নম্বর → বাংলা/ইংরেজি মিশিয়ে র‍্যান্ডম উইশ আসবে
+// (কার্ড আর পাশের টেক্সটে একই salt থাকায় দুই জায়গায় একই উইশ দেখাবে)
+function getPlayerWish(player: Player, salt: number) {
+  const seed = (player.id || 0) + player.name.length + salt;
   const index = seed % WISH_MESSAGES.length;
   return WISH_MESSAGES[index](player.name);
 }
@@ -131,9 +139,25 @@ function Balloon({ color, dark, w, style }: { color: string; dark: string; w: nu
   );
 }
 
+function RoseIcon({ style, size = 28, absolute = true }: { style?: React.CSSProperties; size?: number; absolute?: boolean }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      style={{ ...(absolute ? { position: "absolute" } : { display: "block", flexShrink: 0 }), ...style }}
+    >
+      <path d="M16 4c-3 0-6 2-6 5 0 2 1 4 3 5l-3 6h3l1.5-3h3L19 20h3l-3-6c2-1 3-3 3-5 0-3-3-5-6-5z" fill="#e11d48" />
+      <path d="M16 9c-1 0-2 1-2 2s1 2 2 2 2-1 2-2-1-2-2-2z" fill="#fb7185" />
+      <path d="M11 23c2 1 6 1 10 0" stroke="#15803d" strokeWidth="2" fill="none" strokeLinecap="round" />
+      <path d="M14 25c1 1 3 1 4 0" stroke="#15803d" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function GiftBox() {
   return (
-    <svg width="48" height="48" viewBox="0 0 48 48" style={{ position: "absolute", left: 16, bottom: 40 }}>
+    <svg width="38" height="38" viewBox="0 0 48 48" style={{ position: "absolute", left: 16, bottom: 32 }}>
       <rect x="5" y="20" width="38" height="24" rx="2" fill="#1d4ed8" />
       <rect x="3" y="14" width="42" height="9" rx="2" fill="#2563eb" />
       <rect x="21" y="14" width="6" height="30" fill="#fff" />
@@ -144,7 +168,7 @@ function GiftBox() {
 
 function CricketBall() {
   return (
-    <svg width="42" height="42" viewBox="0 0 42 42" style={{ position: "absolute", right: 18, bottom: 40 }}>
+    <svg width="34" height="34" viewBox="0 0 42 42" style={{ position: "absolute", right: 18, bottom: 32 }}>
       <circle cx="21" cy="21" r="19" fill="#b91c1c" />
       <circle cx="15" cy="14" r="8" fill="#ef4444" opacity=".55" />
       <path d="M9 7Q23 21 9 35" stroke="#fff" strokeWidth="1.6" fill="none" strokeDasharray="3 2.2" />
@@ -153,11 +177,18 @@ function CricketBall() {
   );
 }
 
-function WishCard({ player, dateText }: { player: Player; dateText: string }) {
-  // নামের দৈর্ঘ্য অনুযায়ী ফন্ট সাইজ স্বয়ংক্রিয়ভাবে ছোট করার লজিক যাতে ভেঙে না যায়
+function WishCard({ player, dateText, salt }: { player: Player; dateText: string; salt: number }) {
   const len = player.name.length;
-  const nameSize = len > 26 ? 15 : len > 20 ? 17 : len > 14 ? 20 : 23;
-  const dynamicWishText = getPlayerWish(player);
+  const nameSize = len > 26 ? 15 : len > 20 ? 17 : len > 14 ? 19 : 22;
+  const dynamicWishText = getPlayerWish(player, salt);
+
+  // যেসব অর্জন আছে (০ বা খালি হলে দেখানো হবে না) — নিচের ফাঁকা জায়গা ভরাট করতে
+  const chips = [
+    { icon: "🏆", label: "Champion", v: player.champion },
+    { icon: "⭐", label: "MoM", v: player.mom },
+    { icon: "🎯", label: "Hat-trick", v: player.hatTricks },
+    { icon: "🚀", label: "Debut", v: player.debutYear },
+  ].filter((c) => c.v !== undefined && c.v !== null && String(c.v) !== "" && String(c.v) !== "0" && String(c.v) !== "—");
 
   return (
     <div
@@ -183,40 +214,40 @@ function WishCard({ player, dateText }: { player: Player; dateText: string }) {
         <path d="M400 448Q330 470 262 474" stroke="#22c55e" strokeWidth="5" strokeLinecap="round" fill="none" />
       </svg>
 
-      {/* বেলুন ও আইটেম */}
-      <Balloon color="#2563eb" dark="#1e3a8a" w={52} style={{ left: -16, top: 126 }} />
-      <Balloon color="#22c55e" dark="#15803d" w={42} style={{ left: 6, top: 214 }} />
-      <Balloon color="#22c55e" dark="#15803d" w={52} style={{ right: -14, top: 112 }} />
-      <Balloon color="#2563eb" dark="#1e3a8a" w={42} style={{ right: 4, top: 204 }} />
+      {/* বেলুন ও গোলাপ ফুল (পাশে — ছবির আশেপাশে) */}
+      <Balloon color="#2563eb" dark="#1e3a8a" w={42} style={{ left: -12, top: 112 }} />
+      <RoseIcon style={{ left: 10, top: 168 }} />
+      <Balloon color="#22c55e" dark="#15803d" w={42} style={{ right: -10, top: 104 }} />
+      <RoseIcon style={{ right: 12, top: 162 }} />
 
       <GiftBox />
       <CricketBall />
 
       {/* কর্নার টেক্সট */}
-      <div style={{ position: "absolute", left: 58, top: 38, transform: "rotate(-6deg)", fontFamily: "'Pacifico',cursive", fontSize: 10, lineHeight: 1.25, color: "#1d4ed8", textAlign: "center" }}>
+      <div style={{ position: "absolute", left: 52, top: 28, transform: "rotate(-6deg)", fontFamily: "'Pacifico',cursive", fontSize: 9.5, lineHeight: 1.25, color: "#1d4ed8", textAlign: "center" }}>
         More Birthdays<br />More Happiness ♡
       </div>
-      <div style={{ position: "absolute", right: 58, top: 30, transform: "rotate(6deg)", fontFamily: "'Pacifico',cursive", fontSize: 10, lineHeight: 1.25, color: "#1d4ed8", textAlign: "center" }}>
+      <div style={{ position: "absolute", right: 52, top: 22, transform: "rotate(6deg)", fontFamily: "'Pacifico',cursive", fontSize: 9.5, lineHeight: 1.25, color: "#1d4ed8", textAlign: "center" }}>
         Same Team<br />Same Dream<br />FCL
       </div>
 
-      {/* মেইন কনটেন্ট কন্টেইনার (ফ্লেক্স ওভারল্যাপ এড়াতে ফিক্সড পজিশনিং) */}
-      <div style={{ position: "absolute", top: 10, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", padding: "0 16px" }}>
-        <div style={{ width: 50, height: 50, borderRadius: "50%", background: "#fff", padding: 2, border: "2.5px solid #1d4ed8", boxShadow: "0 4px 12px rgba(29,78,216,.35)" }}>
+      {/* কনটেন্ট */}
+      <div style={{ position: "absolute", top: 4, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", padding: "0 16px" }}>
+        <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#fff", padding: 1.5, border: "2px solid #1d4ed8", boxShadow: "0 2px 8px rgba(29,78,216,.3)" }}>
           <img src="/fcl-logo.png" alt="FCL" crossOrigin="anonymous" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} />
         </div>
 
-        <div style={{ fontFamily: "'Pacifico',cursive", fontSize: 20, color: "#2563eb", lineHeight: 1, marginTop: 4 }}>Happy</div>
-        <div style={{ fontFamily: "'Pacifico',cursive", fontSize: 40, lineHeight: 1, color: "#1e40af", textShadow: "2px 2px 0 #fff,-2px -2px 0 #fff,2px -2px 0 #fff,-2px 2px 0 #fff" }}>
+        <div style={{ fontFamily: "'Pacifico',cursive", fontSize: 14, color: "#2563eb", lineHeight: 1, marginTop: 1 }}>Happy</div>
+        <div style={{ fontFamily: "'Pacifico',cursive", fontSize: 28, lineHeight: 1, color: "#1e40af", textShadow: "1.5px 1.5px 0 #fff,-1.5px -1.5px 0 #fff" }}>
           Birthday
         </div>
-        <div style={{ marginTop: 2, width: 150, height: 22, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(90deg,#1d4ed8,#22c55e)", color: "#fff", fontFamily: "'Pacifico',cursive", fontSize: 13, clipPath: "polygon(0 0,100% 0,94% 50%,100% 100%,0 100%,6% 50%)" }}>
+        <div style={{ marginTop: 1, width: 110, height: 16, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(90deg,#1d4ed8,#22c55e)", color: "#fff", fontFamily: "'Pacifico',cursive", fontSize: 10, clipPath: "polygon(0 0,100% 0,94% 50%,100% 100%,0 100%,6% 50%)" }}>
           Champion
         </div>
 
-        {/* প্লেয়ার ফটো */}
-        <div style={{ marginTop: 8, padding: 3, borderRadius: "50%", background: "linear-gradient(135deg,#1d4ed8,#22c55e)", boxShadow: "0 6px 18px rgba(29,78,216,.4)" }}>
-          <div style={{ width: 84, height: 84, borderRadius: "50%", overflow: "hidden", border: "2.5px solid #fff", background: "#e2e8f0" }}>
+        {/* 🌟 প্লেয়ার ছবি — আরো বড়, ঠিক মাঝখানে (উপরে-নিচে গ্যাপ কম) */}
+        <div style={{ marginTop: 3, padding: 3, borderRadius: "50%", background: "linear-gradient(135deg,#e11d48,#1d4ed8,#22c55e)", boxShadow: "0 6px 16px rgba(29,78,216,0.4)" }}>
+          <div style={{ width: 136, height: 136, borderRadius: "50%", overflow: "hidden", border: "3px solid #fff", background: "#e2e8f0" }}>
             <img
               src={getPhoto(player)}
               alt={player.name}
@@ -230,45 +261,73 @@ function WishCard({ player, dateText }: { player: Player; dateText: string }) {
         </div>
 
         {/* নাম ও ট্যাগ */}
-        <div style={{ marginTop: 6, fontSize: nameSize, fontWeight: 800, color: "#0b2a6f", lineHeight: 1.15, textAlign: "center", width: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <div style={{ marginTop: 3, fontSize: nameSize, fontWeight: 800, color: "#0b2a6f", lineHeight: 1.15, textAlign: "center", width: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {player.name}
         </div>
-        <div style={{ marginTop: 3, display: "flex", gap: 6, alignItems: "center", justifyContent: "center" }}>
-          <div style={{ padding: "2px 10px", borderRadius: 999, background: "#0b1220", color: "#fff", fontSize: 10, fontWeight: 600 }}>
+        <div style={{ marginTop: 2.5, display: "flex", gap: 5, alignItems: "center", justifyContent: "center" }}>
+          <div style={{ padding: "2px 8px", borderRadius: 999, background: "#0b1220", color: "#fff", fontSize: 8.5, fontWeight: 600 }}>
             @{player.nickName || "Player"} • {player.role}
           </div>
-          <div style={{ padding: "2px 10px", borderRadius: 999, background: "linear-gradient(90deg,#1d4ed8,#16a34a)", color: "#fff", fontSize: 10, fontWeight: 700 }}>
+          <div style={{ padding: "2px 8px", borderRadius: 999, background: "linear-gradient(90deg,#1d4ed8,#16a34a)", color: "#fff", fontSize: 8.5, fontWeight: 700 }}>
             🎂 {dateText}
           </div>
         </div>
 
-        {/* উইশ মেসেজ বক্স (ফ্লাক্স সেফ) */}
-        <div style={{ marginTop: 6, width: "100%", textAlign: "center", color: "#1e3a8a", fontSize: 11, lineHeight: 1.35, fontWeight: 500, padding: "0 8px" }}>
-          {dynamicWishText}
-          <div style={{ fontWeight: 800, fontSize: 11, color: "#1d4ed8", marginTop: 2 }}>— FCL Family</div>
+        {/* উইশ মেসেজ — উপরে-নিচে স্ট্যান্ডার্ড গ্যাপ (৯px), দুই কোটেশনের মাথায় গোলাপ */}
+        <div style={{ margin: "9px 0", width: "100%", display: "flex", alignItems: "stretch", gap: 4 }}>
+          {/* ওপেনিং কোট */}
+          <div style={{ width: 26, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", flexShrink: 0 }}>
+            <RoseIcon absolute={false} size={20} />
+            <span style={{ fontFamily: "Georgia,serif", fontSize: 30, lineHeight: "18px", height: 18, color: "#1d4ed8", fontWeight: 700 }}>“</span>
+          </div>
+
+          <div style={{ flex: 1, textAlign: "center", color: "#1e3a8a", fontSize: 10.5, lineHeight: 1.4, fontWeight: 500, paddingTop: 14 }}>
+            {dynamicWishText}
+            <div style={{ fontWeight: 800, fontSize: 9.5, color: "#1d4ed8", marginTop: 3 }}>— FCL Family</div>
+          </div>
+
+          {/* ক্লোজিং কোট */}
+          <div style={{ width: 26, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", flexShrink: 0 }}>
+            <RoseIcon absolute={false} size={20} />
+            <span style={{ fontFamily: "Georgia,serif", fontSize: 30, lineHeight: "18px", height: 18, color: "#1d4ed8", fontWeight: 700 }}>”</span>
+          </div>
         </div>
 
         {/* স্ট্যাটস বক্স */}
-        <div style={{ marginTop: 6, display: "flex", gap: 8, width: 240 }}>
+        <div style={{ display: "flex", gap: 7, width: 240 }}>
           {[
             { l: "Matches", v: player.matches },
             { l: "Runs", v: player.runs },
             { l: "Wickets", v: player.wickets },
           ].map((s) => (
-            <div key={s.l} style={{ flex: 1, textAlign: "center", background: "#fff", border: "1.5px solid #bfdbfe", borderRadius: 10, padding: "3px 0", boxShadow: "0 2px 6px rgba(29,78,216,.1)" }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#1d4ed8", lineHeight: 1.1 }}>{s.v}</div>
-              <div style={{ fontSize: 8, fontWeight: 600, color: "#64748b" }}>{s.l}</div>
+            <div key={s.l} style={{ flex: 1, textAlign: "center", background: "#fff", border: "1.5px solid #bfdbfe", borderRadius: 8, padding: "2px 0", boxShadow: "0 2px 5px rgba(29,78,216,.1)" }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: "#1d4ed8", lineHeight: 1.1 }}>{s.v}</div>
+              <div style={{ fontSize: 7, fontWeight: 600, color: "#64748b" }}>{s.l}</div>
             </div>
           ))}
         </div>
+
+        {/* 🏅 অর্জন চিপস — নিচের ফাঁকা জায়গা ভরাট */}
+        {chips.length > 0 && (
+          <div style={{ marginTop: 6, display: "flex", gap: 5, justifyContent: "center", flexWrap: "nowrap" }}>
+            {chips.map((c) => (
+              <div
+                key={c.label}
+                style={{ padding: "2px 7px", borderRadius: 999, background: "#fff", border: "1.2px solid #93c5fd", color: "#0b2a6f", fontSize: 8, fontWeight: 700, whiteSpace: "nowrap" }}
+              >
+                {c.icon} {c.label}: {c.v}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ফুটার বার */}
       <div
         style={{
-          position: "absolute", left: 0, right: 0, bottom: 0, height: 30, background: "#0b2a6f",
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 14,
-          color: "#fff", fontSize: 10, fontWeight: 600, zIndex: 3,
+          position: "absolute", left: 0, right: 0, bottom: 0, height: 24, background: "#0b2a6f",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
+          color: "#fff", fontSize: 9, fontWeight: 600, zIndex: 3,
         }}
       >
         <span>👥 Unity</span>
@@ -388,6 +447,8 @@ export default function BirthdayPage() {
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [selectedPlayerForModal, setSelectedPlayerForModal] = useState<Player | null>(null);
+  // র‍্যান্ডম উইশের জন্য salt (প্রতিবার পেজ লোডে আলাদা; বাটনে চাপলে নতুন উইশ)
+  const [wishSalt, setWishSalt] = useState<number>(() => Math.floor(Math.random() * 1000));
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -502,6 +563,12 @@ export default function BirthdayPage() {
           className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-gradient-to-r from-blue-600 to-emerald-500 px-6 py-3.5 text-sm font-black text-white shadow-xl shadow-blue-600/30 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
         >
           {downloading ? "⏳ কার্ড তৈরি হচ্ছে..." : "📥 কার্ড ডাউনলোড করুন (PNG)"}
+        </button>
+        <button
+          onClick={() => setWishSalt((s) => s + 1)}
+          className="flex items-center justify-center gap-2 rounded-2xl border border-sky-400/40 bg-sky-400/10 px-5 py-3.5 text-sm font-black text-sky-200 transition hover:bg-sky-400/20 active:scale-[0.98]"
+        >
+          🎲 নতুন উইশ
         </button>
         <button
           onClick={() => setSelectedPlayerForModal(star)}
@@ -660,11 +727,11 @@ export default function BirthdayPage() {
                         </h2>
 
                         {/* উইশ মেসেজ */}
-                        <div className="relative mx-auto mt-4 max-w-xl rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-4 text-left backdrop-blur sm:p-5 lg:mx-0">
+                        <div className="relative mx-auto mt-6 max-w-xl rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-4 text-left backdrop-blur sm:p-5 lg:mx-0">
                           <span className="absolute -top-3 left-4 rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 px-3 py-0.5 text-[10px] font-black">
-                            💌 FCL পরিবারের শুভেচ্ছা
+                            💌 এফসিএল পরিবারের শুভেচ্ছা
                           </span>
-                          <p className="pt-1 text-[13px] leading-relaxed text-slate-200 sm:text-[15px] sm:leading-8">{getPlayerWish(star)}</p>
+                          <p className="pt-1 text-[13px] leading-relaxed text-slate-200 sm:text-[15px] sm:leading-8">“{getPlayerWish(star, wishSalt)}”</p>
                           <p className="mt-2 text-right text-xs font-black text-sky-300 sm:text-sm">— FCL Family</p>
                         </div>
 
@@ -690,7 +757,7 @@ export default function BirthdayPage() {
                       {/* কার্ড */}
                       <div className="lg:col-span-5">
                         <ScaledCard cardRef={cardRef} onClick={() => setSelectedPlayerForModal(star)}>
-                          <WishCard player={star} dateText={dateText} />
+                          <WishCard player={star} dateText={dateText} salt={wishSalt} />
                         </ScaledCard>
 
                         {/* মোবাইল */}
