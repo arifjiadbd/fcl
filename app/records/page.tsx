@@ -86,6 +86,7 @@ const motTotal = (p: Player) => (Number(p.mot) || 0) + (Number(p.cpot) || 0);
 type MTabId = string;
 
 const MOBILE_TABS: { id: MTabId; label: string; icon: string }[] = [
+  { id: "tournaments_history", label: "Tournament History", icon: "🏆" },
   { id: "records", label: "Record Holders", icon: "🌟" },
   { id: "clubs", label: "Elite Clubs", icon: "💎" },
   { id: "points", label: "FCL Points", icon: "💯" },
@@ -150,7 +151,7 @@ const MOBILE_CFG: Record<string, { v: (p: Player) => number; badge: (p: Player) 
 };
 
 const GROUPS: { title: string; ids: string[] }[] = [
-  { title: "Overview", ids: ["records", "clubs"] },
+  { title: "Overview", ids: ["tournaments_history", "records", "clubs"] },
   { title: "Batting", ids: ["runs", "sixes", "fours", "maxruns", "innings", "notout"] },
   { title: "Bowling", ids: ["wickets", "hattricks", "maxwickets"] },
   { title: "Trophies & Honours", ids: ["champions", "runnersup", "finals", "motcpot", "mom", "cpom", "runking", "wicketking"] },
@@ -158,6 +159,7 @@ const GROUPS: { title: string; ids: string[] }[] = [
 ];
 
 const DESC: Record<string, string> = {
+  tournaments_history: "রান, উইকেট, ট্রফি আর টুর্নামেন্টের সোনালী ইতিহাস এক ঠিকানায়",
   records: "প্রতিটি ক্যাটাগরির সর্বকালের এক নম্বর খেলোয়াড়",
   points: "রান, উইকেট, ট্রফি ও অ্যাওয়ার্ড মিলিয়ে মোট FCL পয়েন্ট",
   runs: "ক্যারিয়ারে সর্বোচ্চ রান",
@@ -183,7 +185,7 @@ const DESC: Record<string, string> = {
 };
 
 const ACCENT: Record<string, string> = {
-  records: "#f59e0b", points: "#f59e0b", runs: "#60a5fa", wickets: "#fb7185", sixes: "#c084fc",
+  tournaments_history: "#f59e0b", records: "#f59e0b", points: "#f59e0b", runs: "#60a5fa", wickets: "#fb7185", sixes: "#c084fc",
   fours: "#38bdf8", hattricks: "#f472b6", champions: "#fbbf24", runnersup: "#cbd5e1", finals: "#22d3ee",
   motcpot: "#c084fc", runking: "#fb923c", wicketking: "#22d3ee", matches: "#34d399", mom: "#fbbf24",
   cpom: "#fbbf24", innings: "#60a5fa", notout: "#94a3b8", maxruns: "#f87171", maxwickets: "#fb923c",
@@ -192,7 +194,6 @@ const ACCENT: Record<string, string> = {
 
 const TIER_COLOR: Record<string, string> = { Bronze: "#cd7f32", Silver: "#cbd5e1", Gold: "#fbbf24", Diamond: "#67e8f9" };
 
-/* Hall-of-fame record holders (shared by mobile + desktop) */
 function buildHolders(players: Player[]) {
   const top = (fn: (p: Player) => number) => [...players].sort((a, b) => fn(b) - fn(a))[0];
   const defs = [
@@ -233,12 +234,13 @@ function Avatar({ player, size = 44 }: { player: Player; size?: number }) {
   );
 }
 
-/* ═════════════════════════ TOURNAMENT HISTORY (NEW) ═════════════════════════ */
+/* ═════════════════════════ TOURNAMENT HISTORY ═════════════════════════ */
 
 interface Tour {
   id: number;
   name: string;
   time: string;
+  dateVal: number; // সর্টিংয়ের জন্য পার্স করা ডেট ভ্যালু
   champTeam: string;
   champPlayers: string[];
   ruTeam: string;
@@ -254,11 +256,12 @@ interface Tour {
 const GOLD = "#fbbf24";
 const SILVER = "#cbd5e1";
 
+// ডিফল্ট সর্ট এখন "old" (পুরনো থেকে নতুন / 2013 থেকে সিরিয়ালি) রাখা হয়েছে
 const SORTS = [
+  { id: "old", label: "পুরনো থেকে নতুন (2013+)" },
+  { id: "new", label: "সর্বশেষ থেকে পুরোনো (Latest)" },
   { id: "az", label: "A → Z" },
   { id: "za", label: "Z → A" },
-  { id: "new", label: "নতুন আগে" },
-  { id: "old", label: "পুরনো আগে" },
   { id: "players", label: "বেশি প্লেয়ার" },
 ];
 
@@ -271,13 +274,36 @@ const pushUnique = (arr: string[], v?: string) => {
   if (v && !arr.includes(v)) arr.push(v);
 };
 
+// "May 2013", "Dec 2013" বা অন্য ফরম্যাট থেকে টাইম পার্স করে একটি নাম্বার বের করার ফাংশন
+const parseTourDate = (timeStr: string): number => {
+  if (!timeStr) return 0;
+  const parts = timeStr.trim().split(/\s+/);
+  const months: Record<string, number> = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+  };
+  let month = 0;
+  let year = 2013;
+  for (const p of parts) {
+    const clean = p.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (months[clean.substring(0, 3)] !== undefined) {
+      month = months[clean.substring(0, 3)];
+    }
+    const num = parseInt(clean);
+    if (!isNaN(num) && num > 1990 && num < 2100) {
+      year = num;
+    }
+  }
+  return year * 12 + month;
+};
+
 function buildTours(data: TournamentRecord[]): Tour[] {
   const map = new Map<string, Tour & { _all: Set<string> }>();
   (data || []).forEach((r) => {
     const name = (r.tournament || "Tournament").trim();
     if (!map.has(name)) {
       map.set(name, {
-        id: map.size, name, time: r.time || "",
+        id: map.size, name, time: r.time || "", dateVal: 0,
         champTeam: "", champPlayers: [], ruTeam: "", ruPlayers: [],
         scorers: [], wickets: [], mots: [], cpots: [],
         playerCount: 0, search: "", _all: new Set<string>(),
@@ -306,7 +332,8 @@ function buildTours(data: TournamentRecord[]): Tour[] {
 
   return Array.from(map.values()).map((t) => {
     const { _all, ...rest } = t;
-    const out: Tour = { ...rest, playerCount: _all.size };
+    const dateVal = parseTourDate(rest.time);
+    const out: Tour = { ...rest, dateVal, playerCount: _all.size };
     out.search = [
       out.name, out.time, out.champTeam, out.ruTeam,
       ...out.champPlayers, ...out.ruPlayers,
@@ -319,7 +346,7 @@ function buildTours(data: TournamentRecord[]): Tour[] {
 function useTourState(data: TournamentRecord[]) {
   const tours = useMemo(() => buildTours(data), [data]);
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState("az");
+  const [sort, setSort] = useState("old"); // ডিফল্ট সর্ট "old" (2013 থেকে সিরিয়ালি)
   const [letter, setLetter] = useState("All");
 
   const letters = useMemo(
@@ -331,11 +358,12 @@ function useTourState(data: TournamentRecord[]) {
     const q = query.trim().toLowerCase();
     const l = tours.filter((t) => (letter === "All" || letterOf(t.name) === letter) && (!q || t.search.includes(q)));
     switch (sort) {
+      case "az": l.sort((a, b) => a.name.localeCompare(b.name)); break;
       case "za": l.sort((a, b) => b.name.localeCompare(a.name)); break;
-      case "new": l.sort((a, b) => b.id - a.id); break;
-      case "old": l.sort((a, b) => a.id - b.id); break;
+      case "new": l.sort((a, b) => b.dateVal - a.dateVal || b.id - a.id); break; // সর্বশেষ আগে
+      case "old": l.sort((a, b) => a.dateVal - b.dateVal || a.id - b.id); break; // 2013 থেকে পুরোনো থেকে নতুন
       case "players": l.sort((a, b) => b.playerCount - a.playerCount || a.name.localeCompare(b.name)); break;
-      default: l.sort((a, b) => a.name.localeCompare(b.name));
+      default: l.sort((a, b) => a.dateVal - b.dateVal || a.id - b.id);
     }
     return l;
   }, [tours, query, sort, letter]);
@@ -418,7 +446,7 @@ function TourToolbar({ s, compact }: { s: ReturnType<typeof useTourState>; compa
           value={s.sort}
           onChange={(e) => s.setSort(e.target.value)}
           aria-label="Sort"
-          className={`rounded-xl border border-[#1e293b] bg-[#0b1220] px-2.5 text-xs font-bold text-amber-400 outline-none focus:border-amber-500 ${compact ? "w-[108px]" : "w-36"}`}
+          className={`rounded-xl border border-[#1e293b] bg-[#0b1220] px-2.5 text-xs font-bold text-amber-400 outline-none focus:border-amber-500 ${compact ? "w-[130px]" : "w-44"}`}
         >
           {SORTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
@@ -711,7 +739,7 @@ function TournamentHistoryDesktop({ players, onSelect, data }: { players: Player
 
 /* ═════════════════════════ MOBILE RECORDS ═════════════════════════ */
 function MobileRecords({ players, tournamentsData, loading, onSelect }: { players: Player[]; tournamentsData: TournamentRecord[]; loading: boolean; onSelect: (p: Player) => void }) {
-  const [tab, setTab] = useState<MTabId>("records");
+  const [tab, setTab] = useState<MTabId>("tournaments_history");
   const [chip, setChip] = useState("Top 10");
   const [expanded, setExpanded] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -768,19 +796,22 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
         )}
       </header>
 
-      {/* Category selector */}
+      {/* Mobile Category Grid / Selector */}
       <div className="mx-3 mt-3 rounded-3xl bg-[#0a1324] p-3 border border-[#1e293b]">
         <button
           onClick={() => changeTab("tournaments_history")}
-          className={`mb-2.5 flex w-full items-center justify-center gap-2 rounded-2xl p-2.5 text-xs font-black transition ${
-            tab === "tournaments_history" ? "bg-amber-500 text-black shadow-lg" : "bg-[#0f1b33] text-amber-400 border border-amber-500/30"
+          className={`mb-3 flex w-full items-center justify-center gap-2.5 rounded-2xl p-3 text-sm font-black transition-all duration-300 ${
+            tab === "tournaments_history"
+              ? "bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black shadow-lg shadow-amber-500/40 scale-[1.02] border-2 border-amber-300"
+              : "bg-gradient-to-r from-[#172033] to-[#0f172a] text-amber-400 border border-amber-500/40 hover:border-amber-500"
           }`}
         >
-          <span>🏆</span> <span>Tournament History Archive</span>
+          <span className="text-lg">🏆</span> 
+          <span className="tracking-wide uppercase">Tournament History Archive</span>
         </button>
 
         <div className="grid grid-cols-4 gap-2">
-          {(expanded ? MOBILE_TABS : MOBILE_TABS.slice(0, 8)).map((t) => (
+          {(expanded ? MOBILE_TABS.filter(t => t.id !== "tournaments_history") : MOBILE_TABS.filter(t => t.id !== "tournaments_history").slice(0, 8)).map((t) => (
             <button
               key={t.id}
               onClick={() => changeTab(t.id)}
@@ -910,7 +941,7 @@ function MobileRecords({ players, tournamentsData, loading, onSelect }: { player
 
 /* ═════════════════════════ DESKTOP RECORDS ═════════════════════════ */
 function DesktopRecords({ players, tournamentsData, loading, onSelect }: { players: Player[]; tournamentsData: TournamentRecord[]; loading: boolean; onSelect: (p: Player) => void }) {
-  const [tab, setTab] = useState("records");
+  const [tab, setTab] = useState("tournaments_history");
   const [chip, setChip] = useState("Top 10");
   const [query, setQuery] = useState("");
 
@@ -965,7 +996,7 @@ function DesktopRecords({ players, tournamentsData, loading, onSelect }: { playe
             <Link href="/" className="flex h-10 w-10 items-center justify-center rounded-full border border-[#1e293b] bg-[#0b1220] text-xl text-slate-300 transition hover:border-amber-500/50 hover:text-white">‹</Link>
             <div>
               <h1 className="text-4xl font-black tracking-tight">FCL Record Corner</h1>
-              <p className="mt-1 text-sm text-slate-400">সর্বকালের রেকর্ড, ক্যাটাগরি ধরে ধরে। যেকোনো নামে ক্লিক করলে প্লেয়ার কার্ড খুলবে।</p>
+              <p className="mt-1 text-sm text-slate-400">রান, উইকেট, ট্রফি আর টুর্নামেন্টের সোনালী ইতিহাস এক ঠিকানায়।</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -993,14 +1024,23 @@ function DesktopRecords({ players, tournamentsData, loading, onSelect }: { playe
         <div className="mt-8 grid grid-cols-[270px_1fr] gap-8">
           <aside className="self-start">
             <nav className="sticky top-6 max-h-[calc(100vh-3rem)] space-y-5 overflow-y-auto rounded-3xl border border-[#1e293b] bg-[#0b1220]/80 p-4 [scrollbar-width:thin]">
-              <button onClick={() => setTab("tournaments_history")} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold transition ${tab === "tournaments_history" ? "bg-amber-500 text-black" : "text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"}`}>
-                <span>🏆</span> <span>Tournament History</span>
+              <button 
+                onClick={() => setTab("tournaments_history")} 
+                className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-black transition-all ${
+                  tab === "tournaments_history" 
+                    ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-lg shadow-amber-500/30 border border-amber-300 scale-[1.02]" 
+                    : "text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20"
+                }`}
+              >
+                <span className="text-xl">🏆</span> 
+                <span className="tracking-wide">Tournament History</span>
               </button>
+
               {GROUPS.map((g) => (
                 <div key={g.title}>
                   <p className="px-3 pb-2 text-xs font-bold text-slate-500">{g.title}</p>
                   <div className="space-y-0.5">
-                    {g.ids.map((id) => {
+                    {g.ids.filter(id => id !== "tournaments_history").map((id) => {
                       const t = MOBILE_TABS.find((x) => x.id === id);
                       if (!t) return null;
                       const active = tab === id;
