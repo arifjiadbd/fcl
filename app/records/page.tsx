@@ -63,7 +63,6 @@ interface TournamentRecord {
   topWicket: number;
 }
 
-/* teammate count map: lowercase player name -> number of unique teammates */
 type TeamCounts = Map<string, number>;
 
 /* ═════════════════════════ SHARED HELPERS ═════════════════════════ */
@@ -88,27 +87,21 @@ const motTotal = (p: Player) => (Number(p.mot) || 0) + (Number(p.cpot) || 0);
 
 const nameKey = (s?: string) => (s || "").trim().toLowerCase();
 
-/** সার্চ: নাম বা ডাকনাম মিললে true (q অবশ্যই lowercase + trim করা) */
 const matchPlayer = (p: Player, q: string) =>
   !q || p.name.toLowerCase().includes(q) || (p.nickName || "").toLowerCase().includes(q);
 
-/** Record Holders সার্চ: প্লেয়ারের নাম/ডাকনাম অথবা ক্যাটাগরির নাম মিললে থাকবে */
 function filterHolders<T extends { player: Player; label: string }>(list: T[], query: string): T[] {
   const q = query.trim().toLowerCase();
   if (!q) return list;
   return list.filter((h) => matchPlayer(h.player, q) || h.label.toLowerCase().includes(q));
 }
 
-/**
- * ⚡ একবারই পুরো ডাটা স্ক্যান করে সবার সতীর্থ সংখ্যা বের করা হয়।
- * আগে প্রতিটি প্লেয়ারের জন্য (এবং সর্টের প্রতিটি তুলনায়) পুরো ডাটা আবার স্ক্যান হতো — সেটাই স্লো করছিল।
- */
 function buildTeammateCounts(data: TournamentRecord[]): TeamCounts {
   const out: TeamCounts = new Map();
   if (!data || data.length === 0) return out;
 
-  const squads = new Map<string, Set<string>>(); // "tour__team" -> players
-  const playerSquads = new Map<string, Set<string>>(); // player -> squad keys
+  const squads = new Map<string, Set<string>>();
+  const playerSquads = new Map<string, Set<string>>();
 
   for (const r of data) {
     const tour = (r.tournament || "").trim();
@@ -166,7 +159,6 @@ const MOBILE_TABS: { id: MTabId; label: string; icon: string }[] = [
   { id: "tournaments", label: "Tournaments", icon: "🗓️" },
 ];
 
-// ⚡ এলিট ক্লাবের ক্রাইটেরিয়া আপডেট করা হলো যাতে নির্দিষ্ট রানের মধ্যে উইকেট বেশি থাকলেও সঠিক ক্লাবে আসে
 const TIERS = [
   { key: "Diamond", icon: "💎", title: "Diamond All-Rounder", range: "2500+ Runs • 150+ Wkts", test: (p: Player) => p.runs >= 2500 && p.wickets >= 150 },
   { key: "Gold", icon: "🥇", title: "Gold All-Rounder", range: "2000–2500 Runs • 100+ Wkts", test: (p: Player) => p.runs >= 2000 && p.runs < 2500 && p.wickets >= 100 },
@@ -176,6 +168,8 @@ const TIERS = [
 
 const COUNT_CHIPS = ["Top 5", "Top 10", "Top 20", "Top 50", "All"];
 const CLUB_CHIPS = ["All", "Diamond", "Gold", "Silver", "Bronze"];
+
+const SEARCH_PLACEHOLDER = "প্লেয়ার, টিম বা টুর্নামেন্টের নাম লিখুন...";
 
 const SAFE_WK = (p: Player) => {
   if (p.wkAvg && p.wkAvg !== "0.00" && p.wkAvg !== "0") return p.wkAvg;
@@ -205,24 +199,31 @@ const MOBILE_CFG: Record<string, { v: (p: Player, tm: TeamCounts) => number; bad
   teammates_record: { v: (p, tm) => teammateCountOf(p, tm), badge: (p) => `${p.matches} Matches`, meta: (p) => `@${p.nickName || "Player"}`, unit: "Players" },
 };
 
-/**
- * ⚡ আগে-থেকে মান বের করে (decorate) তারপর সর্ট — সর্টের ভিতরে ভারী ফাংশন চলে না।
- */
+// ✅ আগে সবাইকে র‍্যাংক করা হয়, তারপর সার্চ ফিল্টার — ফলে প্লেয়ারের আসল র‍্যাংক দেখায়
 function rankPlayers(
   players: Player[],
   getV: (p: Player) => number,
   q: string,
   limit: number
-): { player: Player; value: number }[] {
-  const list: { player: Player; value: number }[] = [];
+): { player: Player; value: number; rank: number }[] {
+  const all: { player: Player; value: number }[] = [];
   for (const p of players) {
     const value = getV(p);
     if (value <= 0) continue;
-    if (q && !p.name.toLowerCase().includes(q) && !(p.nickName || "").toLowerCase().includes(q)) continue;
-    list.push({ player: p, value });
+    all.push({ player: p, value });
   }
-  list.sort((a, b) => b.value - a.value);
-  return limit === Infinity ? list : list.slice(0, limit);
+  all.sort((a, b) => b.value - a.value);
+
+  // আসল র‍্যাংক (সমান ভ্যালুতে সমান র‍্যাংক)
+  const ranked: { player: Player; value: number; rank: number }[] = [];
+  all.forEach((r, i) => {
+    const rank = i > 0 && r.value === all[i - 1].value ? ranked[i - 1].rank : i + 1;
+    ranked.push({ ...r, rank });
+  });
+
+  // সার্চ থাকলে লিমিট ছাড়াই শুধু ঐ প্লেয়ারকে আসল র‍্যাংকসহ দেখাবে
+  if (q) return ranked.filter((r) => matchPlayer(r.player, q));
+  return limit === Infinity ? ranked : ranked.slice(0, limit);
 }
 
 const GROUPS: { title: string; ids: string[] }[] = [
@@ -268,6 +269,8 @@ const ACCENT: Record<string, string> = {
 
 const TIER_COLOR: Record<string, string> = { Bronze: "#cd7f32", Silver: "#cbd5e1", Gold: "#fbbf24", Diamond: "#67e8f9" };
 
+const MEDAL = ["#fbbf24", "#cbd5e1", "#cd7f32"];
+
 function buildHolders(players: Player[], tm: TeamCounts) {
   if (!players || players.length === 0) return [];
   const defs = [
@@ -292,7 +295,6 @@ function buildHolders(players: Player[], tm: TeamCounts) {
     { id: "teammates_record", label: "Most Teammates", icon: "🤝", fn: (p: Player) => teammateCountOf(p, tm), unit: "Players" },
   ];
 
-  // ⚡ সর্ট না করে এক লুপে সেরা প্লেয়ার বের করা হচ্ছে
   return defs.map((d) => {
     let best = players[0];
     let bestV = d.fn(best);
@@ -325,6 +327,52 @@ const Avatar = memo(function Avatar({ player, size = 44 }: { player: Player; siz
     </div>
   );
 });
+
+/* ═════════════════════════ MOBILE TOP-3 PODIUM (সব ক্যাটেগরির জন্য) ═════════════════════════ */
+
+function MobilePodium({
+  rows,
+  onSelect,
+}: {
+  rows: { player: Player; value: number | string; unit: string }[];
+  onSelect: (p: Player) => void;
+}) {
+  const podium = rows.slice(0, 3);
+  const order = podium.length === 3 ? [1, 0, 2] : podium.map((_, i) => i);
+
+  return (
+    <div className="grid grid-cols-3 items-end gap-2">
+      {order.map((i) => {
+        const r = podium[i];
+        if (!r) return null;
+        const m = MEDAL[i];
+        const first = i === 0;
+        return (
+          <button
+            key={`${r.player.id ?? r.player.name}-${i}`}
+            onClick={() => onSelect(r.player)}
+            className={`group relative min-w-0 overflow-hidden rounded-2xl border px-1.5 text-center transition duration-300 active:scale-[0.97] ${first ? "pb-4 pt-8" : "pb-3 pt-7"}`}
+            style={{ borderColor: `${m}55`, background: `linear-gradient(180deg, ${m}${first ? "26" : "16"}, #0b1220 70%)` }}
+          >
+            <span
+              className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-lg text-xs font-black text-black"
+              style={{ background: m }}
+            >
+              {i + 1}
+            </span>
+            <div className="flex justify-center"><Avatar player={r.player} size={first ? 52 : 42} /></div>
+            <p className={`mt-2 truncate px-0.5 font-black text-white ${first ? "text-xs" : "text-[11px]"}`}>{r.player.name}</p>
+            <p className="truncate px-0.5 text-[10px] font-semibold text-slate-400">@{r.player.nickName || "Player"}</p>
+            <p className={`mt-2 font-black tabular-nums leading-none ${first ? "text-3xl" : "text-2xl"}`} style={{ color: m }}>
+              {typeof r.value === "number" ? r.value.toLocaleString() : r.value}
+            </p>
+            <p className="mt-0.5 text-[10px] font-semibold text-slate-400">{r.unit}</p>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 /* ═════════════════════════ TOURNAMENT HISTORY ═════════════════════════ */
 
@@ -424,8 +472,10 @@ function buildTours(data: TournamentRecord[]): Tour[] {
     const { _all, ...rest } = t;
     const dateVal = parseTourDate(rest.time);
     const out: Tour = { ...rest, dateVal, playerCount: _all.size };
+    // সার্চে এখন টুর্নামেন্টের সব খেলোয়াড়ের নামও ধরা হবে
     out.search = [
       out.name, out.time, out.champTeam, out.ruTeam,
+      ...Array.from(_all),
       ...out.champPlayers, ...out.ruPlayers,
       ...out.scorers, ...out.wickets, ...out.mots, ...out.cpots,
     ].join(" ").toLowerCase();
@@ -433,9 +483,9 @@ function buildTours(data: TournamentRecord[]): Tour[] {
   });
 }
 
-function useTourState(data: TournamentRecord[]) {
+// query এখন উপরের গ্লোবাল সার্চ থেকে আসে
+function useTourState(data: TournamentRecord[], query: string) {
   const tours = useMemo(() => buildTours(data), [data]);
-  const [query, setQuery] = useState("");
   const [sort, setSort] = useState("old");
   const [letter, setLetter] = useState("All");
 
@@ -477,7 +527,7 @@ function useTourState(data: TournamentRecord[]) {
     return Array.from(g.entries()).sort(([a], [b]) => (a === "#" ? 1 : b === "#" ? -1 : a.localeCompare(b)));
   }, [tours]);
 
-  return { tours, list, letters, grouped, stats, query, setQuery, sort, setSort, letter, setLetter };
+  return { tours, list, letters, grouped, stats, sort, setSort, letter, setLetter };
 }
 
 function SquadChips({ names, tour, players, onSelect }: { names: string[]; tour: Tour; players: Player[]; onSelect: (p: Player) => void }) {
@@ -524,27 +574,16 @@ function AwardCell({ icon, label, names, color }: { icon: string; label: string;
   );
 }
 
+// সার্চ বক্স সরানো হয়েছে (উপরের গ্লোবাল সার্চ ব্যবহার হয়), শুধু সর্ট ও অক্ষর ফিল্টার আছে
 function TourToolbar({ s, compact }: { s: ReturnType<typeof useTourState>; compact?: boolean }) {
   return (
     <div className="space-y-2.5">
       <div className="flex gap-2">
-        <div className="relative min-w-0 flex-1">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm opacity-60">🔍</span>
-          <input
-            value={s.query}
-            onChange={(e) => s.setQuery(e.target.value)}
-            placeholder="টুর্নামেন্ট, টিম বা প্লেয়ার খুঁজুন"
-            className="w-full rounded-xl border border-[#1e293b] bg-[#0b1220] py-2.5 pl-9 pr-8 text-xs text-white outline-none placeholder:text-slate-500 focus:border-amber-500"
-          />
-          {s.query && (
-            <button onClick={() => s.setQuery("")} aria-label="Clear" className="absolute right-2 top-1/2 -translate-y-1/2 px-1 text-slate-400">✕</button>
-          )}
-        </div>
         <select
           value={s.sort}
           onChange={(e) => s.setSort(e.target.value)}
           aria-label="Sort"
-          className={`rounded-xl border border-[#1e293b] bg-[#0b1220] px-2.5 text-xs font-bold text-amber-400 outline-none focus:border-amber-500 ${compact ? "w-[130px]" : "w-44"}`}
+          className={`rounded-xl border border-[#1e293b] bg-[#0b1220] px-2.5 py-2.5 text-xs font-bold text-amber-400 outline-none focus:border-amber-500 ${compact ? "w-full" : "w-full"}`}
         >
           {SORTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
@@ -576,12 +615,15 @@ function StatTile({ value, label, color }: { value: number; label: string; color
 }
 
 /* ── Tournament history: MOBILE ── */
-function TournamentHistoryMobile({ players, onSelect, data }: { players: Player[]; onSelect: (p: Player) => void; data: TournamentRecord[] }) {
-  const s = useTourState(data);
+function TournamentHistoryMobile({ players, onSelect, data, query, clearQuery }: { players: Player[]; onSelect: (p: Player) => void; data: TournamentRecord[]; query: string; clearQuery: () => void }) {
+  const s = useTourState(data, query);
   const [openId, setOpenId] = useState<number | null>(null);
   const [seg, setSeg] = useState<"champ" | "ru">("champ");
   const [visible, setVisible] = useState(10);
   const [indexOpen, setIndexOpen] = useState(false);
+
+  // সার্চ করলে লিস্ট শুরু থেকে দেখাবে
+  useEffect(() => { setVisible(10); }, [query]);
 
   const toggle = (id: number) => {
     setSeg("champ");
@@ -589,7 +631,7 @@ function TournamentHistoryMobile({ players, onSelect, data }: { players: Player[
   };
 
   const jump = (t: Tour) => {
-    s.setQuery("");
+    clearQuery();
     s.setLetter("All");
     setVisible(9999);
     setSeg("champ");
@@ -722,8 +764,8 @@ function TournamentHistoryMobile({ players, onSelect, data }: { players: Player[
 }
 
 /* ── Tournament history: DESKTOP ── */
-function TournamentHistoryDesktop({ players, onSelect, data }: { players: Player[]; onSelect: (p: Player) => void; data: TournamentRecord[] }) {
-  const s = useTourState(data);
+function TournamentHistoryDesktop({ players, onSelect, data, query, clearQuery }: { players: Player[]; onSelect: (p: Player) => void; data: TournamentRecord[]; query: string; clearQuery: () => void }) {
+  const s = useTourState(data, query);
   const [selId, setSelId] = useState<number | null>(null);
   const selected = s.list.find((t) => t.id === selId) || s.list[0];
 
@@ -750,7 +792,7 @@ function TournamentHistoryDesktop({ players, onSelect, data }: { players: Player
                   {items.map((t) => (
                     <button
                       key={t.id}
-                      onClick={() => { s.setQuery(""); s.setLetter("All"); setSelId(t.id); }}
+                      onClick={() => { clearQuery(); s.setLetter("All"); setSelId(t.id); }}
                       className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition hover:border-amber-400/60 ${selected?.id === t.id ? "border-amber-400 bg-amber-400/15 text-amber-300" : "border-white/10 text-slate-300"}`}
                     >
                       {t.name}
@@ -835,33 +877,35 @@ function TournamentHistoryDesktop({ players, onSelect, data }: { players: Player
   );
 }
 
-/* ═════════════════════════ TEAMMATES RECORD VIEW (পডিয়াম ডিজাইন ও সার্চসহ) ═════════════ */
-function TeammatesRecordView({ players, teamCounts, onSelect, compact = false }: { players: Player[]; teamCounts: TeamCounts; onSelect: (p: Player) => void; compact?: boolean }) {
-  const [query, setQuery] = useState("");
+/* ═════════════════════════ TEAMMATES RECORD VIEW ═════════════ */
+// সার্চ বক্স সরানো হয়েছে — উপরের গ্লোবাল সার্চ (query prop) ব্যবহার হয়
+function TeammatesRecordView({ players, teamCounts, onSelect, query, compact = false }: { players: Player[]; teamCounts: TeamCounts; onSelect: (p: Player) => void; query: string; compact?: boolean }) {
   const [chip, setChip] = useState("Top 10");
+  const q = query.trim().toLowerCase();
 
+  // ✅ আসল র‍্যাংকসহ সাজানো
   const teammatesRanking = useMemo(() => {
     const arr = players.map((p) => ({ player: p, teammateCount: teammateCountOf(p, teamCounts) }));
     arr.sort((a, b) => b.teammateCount - a.teammateCount);
-    return arr;
+    return arr.map((item, i) => ({ ...item, rank: i + 1 }));
   }, [players, teamCounts]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     const list = q ? teammatesRanking.filter(item =>
       item.player.name.toLowerCase().includes(q) ||
       (item.player.nickName || "").toLowerCase().includes(q)
     ) : teammatesRanking;
 
     const limit = chip === "All" ? Infinity : parseInt(chip.replace("Top ", "")) || 10;
-    return list.slice(0, limit);
-  }, [teammatesRanking, query, chip]);
+    // সার্চ থাকলে লিমিট ছাড়াই দেখাবে
+    return q ? list : list.slice(0, limit);
+  }, [teammatesRanking, q, chip]);
 
   const podium = filtered.slice(0, 3);
   const rest = filtered.slice(3);
   const podiumOrder = podium.length === 3 ? [1, 0, 2] : podium.map((_, i) => i);
-  const medal = ["#fbbf24", "#cbd5e1", "#cd7f32"];
-  const list = query ? filtered : rest;
+  const medal = MEDAL;
+  const list = q ? filtered : rest;
 
   return (
     <div className="min-w-0">
@@ -870,32 +914,25 @@ function TeammatesRecordView({ players, teamCounts, onSelect, compact = false }:
           <h2 className={`${compact ? "text-lg" : "text-2xl"} font-black`}>🤝 Most Teammates</h2>
           <p className={`mt-1 text-slate-400 ${compact ? "text-xs" : "text-sm"}`}>{DESC.teammates_record}</p>
         </div>
-        <div className={compact ? "flex flex-col gap-2.5" : "flex flex-wrap items-center gap-3"}>
-          <div className={compact ? "relative w-full" : "relative"}>
-            <span className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-sm opacity-60 ${compact ? "left-3" : "left-3.5"}`}>🔍</span>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search player..."
-              className={`rounded-full border border-[#1e293b] bg-[#0b1220] text-white outline-none focus:border-amber-500 ${compact ? "w-full py-2 pl-9 pr-3 text-xs" : "w-64 py-2 pl-10 pr-4 text-sm"}`}
-            />
-          </div>
-          <div className={`flex rounded-full border border-[#1e293b] bg-[#0b1220] p-1 ${compact ? "w-full justify-between gap-0.5" : "gap-1.5"}`}>
-            {COUNT_CHIPS.map((c) => (
-              <button
-                key={c}
-                onClick={() => setChip(c)}
-                className={`rounded-full font-bold transition ${compact ? "flex-1 px-1 py-1.5 text-[11px]" : "px-4 py-1.5 text-xs"} ${chip === c ? "text-black" : "text-slate-400 hover:text-white"}`}
-                style={chip === c ? { background: "#38bdf8" } : undefined}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
+        <div className={`flex rounded-full border border-[#1e293b] bg-[#0b1220] p-1 ${compact ? "w-full justify-between gap-0.5" : "gap-1.5"}`}>
+          {COUNT_CHIPS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setChip(c)}
+              className={`rounded-full font-bold transition ${compact ? "flex-1 px-1 py-1.5 text-[11px]" : "px-4 py-1.5 text-xs"} ${chip === c ? "text-black" : "text-slate-400 hover:text-white"}`}
+              style={chip === c ? { background: "#38bdf8" } : undefined}
+            >
+              {c}
+            </button>
+          ))}
         </div>
       </div>
 
-      {podium.length > 0 && !query && (
+      {filtered.length === 0 && (
+        <p className="rounded-2xl border border-dashed border-[#1e293b] py-10 text-center text-xs text-slate-400">কিছু পাওয়া যায়নি</p>
+      )}
+
+      {podium.length > 0 && !q && (
         <div className={`grid grid-cols-3 items-end ${compact ? "gap-2" : "gap-5"}`}>
           {podiumOrder.map((i) => {
             const r = podium[i];
@@ -937,8 +974,8 @@ function TeammatesRecordView({ players, teamCounts, onSelect, compact = false }:
             </div>
           )}
           <div className={`divide-y divide-[#172033]/70 ${compact ? "" : "max-h-[640px] overflow-y-auto [scrollbar-width:thin]"}`}>
-            {list.map((item, idx) => {
-              const rankNum = query ? idx + 1 : idx + 4;
+            {list.map((item) => {
+              const rankNum = item.rank;
               if (compact) {
                 return (
                   <button
@@ -993,38 +1030,41 @@ function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect
   const [showSearch, setShowSearch] = useState(false);
   const [query, setQuery] = useState("");
 
+  // ✅ ট্যাব বদলালে সার্চ আর মুছবে না — সার্চ লক থাকবে
   const changeTab = (id: MTabId) => {
     setTab(id);
-    setQuery("");
     setChip(id === "clubs" ? "All" : "Top 10");
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const chips = tab === "clubs" ? CLUB_CHIPS : COUNT_CHIPS;
+  const chips = tab === "records" ? [] : tab === "clubs" ? CLUB_CHIPS : COUNT_CHIPS;
   const tabInfo = MOBILE_TABS.find((t) => t.id === tab);
+  const q = query.trim().toLowerCase();
+
+  // ⚡ শুধু Record Holders ট্যাবে গেলেই হিসাব হবে
+  const holders = useMemo(
+    () => (tab === "records" ? buildHolders(players, teamCounts) : []),
+    [tab, players, teamCounts]
+  );
+  const holdersF = useMemo(() => filterHolders(holders, query), [holders, query]);
 
   const rows = useMemo(() => {
-    if (tab === "tournaments_history" || tab === "teammates_record") return [];
-    if (tab === "clubs") {
-      const out: any[] = [];
-      TIERS.filter((t) => chip === "All" || chip === t.key).forEach((t) => {
-        players.filter(t.test).forEach((p, i) => out.push({ key: t.key + p.name + i, player: p, tierKey: t.key, badge: `${t.icon} ${t.title}`, meta: `${p.matches} Matches`, value: `${p.runs}R | ${p.wickets}W`, unit: "" }));
-      });
-      return out;
-    }
+    if (tab === "tournaments_history" || tab === "teammates_record" || tab === "records" || tab === "clubs") return [];
     const c = MOBILE_CFG[tab];
     if (!c) return [];
     const limit = chip === "All" ? Infinity : parseInt(chip.replace("Top ", "")) || 10;
-    const q = query.trim().toLowerCase();
-    return rankPlayers(players, (p) => c.v(p, teamCounts), q, limit).map(({ player: p, value }, i) => ({
+    return rankPlayers(players, (p) => c.v(p, teamCounts), q, limit).map(({ player: p, value, rank }, i) => ({
       key: (p.id ?? p.name) + "-" + i,
       player: p,
       badge: c.badge(p),
       meta: c.meta(p),
       value,
+      rank,
       unit: c.unit,
     }));
-  }, [players, teamCounts, tab, chip, query]);
+  }, [players, teamCounts, tab, chip, q]);
+
+  const listRows = q ? rows : rows.slice(3);
 
   return (
     <div className="min-h-screen bg-[#020617] pb-28 text-white selection:bg-amber-500/30 selection:text-white">
@@ -1033,15 +1073,30 @@ function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect
           <Link href="/" className="flex h-9 w-9 items-center justify-center rounded-full text-2xl text-slate-300">‹</Link>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-black tracking-tight truncate">FCL Record Corner</h1>
-            <p className="text-[10px] text-slate-400 truncate">{tab === "tournaments_history" ? "Tournament History" : tab === "teammates_record" ? "Teammates Leaderboard" : tabInfo?.label || "Elite Clubs"}</p>
+            <p className="text-[10px] text-slate-400 truncate">{tab === "tournaments_history" ? "Tournament History" : tab === "teammates_record" ? "Teammates Leaderboard" : tabInfo?.label || "Hall of Fame"}</p>
           </div>
           <Link href="/rankings" className="rounded-full bg-amber-500 px-3 py-1.5 text-xs font-black text-black">Rankings</Link>
-          {tab !== "tournaments_history" && tab !== "teammates_record" && (
-            <button onClick={() => setShowSearch((s) => !s)} aria-label="Search" className="flex h-9 w-9 items-center justify-center rounded-full border border-[#1e293b] bg-[#0b1220]">🔍</button>
-          )}
+          <button
+            onClick={() => { setShowSearch((s) => !s); if (showSearch) setQuery(""); }}
+            aria-label="Search"
+            className={`flex h-9 w-9 items-center justify-center rounded-full border bg-[#0b1220] ${showSearch ? "border-amber-500" : "border-[#1e293b]"}`}
+          >
+            🔍
+          </button>
         </div>
-        {showSearch && tab !== "tournaments_history" && tab !== "teammates_record" && (
-          <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search player..." className="mt-3 w-full rounded-xl border border-[#1e293b] bg-[#0b1220] px-4 py-2.5 text-xs text-white outline-none focus:border-amber-500" />
+        {showSearch && (
+          <div className="relative mt-3">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={SEARCH_PLACEHOLDER}
+              className="w-full rounded-xl border border-[#1e293b] bg-[#0b1220] py-2.5 pl-4 pr-9 text-xs text-white outline-none placeholder:text-slate-500 focus:border-amber-500"
+            />
+            {query && (
+              <button onClick={() => setQuery("")} aria-label="Clear" className="absolute right-2 top-1/2 -translate-y-1/2 px-1 text-slate-400">✕</button>
+            )}
+          </div>
         )}
       </header>
 
@@ -1092,9 +1147,28 @@ function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect
         {loading ? (
           <div className="py-20 text-center text-xs font-bold text-amber-400 animate-pulse">Loading FCL Records...</div>
         ) : tab === "tournaments_history" ? (
-          <TournamentHistoryMobile data={tournamentsData} players={players} onSelect={onSelect} />
+          <TournamentHistoryMobile data={tournamentsData} players={players} onSelect={onSelect} query={query} clearQuery={() => setQuery("")} />
         ) : tab === "teammates_record" ? (
-          <TeammatesRecordView players={players} teamCounts={teamCounts} onSelect={onSelect} compact />
+          <TeammatesRecordView players={players} teamCounts={teamCounts} onSelect={onSelect} query={query} compact />
+        ) : tab === "records" ? (
+          <div className="space-y-3">
+            <h2 className="text-sm font-black text-amber-400 px-1">⭐ Hall of Fame — Top Record Holders</h2>
+            {holdersF.length === 0 && <p className="rounded-2xl border border-dashed border-[#1e293b] py-10 text-center text-xs text-slate-400">কিছু পাওয়া যায়নি</p>}
+            {holdersF.map((h, i) => (
+              <button key={h.id} onClick={() => onSelect(h.player)} className="flex w-full items-center gap-3 rounded-2xl border border-[#1e293b] bg-[#0b1220] p-3 text-left transition active:scale-[0.98]">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-xs font-black text-amber-400">{i + 1}</span>
+                <Avatar player={h.player} size={40} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-400">{h.icon} {h.label}</p>
+                  <p className="text-sm font-black text-white truncate">{h.player.name}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-base font-black text-amber-400">{Number(h.value).toLocaleString()}</p>
+                  <p className="text-[10px] text-slate-500">{h.unit}</p>
+                </div>
+              </button>
+            ))}
+          </div>
         ) : tab === "clubs" ? (
           <div className="space-y-4">
             <div className="flex gap-2 overflow-x-auto pb-1">
@@ -1106,8 +1180,8 @@ function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect
             </div>
             {TIERS.filter((t) => chip === "All" || chip === t.key).map((t) => {
               const c = TIER_COLOR[t.key];
-              const list = players.filter(t.test).filter((p) => matchPlayer(p, query.trim().toLowerCase()));
-              if (query.trim() && list.length === 0) return null;
+              const list = players.filter(t.test).filter((p) => matchPlayer(p, q));
+              if (q && list.length === 0) return null;
               return (
                 <div key={t.key} className="rounded-3xl border bg-[#0b1220] p-4 shadow-xl" style={{ borderColor: `${c}40` }}>
                   <div className="flex items-start justify-between border-b border-[#1e293b] pb-2.5">
@@ -1140,22 +1214,47 @@ function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect
             })}
           </div>
         ) : (
-          <div className="space-y-2.5">
-            <p className="px-1 text-xs font-bold text-slate-400">{tabInfo?.icon} {tabInfo?.label}</p>
-            {rows.map((r: any, idx: number) => (
-              <button key={r.key} onClick={() => onSelect(r.player)} className="flex w-full items-center gap-3 rounded-2xl border border-[#1e293b] bg-[#0b1220] p-3 text-left [content-visibility:auto] [contain-intrinsic-size:64px]">
-                <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-black ${idx === 0 ? "bg-amber-500 text-black" : "bg-[#16223b] text-slate-400"}`}>{idx + 1}</span>
-                <Avatar player={r.player} size={38} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-black text-white truncate">{r.player.name}</p>
-                  <p className="text-[10px] text-slate-400 truncate">@{r.player.nickName || "Player"}</p>
+          /* ✅ সব ক্যাটেগরিতে Teammates এর মতো Top 3 পডিয়াম + নিচে লিস্ট */
+          <div className="space-y-3">
+            <div className="px-1">
+              <h2 className="text-lg font-black">{tabInfo?.icon} {tabInfo?.label}</h2>
+              <p className="mt-1 text-xs text-slate-400">{DESC[tab]}</p>
+            </div>
+
+            {rows.length === 0 && (
+              <p className="rounded-2xl border border-dashed border-[#1e293b] py-10 text-center text-xs text-slate-400">কিছু পাওয়া যায়নি</p>
+            )}
+
+            {!q && rows.length > 0 && (
+              <MobilePodium rows={rows.slice(0, 3)} onSelect={onSelect} />
+            )}
+
+            {listRows.length > 0 && (
+              <div className="overflow-hidden rounded-2xl border border-[#1e293b] bg-[#0b1220]">
+                <div className="divide-y divide-[#172033]/70">
+                  {listRows.map((r) => (
+                    <button
+                      key={r.key}
+                      onClick={() => onSelect(r.player)}
+                      className="grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-2.5 text-left transition active:bg-white/[0.04] [content-visibility:auto] [contain-intrinsic-size:52px]"
+                    >
+                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#16223b] text-[11px] font-black text-slate-400">{r.rank}</span>
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        <Avatar player={r.player} size={32} />
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-bold text-white">{r.player.name}</span>
+                          <span className="block truncate text-[10px] text-slate-500">{r.badge} • {r.meta}</span>
+                        </span>
+                      </span>
+                      <span className="text-right">
+                        <span className="block text-base font-black tabular-nums text-amber-400">{typeof r.value === "number" ? r.value.toLocaleString() : r.value}</span>
+                        <span className="block text-[9px] text-slate-500">{r.unit}</span>
+                      </span>
+                    </button>
+                  ))}
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-base font-black text-amber-400">{typeof r.value === "number" ? r.value.toLocaleString() : r.value}</p>
-                  <p className="text-[9px] text-slate-500">{r.unit}</p>
-                </div>
-              </button>
-            ))}
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -1181,10 +1280,11 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
 
   const tabInfo = MOBILE_TABS.find((t) => t.id === tab);
   const accent = ACCENT[tab] || "#f59e0b";
+  const q = query.trim().toLowerCase();
 
+  // ✅ ট্যাব বদলালে সার্চ আর মুছবে না — সার্চ লক থাকবে
   const changeTab = (id: string) => {
     setTab(id);
-    setQuery("");
     setChip(id === "clubs" ? "All" : "Top 10");
   };
 
@@ -1199,25 +1299,35 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
     tournaments: totalTournamentsCount,
   }), [players, totalTournamentsCount]);
 
+  // ⚡ শুধু Record Holders ট্যাবে গেলেই হিসাব হবে
+  const holders = useMemo(
+    () => (tab === "records" ? buildHolders(players, teamCounts) : []),
+    [tab, players, teamCounts]
+  );
+  const holdersF = useMemo(() => filterHolders(holders, query), [holders, query]);
+
   const rows = useMemo(() => {
     if (tab === "tournaments_history" || tab === "teammates_record") return [];
     const c = MOBILE_CFG[tab];
     if (!c) return [];
     const limit = chip === "All" ? Infinity : parseInt(chip.replace("Top ", "")) || 10;
-    const q = query.trim().toLowerCase();
-    return rankPlayers(players, (p) => c.v(p, teamCounts), q, limit).map(({ player: p, value }) => ({
+    return rankPlayers(players, (p) => c.v(p, teamCounts), q, limit).map(({ player: p, value, rank }) => ({
       player: p,
       badge: c.badge(p),
       meta: c.meta(p),
       value,
+      rank,
       unit: c.unit,
     }));
-  }, [players, teamCounts, tab, chip, query]);
+  }, [players, teamCounts, tab, chip, q]);
 
-  const podium = rows.slice(0, 3);
-  const rest = rows.slice(3);
+  // ✅ সার্চ থাকলে পডিয়াম বন্ধ, শুধু আসল র‍্যাংকসহ লিস্ট
+  const podium = q ? [] : rows.slice(0, 3);
+  const rest = q ? rows : rows.slice(3);
   const podiumOrder = podium.length === 3 ? [1, 0, 2] : podium.map((_, i) => i);
-  const medal = ["#fbbf24", "#cbd5e1", "#cd7f32"];
+  const medal = MEDAL;
+  const featured = holdersF.slice(0, 3);
+  const others = holdersF.slice(3);
 
   return (
     <div className="relative min-h-screen bg-[#020617] text-white">
@@ -1233,9 +1343,18 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {tab !== "tournaments_history" && tab !== "teammates_record" && (
-              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search player..." className="w-72 rounded-full border border-[#1e293b] bg-[#0b1220] py-2.5 pl-5 pr-4 text-sm text-white outline-none focus:border-amber-500" />
-            )}
+            {/* ✅ সব ক্যাটেগরিতে সার্চ কাজ করবে */}
+            <div className="relative">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={SEARCH_PLACEHOLDER}
+                className="w-80 rounded-full border border-[#1e293b] bg-[#0b1220] py-2.5 pl-5 pr-9 text-sm text-white outline-none placeholder:text-slate-500 focus:border-amber-500"
+              />
+              {query && (
+                <button onClick={() => setQuery("")} aria-label="Clear" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">✕</button>
+              )}
+            </div>
             <Link href="/rankings" className="rounded-full bg-amber-500 px-6 py-2.5 text-sm font-black text-black shadow-lg shadow-amber-500/20 hover:bg-amber-400">Complete Leaderboard</Link>
           </div>
         </div>
@@ -1258,7 +1377,7 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
           <aside className="self-start">
             <nav className="sticky top-6 max-h-[calc(100vh-3rem)] space-y-5 overflow-y-auto rounded-3xl border border-[#1e293b] bg-[#0b1220]/80 p-4 [scrollbar-width:thin]">
               <button
-                onClick={() => setTab("tournaments_history")}
+                onClick={() => changeTab("tournaments_history")}
                 className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-black transition-all ${
                   tab === "tournaments_history"
                     ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-lg shadow-amber-500/30 border border-amber-300 scale-[1.02]"
@@ -1296,9 +1415,46 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
             {loading ? (
               <div className="flex h-96 items-center justify-center text-sm font-semibold text-amber-400 animate-pulse">Loading Records...</div>
             ) : tab === "tournaments_history" ? (
-              <TournamentHistoryDesktop data={tournamentsData} players={players} onSelect={onSelect} />
+              <TournamentHistoryDesktop data={tournamentsData} players={players} onSelect={onSelect} query={query} clearQuery={() => setQuery("")} />
             ) : tab === "teammates_record" ? (
-              <TeammatesRecordView players={players} teamCounts={teamCounts} onSelect={onSelect} />
+              <TeammatesRecordView players={players} teamCounts={teamCounts} onSelect={onSelect} query={query} />
+            ) : tab === "records" ? (
+              <div>
+                <div className="mb-5"><h2 className="text-2xl font-black">Hall of Fame</h2><p className="mt-1 text-sm text-slate-400">{DESC.records}</p></div>
+                {holdersF.length === 0 && <p className="rounded-3xl border border-dashed border-[#1e293b] py-16 text-center text-sm text-slate-400">কিছু পাওয়া যায়নি</p>}
+                <div className="grid grid-cols-3 gap-5">
+                  {featured.map((h) => {
+                    const c = ACCENT[h.id];
+                    return (
+                      <button key={h.id} onClick={() => onSelect(h.player)} className="group relative overflow-hidden rounded-3xl border p-6 text-left transition hover:-translate-y-1" style={{ borderColor: `${c}45`, background: `linear-gradient(160deg, ${c}22, #0b1220 55%, #050914)` }}>
+                        <span className="pointer-events-none absolute -right-4 -top-6 select-none text-[110px] opacity-[0.07]">{h.icon}</span>
+                        <p className="text-sm font-bold" style={{ color: c }}>{h.icon} {h.label}</p>
+                        <p className="mt-5 text-6xl font-black tabular-nums leading-none" style={{ color: c }}>{Number(h.value).toLocaleString()}</p>
+                        <p className="mt-1.5 text-xs font-semibold text-slate-400">{h.unit}</p>
+                        <div className="mt-6 flex items-center gap-3 border-t border-white/10 pt-4">
+                          <Avatar player={h.player} size={42} />
+                          <div className="min-w-0 flex-1"><p className="text-sm font-black text-white truncate">{h.player.name}</p><p className="text-xs text-slate-400 truncate">@{h.player.nickName || "Player"}</p></div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-5 grid grid-cols-3 gap-4 xl:grid-cols-4">
+                  {others.map((h) => {
+                    const c = ACCENT[h.id] || "#f59e0b";
+                    return (
+                      <button key={h.id} onClick={() => onSelect(h.player)} className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-4 text-left transition hover:-translate-y-0.5 hover:bg-[#0f192c]">
+                        <p className="text-xs font-bold text-slate-400">{h.icon} {h.label}</p>
+                        <p className="mt-3 text-3xl font-black tabular-nums leading-none" style={{ color: c }}>{Number(h.value).toLocaleString()}</p>
+                        <div className="mt-3 flex items-center gap-2.5 border-t border-[#172033] pt-3">
+                          <Avatar player={h.player} size={30} />
+                          <p className="text-xs font-bold text-white truncate">{h.player.name}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             ) : tab === "clubs" ? (
               <div>
                 <div className="mb-5"><h2 className="text-2xl font-black">💎 Elite Milestone Clubs</h2><p className="mt-1 text-sm text-slate-400">{DESC.clubs}</p></div>
@@ -1306,7 +1462,8 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
                 <div className="grid grid-cols-2 gap-5">
                   {TIERS.filter((t) => chip === "All" || chip === t.key).map((t) => {
                     const c = TIER_COLOR[t.key];
-                    const list = players.filter(t.test);
+                    const list = players.filter(t.test).filter((p) => matchPlayer(p, q));
+                    if (q && list.length === 0) return null;
                     return (
                       <div key={t.key} className="overflow-hidden rounded-3xl border" style={{ borderColor: `${c}40`, background: `linear-gradient(170deg, ${c}18, #0b1220 45%)` }}>
                         <div className="flex items-center justify-between p-5 pb-4">
@@ -1336,24 +1493,30 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 items-end gap-5">
-                  {podiumOrder.map((i) => {
-                    const r = podium[i];
-                    if (!r) return null;
-                    const m = medal[i];
-                    const first = i === 0;
-                    return (
-                      <button key={i} onClick={() => onSelect(r.player)} className={`group relative overflow-hidden rounded-3xl border text-center transition duration-300 hover:-translate-y-1 ${first ? "px-6 pb-8 pt-9" : "px-6 pb-6 pt-7"}`} style={{ borderColor: `${m}55`, background: `linear-gradient(180deg, ${m}${first ? "26" : "16"}, #0b1220 70%)` }}>
-                        <span className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-xl text-sm font-black text-black" style={{ background: m }}>{i + 1}</span>
-                        <div className="flex justify-center"><Avatar player={r.player} size={first ? 76 : 62} /></div>
-                        <p className={`mt-4 truncate font-black text-white ${first ? "text-xl" : "text-lg"}`}>{r.player.name}</p>
-                        <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">@{r.player.nickName || "Player"}</p>
-                        <p className={`mt-4 font-black tabular-nums leading-none ${first ? "text-5xl" : "text-4xl"}`} style={{ color: m }}>{typeof r.value === "number" ? r.value.toLocaleString() : r.value}</p>
-                        <p className="mt-1.5 text-xs font-semibold text-slate-400">{r.unit}</p>
-                      </button>
-                    );
-                  })}
-                </div>
+                {rows.length === 0 && (
+                  <p className="rounded-3xl border border-dashed border-[#1e293b] py-16 text-center text-sm text-slate-400">কিছু পাওয়া যায়নি</p>
+                )}
+
+                {podium.length > 0 && (
+                  <div className="grid grid-cols-3 items-end gap-5">
+                    {podiumOrder.map((i) => {
+                      const r = podium[i];
+                      if (!r) return null;
+                      const m = medal[i];
+                      const first = i === 0;
+                      return (
+                        <button key={i} onClick={() => onSelect(r.player)} className={`group relative overflow-hidden rounded-3xl border text-center transition duration-300 hover:-translate-y-1 ${first ? "px-6 pb-8 pt-9" : "px-6 pb-6 pt-7"}`} style={{ borderColor: `${m}55`, background: `linear-gradient(180deg, ${m}${first ? "26" : "16"}, #0b1220 70%)` }}>
+                          <span className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-xl text-sm font-black text-black" style={{ background: m }}>{i + 1}</span>
+                          <div className="flex justify-center"><Avatar player={r.player} size={first ? 76 : 62} /></div>
+                          <p className={`mt-4 truncate font-black text-white ${first ? "text-xl" : "text-lg"}`}>{r.player.name}</p>
+                          <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">@{r.player.nickName || "Player"}</p>
+                          <p className={`mt-4 font-black tabular-nums leading-none ${first ? "text-5xl" : "text-4xl"}`} style={{ color: m }}>{typeof r.value === "number" ? r.value.toLocaleString() : r.value}</p>
+                          <p className="mt-1.5 text-xs font-semibold text-slate-400">{r.unit}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {rest.length > 0 && (
                   <div className="mt-6 overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220]">
@@ -1363,7 +1526,7 @@ function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelec
                     <div className="max-h-[640px] divide-y divide-[#172033]/70 overflow-y-auto [scrollbar-width:thin]">
                       {rest.map((r, idx) => (
                         <button key={idx} onClick={() => onSelect(r.player)} className="group grid w-full grid-cols-[56px_1fr_220px_160px_110px] items-center gap-4 px-5 py-3 text-left transition hover:bg-white/[0.04] [content-visibility:auto] [contain-intrinsic-size:56px]">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#16223b] text-xs font-black text-slate-400">{idx + 4}</span>
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#16223b] text-xs font-black text-slate-400">{r.rank}</span>
                           <span className="flex min-w-0 items-center gap-3"><Avatar player={r.player} size={34} /><span className="min-w-0"><span className="block truncate text-sm font-bold text-white">{r.player.name}</span><span className="block truncate text-[11px] text-slate-500">@{r.player.nickName || "Player"}</span></span></span>
                           <span className="truncate text-xs text-slate-300">{r.badge}</span>
                           <span className="truncate text-xs text-slate-500">{r.meta}</span>
