@@ -188,8 +188,6 @@ const THEMES = {
   },
 } as const;
 
-/* ═════════════ FRIENDSHIP BOARD (Teammates) ═════════════ */
-
 const FR = {
   dark: {
     bg: "linear-gradient(135deg,#0b1230 0%,#1b1040 48%,#32122e 100%)",
@@ -235,7 +233,6 @@ const FR = {
   },
 } as const;
 
-// একাধিক Best Buddy-র নামের জন্য আলাদা আলাদা রঙ
 const BUDDY_COLORS = {
   dark: ["#fbbf24", "#f472b6", "#38bdf8", "#34d399", "#c084fc", "#fb923c", "#f87171", "#a3e635"],
   light: ["#b45309", "#be185d", "#0369a1", "#047857", "#7e22ce", "#c2410c", "#b91c1c", "#4d7c0f"],
@@ -309,13 +306,9 @@ function FriendBoard({
   const k = cfg.k;
   const dense = mode === "dense";
 
-  const bestSharedCount = bestList.length > 0 ? bestList[0].shared : 0;
-
-  // প্রতিটি Best Buddy-র জন্য আলাদা রঙ
   const buddyPalette = BUDDY_COLORS[theme];
   const buddyColor = (i: number) => buddyPalette[i % buddyPalette.length];
 
-  // নামের মোট অক্ষর অনুযায়ী ফন্ট সাইজ অটো ছোট-বড় হবে (৯px – ১৮px)
   const buddyChars = bestList.reduce((s, b) => s + b.name.length + 2, 0);
   const buddyFont =
     bestList.length <= 1
@@ -406,7 +399,6 @@ function FriendBoard({
             </div>
           ))}
 
-          {/* ===== Best Buddy(s) ===== */}
           <div style={{ padding: dense ? "8px 12px" : "12px 16px", borderRadius: 14, background: F.tile, border: `1px solid ${F.cardBorder}`, boxShadow: F.shadow, minWidth: 0, overflow: "hidden" }}>
             <p style={{ margin: 0, fontSize: 11 * k + 1, fontWeight: 800, color: F.sub }}>
               👑 {bestList.length > 1 ? "Best Buddies" : "Best Buddy"}
@@ -422,7 +414,7 @@ function FriendBoard({
                   flexWrap: "wrap",
                   alignItems: "center",
                   gap: "2px 8px",
-                  maxHeight: (dense ? 54 : 76) * k + 10, // বক্স বেশি বড় হবে না
+                  maxHeight: (dense ? 54 : 76) * k + 10,
                   overflow: "hidden",
                 }}
               >
@@ -445,7 +437,7 @@ function FriendBoard({
             )}
 
             <p style={{ margin: "2px 0 0", fontSize: 11 * k + 1, fontWeight: 600, color: F.sub }}>
-              {bestList.length > 0 ? `${bestSharedCount}টি টুর্নামেন্ট একসাথে` : "পর্যাপ্ত ডাটা নেই"}
+              {bestList.length > 0 ? `${bestList[0].shared}টি টুর্নামেন্ট একসাথে` : "পর্যাপ্ত ডাটা নেই"}
             </p>
           </div>
         </div>
@@ -462,7 +454,6 @@ function FriendBoard({
           ) : (
             <div style={{ display: "grid", gap: cfg.gap, gridTemplateColumns: prev ? "repeat(auto-fill,minmax(250px,1fr))" : `repeat(${cols},minmax(0,1fr))` }}>
               {list.map((tm) => {
-                // একাধিক সেরা বন্ধু সবাইকে হাইলাইট করা হবে (উপরের বক্সের রঙের সাথে মিল রেখে)
                 const bestIdx = bestList.findIndex((b) => b.name === tm.name);
                 const isBest = bestIdx !== -1;
                 const bColor = isBest ? buddyColor(bestIdx) : F.pink;
@@ -538,8 +529,6 @@ function FriendBoard({
     </div>
   );
 }
-
-/* ═════════════ Date helpers ═════════════ */
 
 function formatBirthdayDate(val: any): string {
   if (!val || val === "—") return "—";
@@ -626,8 +615,6 @@ function getPlayerEliteClub(p: Player, theme: "dark" | "light") {
   return null;
 }
 
-/* ═════════════ MAIN COMPONENT ═════════════ */
-
 export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsData, allPlayers }: Props) {
   const [cardTheme, setCardTheme] = useState<"dark" | "light">("dark");
   const [cardModalTab, setCardModalTab] = useState<"card" | "rankings" | "history" | "teammates" | "combined">("card");
@@ -704,7 +691,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
         return { name, tours: tourArr, years, byYear, shared: tourArr.length, photo };
       });
 
-    // একাধিক সেরা বন্ধু খুঁজে বের করার লজিক (যাদের টুর্নামেন্ট সংখ্যা সর্বোচ্চ এবং সমান)
     let bestList: Teammate[] = [];
     if (list.length > 0) {
       const maxShared = Math.max(...list.map((t) => t.shared));
@@ -749,7 +735,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
   const exportLayout: BoardLayout = tmCols === 0 ? pickLayout(teammateHistory.count) : tmCols <= 2 ? "showcase" : tmCols === 3 ? "grid" : "dense";
   const exportCols = tmCols === 0 ? undefined : tmCols;
   const effectiveCols = tmCols || (exportLayout === "dense" && teammateHistory.count > 96 ? 5 : LAYOUT_CFG[exportLayout].cols);
-  const sortLabel = tmSort === "az" ? "নাম অনুসারে (A → Z)" : "সবচেয়ে বেশি একসাথে খেলা থেকে কম";
+  const sortLabel = tmSort === "az" ? "নাম অনুসারে (A → Z)" : "সবচেয়ে বেশি খেলা থেকে কম";
   const outLabel = `${effectiveCols} কলাম গ্রিড`;
 
   const rawPhoto = selectedPlayer.photo || selectedPlayer.photoUrl;
@@ -993,8 +979,8 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             </div>
           </div>
 
-          {/* ================= BODY ================= */}
-          <div className={`flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 ${T.body}`}>
+          {/* ================= BODY (pb-24 যোগ করা হয়েছে যাতে নিচের বাটনগুলো নেভবারের নিচে ঢাকা না পড়ে) ================= */}
+          <div className={`flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 pb-24 sm:pb-5 ${T.body}`}>
             {cardModalTab === "card" && (
               <div ref={cardRef} className={`mx-auto w-full max-w-2xl space-y-4 rounded-2xl border p-5 sm:p-6 shadow-xl ${T.card}`}>
                 <div className={`flex items-center justify-between border-b pb-3 ${T.divider}`}>
@@ -1238,7 +1224,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
               </div>
             )}
 
-            {/* ================= TEAMMATES TAB ================= */}
             {cardModalTab === "teammates" && (
               <div className="mx-auto max-w-4xl space-y-3">
                 <div className={`flex flex-wrap items-center gap-2 rounded-2xl border p-2.5 ${T.card}`}>
@@ -1376,8 +1361,8 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             )}
           </div>
 
-          {/* ================= FOOTER ================= */}
-          <div className={`shrink-0 flex gap-2 border-t p-3 ${T.footer}`}>
+          {/* ================= FOOTER (fixed/sticky যাতে মোবাইলে নেভবারের ওপরে ক্লিয়ার থাকে) ================= */}
+          <div className={`sticky bottom-0 z-30 shrink-0 flex gap-2 border-t p-3 bg-opacity-95 backdrop-blur-md ${T.footer}`}>
             {cardModalTab === "card" ? (
               <button onClick={handleDownloadCard} disabled={downloading} className="flex-1 rounded-xl bg-[#1877F2] py-2.5 text-xs font-bold text-white shadow hover:bg-[#166fe5] disabled:opacity-60">
                 {downloading ? "প্রসেসিং হচ্ছে..." : "📥 ডাউনলোড কার্ড (PNG)"}
