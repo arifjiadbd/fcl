@@ -1,6 +1,22 @@
 @import "tailwindcss";
 
 :root {
+  --background: #ffffff;
+  --foreground: #0f172a;
+
+  --fcl-card: #ffffff;
+  --fcl-card-light: #f8fafc;
+
+  --fcl-blue: #2563eb;
+  --fcl-cyan: #0891b2;
+  --fcl-green: #059669;
+  --fcl-gold: #d97706;
+
+  --fcl-border: #cbd5e1;
+  --fcl-muted: #64748b;
+}
+
+.dark {
   --background: #020617;
   --foreground: #f8fafc;
 
@@ -16,7 +32,7 @@
   --fcl-muted: #94a3b8;
 }
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -26,7 +42,17 @@ html {
 
 body {
   margin: 0;
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* লাইট মোডে থাকাকালীন ডার্ক ব্যাকগ্রাউন্ড ফোর্সড ওভাররাইড */
+html.light .dark\:bg-\[\#020617\],
+html.light .dark\:bg-\[\#02050b\],
+html.light .dark\:bg-\[\#080d17\],
+html.light .dark\:bg-\[\#0b1220\] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
 }

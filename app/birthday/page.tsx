@@ -5,6 +5,58 @@ import Link from "next/link";
 import { toPng } from "html-to-image";
 import PlayerCardModal from "@/components/PlayerCardModal";
 
+/* ------------------------------------------------------------------ */
+/*  Theme detection — নেভবার বাটনের সাথে সাথে বদলায়                   */
+/*  (class "dark"/"light", data-theme, localStorage("theme"), OS)      */
+/* ------------------------------------------------------------------ */
+function useIsDark() {
+  const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    const read = () => {
+      const h = document.documentElement;
+      const b = document.body;
+      const dt = (
+        h.getAttribute("data-theme") ||
+        h.getAttribute("data-mode") ||
+        b.getAttribute("data-theme") ||
+        ""
+      ).toLowerCase();
+      if (dt === "dark" || dt === "light") return dt === "dark";
+
+      const cls = `${h.className} ${b.className}`.toLowerCase();
+      if (/\blight\b/.test(cls)) return false;
+      if (/\bdark\b/.test(cls)) return true;
+
+      const scheme = h.style.colorScheme;
+      if (scheme === "light" || scheme === "dark") return scheme === "dark";
+
+      try {
+        const saved = localStorage.getItem("theme");
+        if (saved === "light" || saved === "dark") return saved === "dark";
+      } catch {}
+
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    };
+
+    const update = () => setIsDark(read());
+    update();
+
+    const obs = new MutationObserver(update);
+    const opts = { attributes: true, attributeFilter: ["class", "data-theme", "data-mode", "style"] };
+    obs.observe(document.documentElement, opts);
+    obs.observe(document.body, opts);
+    window.addEventListener("storage", update);
+
+    return () => {
+      obs.disconnect();
+      window.removeEventListener("storage", update);
+    };
+  }, []);
+
+  return isDark;
+}
+
 interface Player {
   id?: number;
   name: string;
@@ -127,6 +179,7 @@ function leftLabel(d: number) {
 
 /* ═══════════════════════════════════════════════════════════
    🎨 পোস্টার-স্টাইল উইশ কার্ড (400 × 500 ফিক্সড ডিজাইন)
+   — কার্ডের নিজস্ব ডিজাইন দুই থিমেই একই থাকে
    ═══════════════════════════════════════════════════════════ */
 function Balloon({ color, dark, w, style }: { color: string; dark: string; w: number; style: React.CSSProperties }) {
   return (
@@ -383,13 +436,13 @@ function DateTile({ month, day, hot }: { month: number; day: number; hot?: boole
   return (
     <div
       className={`w-12 shrink-0 overflow-hidden rounded-xl border text-center leading-none sm:w-14 ${
-        hot ? "border-emerald-400/70 shadow-[0_0_18px_rgba(34,197,94,0.4)]" : "border-slate-700/80"
+        hot ? "border-emerald-400/70 shadow-[0_0_18px_rgba(34,197,94,0.4)]" : "bd-line2"
       }`}
     >
-      <div className={`py-1 text-[9px] font-bold tracking-wide ${hot ? "bg-gradient-to-r from-blue-600 to-emerald-500 text-white" : "bg-slate-800 text-slate-300"}`}>
+      <div className={`py-1 text-[9px] font-bold tracking-wide ${hot ? "bg-gradient-to-r from-blue-600 to-emerald-500 text-white" : "bd-chip"}`}>
         {MONTH_NAMES[month].slice(0, 3)}
       </div>
-      <div className="bg-[#0b1220] py-1.5 text-lg font-black text-white sm:text-xl">{String(day).padStart(2, "0")}</div>
+      <div className="bd-tile-body py-1.5 text-lg font-black sm:text-xl">{String(day).padStart(2, "0")}</div>
     </div>
   );
 }
@@ -402,13 +455,11 @@ function PlayerRow({ entry, onOpen }: { entry: BdayEntry; onOpen: (p: Player) =>
     <button
       onClick={() => onOpen(p)}
       className={`group flex w-full items-center gap-3 rounded-2xl border p-2.5 text-left transition active:scale-[0.99] sm:p-3 ${
-        isToday
-          ? "border-emerald-400/50 bg-gradient-to-r from-blue-500/15 to-emerald-500/5"
-          : "border-slate-800/80 bg-[#0b1220]/70 hover:border-blue-400/50 hover:bg-[#0e1730]"
+        isToday ? "border-emerald-400/50 bg-gradient-to-r from-blue-500/15 to-emerald-500/5" : "bd-row"
       }`}
     >
       <DateTile month={month} day={day} hot={isToday} />
-      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 border-slate-700 bg-slate-800 sm:h-12 sm:w-12">
+      <div className="bd-avatar h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 sm:h-12 sm:w-12">
         <img
           src={getPhoto(p)}
           alt={p.name}
@@ -420,14 +471,14 @@ function PlayerRow({ entry, onOpen }: { entry: BdayEntry; onOpen: (p: Player) =>
         />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-extrabold text-white transition group-hover:text-sky-300">{p.name}</p>
-        <p className="truncate text-[11px] text-slate-400">
+        <p className="bd-name truncate text-sm font-extrabold transition">{p.name}</p>
+        <p className="bd-sub truncate text-[11px]">
           @{p.nickName || "Player"} • {p.role}
         </p>
       </div>
       <span
         className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-          isToday ? "bg-emerald-500 text-white" : daysLeft <= 7 ? "bg-amber-400/15 text-amber-300" : "bg-slate-800 text-slate-400"
+          isToday ? "bg-emerald-500 text-white" : daysLeft <= 7 ? "bd-amber-pill" : "bd-chip"
         }`}
       >
         {leftLabel(daysLeft)}
@@ -437,6 +488,7 @@ function PlayerRow({ entry, onOpen }: { entry: BdayEntry; onOpen: (p: Player) =>
 }
 
 export default function BirthdayPage() {
+  const isDark = useIsDark();
   const [players, setPlayers] = useState<Player[]>([]);
   const [tournamentsData, setTournamentsData] = useState<any[]>([]);
   const [entries, setEntries] = useState<BdayEntry[]>([]);
@@ -566,13 +618,13 @@ export default function BirthdayPage() {
         </button>
         <button
           onClick={() => setWishSalt((s) => s + 1)}
-          className="flex items-center justify-center gap-2 rounded-2xl border border-sky-400/40 bg-sky-400/10 px-5 py-3.5 text-sm font-black text-sky-200 transition hover:bg-sky-400/20 active:scale-[0.98]"
+          className="bd-sky-btn flex items-center justify-center gap-2 rounded-2xl border px-5 py-3.5 text-sm font-black transition active:scale-[0.98]"
         >
           🎲 নতুন উইশ
         </button>
         <button
           onClick={() => setSelectedPlayerForModal(star)}
-          className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3.5 text-sm font-black text-[#0b2a6f] shadow-lg transition hover:bg-sky-50 active:scale-[0.98]"
+          className="bd-white-btn flex flex-1 items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-black shadow-lg transition active:scale-[0.98]"
         >
           👤 পুরো প্রোফাইল দেখুন
         </button>
@@ -580,33 +632,167 @@ export default function BirthdayPage() {
     ) : null;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#020617] pb-24 text-white selection:bg-blue-500/30">
+    <div className={`bd-root ${isDark ? "bd-dark" : "bd-light"} relative min-h-screen overflow-hidden pb-24 selection:bg-blue-500/30`}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@500;600;700;800&family=Hind+Siliguri:wght@500;600;700&display=swap');`}</style>
+      <style>{`
+        /* ============ THEME TOKENS ============ */
+        .bd-root {
+          /* LIGHT (default) */
+          --bg: #f8fafc;
+          --surface: #ffffff;
+          --surface-2: #f1f5f9;
+          --head: #0f172a;
+          --text: #334155;
+          --text2: #475569;
+          --sub: #64748b;
+          --faint: #64748b;
+          --line: #e2e8f0;
+          --line2: #cbd5e1;
+          --sky: #0369a1;
+          --sky2: #0284c7;
+          --em: #047857;
+          --em2: #059669;
+          --amber: #b45309;
+          --chip-bg: #e2e8f0;
+          --chip-text: #475569;
+          --glass-bg: rgba(255, 255, 255, 0.78);
+          --glass-hover: #ffffff;
+          --glass-line: #bfdbfe;
+          --hover: rgba(15, 23, 42, 0.05);
+          --header-bg: rgba(255, 255, 255, 0.88);
+          --hline: #e2e8f0;
+          --panel: linear-gradient(135deg, #eff6ff 0%, #ffffff 55%, #ecfdf5 100%);
+          --panel-line: #bae6fd;
+          --panel-ring: #ffffff;
+          --panel-empty: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+          --panel-shadow: 0 20px 60px rgba(15, 23, 42, 0.10);
+          --g1: #0369a1;
+          --g2: #047857;
+          --g3: #1d4ed8;
+          --btn-bg: #0f172a;
+          --btn-text: #ffffff;
+          background: var(--bg);
+          color: var(--head);
+          transition: background 0.3s ease, color 0.3s ease;
+        }
+        .bd-root.bd-dark {
+          --bg: #020617;
+          --surface: #0b1220;
+          --surface-2: #0e1730;
+          --head: #ffffff;
+          --text: #e2e8f0;
+          --text2: #cbd5e1;
+          --sub: #94a3b8;
+          --faint: #64748b;
+          --line: #1e293b;
+          --line2: #334155;
+          --sky: #7dd3fc;
+          --sky2: #38bdf8;
+          --em: #6ee7b7;
+          --em2: #34d399;
+          --amber: #fcd34d;
+          --chip-bg: #1e293b;
+          --chip-text: #cbd5e1;
+          --glass-bg: rgba(255, 255, 255, 0.05);
+          --glass-hover: rgba(255, 255, 255, 0.09);
+          --glass-line: rgba(255, 255, 255, 0.1);
+          --hover: rgba(255, 255, 255, 0.05);
+          --header-bg: rgba(2, 6, 23, 0.8);
+          --hline: rgba(255, 255, 255, 0.05);
+          --panel: linear-gradient(135deg, #0d1b4a 0%, #091233 50%, #04101f 100%);
+          --panel-line: rgba(56, 189, 248, 0.3);
+          --panel-ring: #091233;
+          --panel-empty: linear-gradient(135deg, #0b1220 0%, #04060c 100%);
+          --panel-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+          --g1: #38bdf8;
+          --g2: #34d399;
+          --g3: #93c5fd;
+          --btn-bg: #ffffff;
+          --btn-text: #0b2a6f;
+        }
 
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.2),transparent_65%)]" />
-      <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-blue-600/25 blur-[120px]" />
+        /* ============ THEMED UTILITIES ============ */
+        .bd-root .bd-head { color: var(--head); }
+        .bd-root .bd-text { color: var(--text); }
+        .bd-root .bd-text2 { color: var(--text2); }
+        .bd-root .bd-sub { color: var(--sub); }
+        .bd-root .bd-faint { color: var(--faint); }
+        .bd-root .bd-sky { color: var(--sky); }
+        .bd-root .bd-sky2 { color: var(--sky2); }
+        .bd-root .bd-em { color: var(--em); }
+        .bd-root .bd-em2 { color: var(--em2); }
+        .bd-root .bd-amber { color: var(--amber); }
+        .bd-root .bd-line2 { border-color: var(--line2); }
+        .bd-root .bd-chip { background: var(--chip-bg); color: var(--chip-text); }
+        .bd-root .bd-amber-pill { background: rgba(245, 158, 11, 0.15); color: var(--amber); }
+        .bd-root .bd-tile-body { background: var(--surface); color: var(--head); }
+
+        .bd-root .bd-gtext {
+          background-image: linear-gradient(90deg, var(--g1), var(--g2));
+          -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+        .bd-root .bd-gtext3 {
+          background-image: linear-gradient(90deg, var(--g1), var(--g3), var(--g2));
+          -webkit-background-clip: text; background-clip: text; color: transparent;
+        }
+
+        .bd-root .bd-header { background: var(--header-bg); border-color: var(--hline); }
+        .bd-root .bd-btn { background: var(--surface); border-color: var(--line); color: var(--text2); }
+        .bd-root .bd-btn:hover { color: var(--head); }
+        .bd-root .bd-btn-text { color: var(--sub); }
+        .bd-root .bd-btn-text:hover { color: var(--head); }
+
+        .bd-root .bd-panel { background: var(--panel); border-color: var(--panel-line); box-shadow: var(--panel-shadow); }
+        .bd-root .bd-panel-empty { background: var(--panel-empty); border-color: var(--line); }
+        .bd-root .bd-ring { border-color: var(--panel-ring); }
+
+        .bd-root .bd-glass { background: var(--glass-bg); border-color: var(--glass-line); }
+        .bd-root .bd-glass-btn { background: var(--glass-bg); border-color: var(--glass-line); }
+        .bd-root .bd-glass-btn:hover { background: var(--glass-hover); border-color: var(--sky2); }
+        .bd-root .bd-divide > :not(:first-child) { border-left: 1px solid var(--glass-line); }
+
+        .bd-root .bd-sky-btn { color: var(--sky); border-color: rgba(56, 189, 248, 0.45); background: rgba(56, 189, 248, 0.1); }
+        .bd-root .bd-sky-btn:hover { background: rgba(56, 189, 248, 0.2); }
+        .bd-root .bd-white-btn { background: var(--btn-bg); color: var(--btn-text); }
+        .bd-root .bd-white-btn:hover { filter: brightness(1.1); }
+
+        .bd-root .bd-row { background: var(--surface); border-color: var(--line); }
+        .bd-root .bd-row:hover { background: var(--surface-2); border-color: rgba(96, 165, 250, 0.6); }
+        .bd-root .bd-avatar { border-color: var(--line2); background: var(--chip-bg); }
+        .bd-root .bd-name { color: var(--head); }
+        .bd-root .group:hover .bd-name { color: var(--sky); }
+
+        .bd-root .bd-box { background: var(--surface); border-color: var(--line); }
+        .bd-root .bd-input { background: var(--surface); border-color: var(--line); color: var(--head); }
+        .bd-root .bd-input::placeholder { color: var(--faint); }
+        .bd-root .bd-input:focus { border-color: var(--sky2); outline: none; }
+
+        .bd-root .bd-month { background: var(--surface); border-color: var(--line); color: var(--text2); }
+        .bd-root .bd-side { color: var(--sub); }
+        .bd-root .bd-side:hover { background: var(--hover); color: var(--head); }
+      `}</style>
+
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.18),transparent_65%)]" />
+      <div className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full bg-blue-600/20 blur-[120px]" />
       <div className="pointer-events-none absolute -bottom-32 -right-32 h-80 w-80 rounded-full bg-emerald-500/15 blur-[120px]" />
 
       <audio ref={audioRef} src="https://actions.google.com/sounds/v1/ambiences/birthday_party.ogg" loop />
 
       {/* ───────── টপ বার ───────── */}
-      <header className="sticky top-0 z-30 border-b border-white/5 bg-[#020617]/80 backdrop-blur-xl">
+      <header className="bd-header sticky top-0 z-30 border-b backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-2.5 sm:px-6">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-[#0b1220] px-3 py-1.5 text-xs font-bold text-slate-300 transition hover:text-white"
-          >
+          <Link href="/" className="bd-btn inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition">
             ← হোম
           </Link>
           <div className="flex items-center gap-2 text-sm font-black">
             <span>🎂</span>
-            <span className="bg-gradient-to-r from-sky-400 to-emerald-400 bg-clip-text text-transparent">FCL বার্থডে হাব</span>
+            <span className="bd-gtext">FCL বার্থডে হাব</span>
           </div>
           <button
             onClick={toggleMusic}
             aria-label="মিউজিক চালু/বন্ধ"
             className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
-              isPlayingMusic ? "border-emerald-400 bg-emerald-400/15 text-emerald-300" : "border-slate-800 bg-[#0b1220] text-slate-400"
+              isPlayingMusic ? "border-emerald-500/60 bg-emerald-400/15 bd-em" : "bd-btn"
             }`}
           >
             {isPlayingMusic ? "🎵" : "🔇"}
@@ -617,28 +803,28 @@ export default function BirthdayPage() {
 
       <main className="relative mx-auto max-w-7xl px-3 pt-5 sm:px-6 sm:pt-8">
         {loading ? (
-          <div className="flex h-64 items-center justify-center font-bold text-sky-400 animate-pulse">বার্থডে ডেটা লোড হচ্ছে...</div>
+          <div className="bd-sky2 flex h-64 items-center justify-center font-bold animate-pulse">বার্থডে ডেটা লোড হচ্ছে...</div>
         ) : (
           <div className="space-y-8 sm:space-y-12">
             {/* ═════════ আজকের জন্মদিন ═════════ */}
             {todayStars.length === 0 ? (
-              <section className="rounded-3xl border border-slate-800 bg-gradient-to-br from-[#0b1220] to-[#04060c] p-5 sm:p-10 lg:flex lg:items-center lg:justify-between lg:gap-10">
+              <section className="bd-panel-empty rounded-3xl border p-5 sm:p-10 lg:flex lg:items-center lg:justify-between lg:gap-10">
                 <div className="text-center lg:text-left">
                   <p className="text-4xl">📅</p>
-                  <h1 className="mt-2 text-2xl font-black sm:text-4xl">আজ কারো জন্মদিন নেই</h1>
-                  <p className="mt-2 max-w-md text-xs leading-relaxed text-slate-400 sm:text-sm">
+                  <h1 className="bd-head mt-2 text-2xl font-black sm:text-4xl">আজ কারো জন্মদিন নেই</h1>
+                  <p className="bd-sub mt-2 max-w-md text-xs leading-relaxed sm:text-sm">
                     পরের জন্মদিনগুলো নিচে দেখুন, অথবা মাস বেছে পুরো তালিকা ঘুরে আসুন।
                   </p>
                 </div>
                 {upcoming[0] && (
                   <button
                     onClick={() => setSelectedPlayerForModal(upcoming[0].player)}
-                    className="mt-5 flex w-full items-center gap-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/5 p-3 text-left transition hover:bg-emerald-500/10 lg:mt-0 lg:w-auto lg:min-w-[320px]"
+                    className="mt-5 flex w-full items-center gap-3 rounded-2xl border border-emerald-400/40 bg-emerald-500/5 p-3 text-left transition hover:bg-emerald-500/10 lg:mt-0 lg:w-auto lg:min-w-[320px]"
                   >
                     <DateTile month={upcoming[0].month} day={upcoming[0].day} hot />
                     <div className="min-w-0">
-                      <p className="text-[11px] text-emerald-300">পরের জন্মদিন • {leftLabel(upcoming[0].daysLeft)}</p>
-                      <p className="truncate text-base font-extrabold">{upcoming[0].player.name}</p>
+                      <p className="bd-em text-[11px]">পরের জন্মদিন • {leftLabel(upcoming[0].daysLeft)}</p>
+                      <p className="bd-head truncate text-base font-extrabold">{upcoming[0].player.name}</p>
                     </div>
                   </button>
                 )}
@@ -647,16 +833,16 @@ export default function BirthdayPage() {
               <section className="space-y-6">
                 {/* ── একাধিক জন হলে: গ্রুপ ফোকাস প্যানেল ── */}
                 {isGroup && (
-                  <div className="relative overflow-hidden rounded-[2rem] border border-sky-400/30 bg-gradient-to-br from-[#0d1b4a] via-[#091233] to-[#04101f] p-5 shadow-2xl sm:p-8">
-                    <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-500/25 blur-3xl" />
+                  <div className="bd-panel relative overflow-hidden rounded-[2rem] border p-5 sm:p-8">
+                    <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
                     <div className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full bg-emerald-500/15 blur-3xl" />
 
                     <div className="relative z-10 text-center">
                       <p className="text-3xl sm:text-4xl">🎉🎂🎈</p>
-                      <h1 className="mt-2 text-2xl font-black leading-tight sm:text-4xl">
-                        আজ <span className="bg-gradient-to-r from-sky-400 to-emerald-400 bg-clip-text text-transparent">{todayStars.length} জনের</span> জন্মদিন!
+                      <h1 className="bd-head mt-2 text-2xl font-black leading-tight sm:text-4xl">
+                        আজ <span className="bd-gtext">{todayStars.length} জনের</span> জন্মদিন!
                       </h1>
-                      <p className="mt-1.5 text-xs text-slate-300 sm:text-sm">নামে ট্যাপ করুন — তার স্পেশাল উইশ কার্ড দেখুন ও ডাউনলোড করুন</p>
+                      <p className="bd-text2 mt-1.5 text-xs sm:text-sm">নামে ট্যাপ করুন — তার স্পেশাল উইশ কার্ড দেখুন ও ডাউনলোড করুন</p>
                     </div>
 
                     <div className="relative z-10 mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -668,28 +854,28 @@ export default function BirthdayPage() {
                             onClick={() => pickStar(i)}
                             className={`group flex items-center gap-3.5 rounded-2xl border p-3 text-left transition active:scale-[0.98] ${
                               on
-                                ? "border-emerald-400 bg-gradient-to-r from-blue-600/40 to-emerald-500/25 shadow-lg shadow-blue-500/20"
-                                : "border-white/10 bg-white/[0.05] hover:border-sky-400/60 hover:bg-white/[0.09]"
+                                ? "border-emerald-400 bg-gradient-to-r from-blue-600/30 to-emerald-500/25 shadow-lg shadow-blue-500/20"
+                                : "bd-glass-btn"
                             }`}
                           >
                             <div className="rounded-full bg-gradient-to-tr from-blue-500 to-emerald-400 p-[3px]">
                               <img
                                 src={getPhoto(s.player)}
                                 alt={s.player.name}
-                                className="h-14 w-14 rounded-full border-2 border-[#091233] object-cover sm:h-16 sm:w-16"
+                                className="bd-ring h-14 w-14 rounded-full border-2 object-cover sm:h-16 sm:w-16"
                                 onError={(e) => {
                                   (e.currentTarget as HTMLImageElement).src = FALLBACK_PHOTO;
                                 }}
                               />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-black sm:text-base">{s.player.name}</p>
-                              <p className="truncate text-[11px] text-slate-400">
+                              <p className="bd-head truncate text-sm font-black sm:text-base">{s.player.name}</p>
+                              <p className="bd-sub truncate text-[11px]">
                                 @{s.player.nickName || "Player"} • {s.player.role}
                               </p>
                               <span
                                 className={`mt-1.5 inline-block rounded-full px-3 py-1 text-[11px] font-black ${
-                                  on ? "bg-emerald-500 text-white" : "bg-white text-[#0b2a6f]"
+                                  on ? "bg-emerald-500 text-white" : "bd-white-btn"
                                 }`}
                               >
                                 {on ? "✓ কার্ড দেখছেন" : "🎁 উইশ কার্ড দেখুন"}
@@ -706,45 +892,45 @@ export default function BirthdayPage() {
                 {star && (
                   <div
                     ref={detailRef}
-                    className="relative scroll-mt-20 overflow-hidden rounded-[2rem] border border-sky-400/25 bg-gradient-to-br from-[#0d1b4a] via-[#070d1a] to-[#04060c] p-4 shadow-2xl sm:p-8 lg:p-12"
+                    className="bd-panel relative scroll-mt-20 overflow-hidden rounded-[2rem] border p-4 sm:p-8 lg:p-12"
                   >
                     <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
 
                     <div className="relative z-10 grid items-center gap-6 lg:grid-cols-12 lg:gap-12">
                       {/* ইনফো */}
                       <div className="text-center lg:col-span-7 lg:text-left">
-                        <span className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-1 text-[11px] font-bold text-emerald-300">
+                        <span className="bd-em inline-flex items-center gap-2 rounded-full border border-emerald-400/50 bg-emerald-400/10 px-3 py-1 text-[11px] font-bold">
                           🏆 Happy Birthday Champion!
                         </span>
-                        <span className="ml-2 inline-flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-sky-400/10 px-3 py-1 text-[11px] font-bold text-sky-300">
+                        <span className="bd-sky ml-2 inline-flex items-center gap-1.5 rounded-full border border-sky-400/50 bg-sky-400/10 px-3 py-1 text-[11px] font-bold">
                           🎂 {dateBn}
                         </span>
 
-                        <h2 className="mt-3 text-3xl font-black leading-tight sm:text-5xl lg:text-6xl">
+                        <h2 className="bd-head mt-3 text-3xl font-black leading-tight sm:text-5xl lg:text-6xl">
                           শুভ জন্মদিন,
                           <br />
-                          <span className="bg-gradient-to-r from-sky-400 via-blue-300 to-emerald-400 bg-clip-text text-transparent">{star.name}</span> 🎉
+                          <span className="bd-gtext3">{star.name}</span> 🎉
                         </h2>
 
                         {/* উইশ মেসেজ */}
-                        <div className="relative mx-auto mt-6 max-w-xl rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-4 text-left backdrop-blur sm:p-5 lg:mx-0">
-                          <span className="absolute -top-3 left-4 rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 px-3 py-0.5 text-[10px] font-black">
+                        <div className="bd-glass relative mx-auto mt-6 max-w-xl rounded-2xl border p-4 text-left backdrop-blur sm:p-5 lg:mx-0">
+                          <span className="absolute -top-3 left-4 rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 px-3 py-0.5 text-[10px] font-black text-white">
                             💌 এফসিএল পরিবারের শুভেচ্ছা
                           </span>
-                          <p className="pt-1 text-[13px] leading-relaxed text-slate-200 sm:text-[15px] sm:leading-8">“{getPlayerWish(star, wishSalt)}”</p>
-                          <p className="mt-2 text-right text-xs font-black text-sky-300 sm:text-sm">— FCL Family</p>
+                          <p className="bd-text pt-1 text-[13px] leading-relaxed sm:text-[15px] sm:leading-8">“{getPlayerWish(star, wishSalt)}”</p>
+                          <p className="bd-sky mt-2 text-right text-xs font-black sm:text-sm">— FCL Family</p>
                         </div>
 
                         {/* পিসি: স্ট্যাট */}
                         <div className="mt-6 hidden grid-cols-3 gap-4 lg:grid">
                           {[
-                            { label: "ম্যাচ", value: star.matches, color: "text-white" },
-                            { label: "রান", value: star.runs, color: "text-sky-400" },
-                            { label: "উইকেট", value: star.wickets, color: "text-emerald-400" },
+                            { label: "ম্যাচ", value: star.matches, color: "bd-head" },
+                            { label: "রান", value: star.runs, color: "bd-sky2" },
+                            { label: "উইকেট", value: star.wickets, color: "bd-em2" },
                           ].map((s) => (
-                            <div key={s.label} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur">
+                            <div key={s.label} className="bd-glass rounded-2xl border p-5 backdrop-blur">
                               <p className={`text-4xl font-black ${s.color}`}>{s.value}</p>
-                              <p className="mt-1 text-xs font-semibold text-slate-400">{s.label}</p>
+                              <p className="bd-sub mt-1 text-xs font-semibold">{s.label}</p>
                             </div>
                           ))}
                         </div>
@@ -762,18 +948,18 @@ export default function BirthdayPage() {
 
                         {/* মোবাইল */}
                         <div className="mx-auto mt-5 max-w-[450px] space-y-3 lg:hidden">
-                          <div className="grid grid-cols-3 divide-x divide-white/10 rounded-2xl border border-white/10 bg-black/30 py-2.5 text-center">
+                          <div className="bd-glass bd-divide grid grid-cols-3 rounded-2xl border py-2.5 text-center">
                             <div>
-                              <p className="text-base font-black">{star.matches}</p>
-                              <p className="text-[10px] text-slate-400">ম্যাচ</p>
+                              <p className="bd-head text-base font-black">{star.matches}</p>
+                              <p className="bd-sub text-[10px]">ম্যাচ</p>
                             </div>
                             <div>
-                              <p className="text-base font-black text-sky-400">{star.runs}</p>
-                              <p className="text-[10px] text-slate-400">রান</p>
+                              <p className="bd-sky2 text-base font-black">{star.runs}</p>
+                              <p className="bd-sub text-[10px]">রান</p>
                             </div>
                             <div>
-                              <p className="text-base font-black text-emerald-400">{star.wickets}</p>
-                              <p className="text-[10px] text-slate-400">উইকেট</p>
+                              <p className="bd-em2 text-base font-black">{star.wickets}</p>
+                              <p className="bd-sub text-[10px]">উইকেট</p>
                             </div>
                           </div>
                           <DownloadButtons />
@@ -789,17 +975,17 @@ export default function BirthdayPage() {
             {upcoming.length > 0 && (
               <section>
                 <div className="mb-3 flex items-end justify-between">
-                  <h2 className="text-base font-black sm:text-xl">⏳ আসন্ন জন্মদিন</h2>
-                  <span className="text-[11px] text-slate-500">পরের {upcoming.length} জন</span>
+                  <h2 className="bd-head text-base font-black sm:text-xl">⏳ আসন্ন জন্মদিন</h2>
+                  <span className="bd-faint text-[11px]">পরের {upcoming.length} জন</span>
                 </div>
                 <div className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0">
                   {upcoming.map((e, i) => (
                     <button
                       key={e.player.name + i}
                       onClick={() => setSelectedPlayerForModal(e.player)}
-                      className="group w-[150px] shrink-0 snap-start rounded-2xl border border-slate-800 bg-[#0b1220]/80 p-3 text-center transition hover:border-blue-400/50 sm:w-[170px]"
+                      className="bd-row group w-[150px] shrink-0 snap-start rounded-2xl border p-3 text-center transition sm:w-[170px]"
                     >
-                      <div className="mx-auto h-16 w-16 overflow-hidden rounded-full border-2 border-slate-700 sm:h-[72px] sm:w-[72px]">
+                      <div className="bd-avatar mx-auto h-16 w-16 overflow-hidden rounded-full border-2 sm:h-[72px] sm:w-[72px]">
                         <img
                           src={getPhoto(e.player)}
                           alt={e.player.name}
@@ -810,11 +996,11 @@ export default function BirthdayPage() {
                           }}
                         />
                       </div>
-                      <p className="mt-2 truncate text-xs font-extrabold sm:text-sm">{e.player.name}</p>
-                      <p className="mt-0.5 text-[11px] text-slate-400">
+                      <p className="bd-head mt-2 truncate text-xs font-extrabold sm:text-sm">{e.player.name}</p>
+                      <p className="bd-sub mt-0.5 text-[11px]">
                         {String(e.day).padStart(2, "0")} {MONTH_BN[e.month]}
                       </p>
-                      <span className="mt-2 inline-block rounded-full bg-amber-400/15 px-2.5 py-0.5 text-[10px] font-bold text-amber-300">
+                      <span className="bd-amber-pill mt-2 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold">
                         {leftLabel(e.daysLeft)}
                       </span>
                     </button>
@@ -827,8 +1013,8 @@ export default function BirthdayPage() {
             <section>
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-black sm:text-2xl">📅 বার্থডে ক্যালেন্ডার</h2>
-                  <p className="mt-0.5 text-xs text-slate-400">মাস বেছে নিন অথবা নাম লিখে খুঁজুন</p>
+                  <h2 className="bd-head text-lg font-black sm:text-2xl">📅 বার্থডে ক্যালেন্ডার</h2>
+                  <p className="bd-sub mt-0.5 text-xs">মাস বেছে নিন অথবা নাম লিখে খুঁজুন</p>
                 </div>
                 <div className="relative w-full sm:w-72">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm">🔍</span>
@@ -836,13 +1022,13 @@ export default function BirthdayPage() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="প্লেয়ারের নাম খুঁজুন..."
-                    className="w-full rounded-2xl border border-slate-800 bg-[#0b1220] py-2.5 pl-9 pr-9 text-sm text-white placeholder:text-slate-500 focus:border-sky-500/60 focus:outline-none"
+                    className="bd-input w-full rounded-2xl border py-2.5 pl-9 pr-9 text-sm"
                   />
                   {search && (
                     <button
                       onClick={() => setSearch("")}
                       aria-label="সার্চ মুছুন"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+                      className="bd-btn-text absolute right-3 top-1/2 -translate-y-1/2 text-xs"
                     >
                       ✕
                     </button>
@@ -863,15 +1049,15 @@ export default function BirthdayPage() {
                         className={`relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border px-1 py-3 transition active:scale-95 ${
                           active
                             ? "border-white/30 bg-gradient-to-br from-blue-600 via-blue-500 to-emerald-500 text-white shadow-lg shadow-blue-600/40"
-                            : "border-white/10 bg-gradient-to-b from-white/[0.07] to-white/[0.02] text-slate-300"
+                            : "bd-month"
                         }`}
                       >
                         {active && <span className="pointer-events-none absolute -right-3 -top-3 h-10 w-10 rounded-full bg-white/25 blur-xl" />}
-                        {isNow && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-300" />}
+                        {isNow && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-400" />}
                         <span className="text-[12px] font-extrabold leading-tight">{m}</span>
                         <span
                           className={`min-w-[22px] rounded-full px-1.5 py-0.5 text-[10px] font-black leading-none ${
-                            active ? "bg-white text-[#0b2a6f]" : "bg-slate-800 text-slate-300"
+                            active ? "bg-white text-[#0b2a6f]" : "bd-chip"
                           }`}
                         >
                           {monthCounts[i]}
@@ -886,7 +1072,7 @@ export default function BirthdayPage() {
                 {/* 💻 পিসি: সাইডবার */}
                 {!search && (
                   <aside className="hidden lg:col-span-3 lg:block">
-                    <div className="sticky top-20 space-y-1.5 rounded-3xl border border-slate-800 bg-[#0b1220]/70 p-3">
+                    <div className="bd-box sticky top-20 space-y-1.5 rounded-3xl border p-3">
                       {MONTH_BN.map((m, i) => {
                         const active = activeMonthTab === i;
                         const isNow = new Date().getMonth() === i;
@@ -897,14 +1083,14 @@ export default function BirthdayPage() {
                             className={`flex w-full items-center justify-between rounded-2xl px-4 py-2.5 text-sm font-bold transition ${
                               active
                                 ? "bg-gradient-to-r from-blue-600 to-emerald-500 text-white shadow-lg shadow-blue-600/25"
-                                : "text-slate-400 hover:bg-white/5 hover:text-white"
+                                : "bd-side"
                             }`}
                           >
                             <span className="flex items-center gap-2">
                               {m}
-                              {isNow && <span className="h-1.5 w-1.5 rounded-full bg-amber-300" title="চলতি মাস" />}
+                              {isNow && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" title="চলতি মাস" />}
                             </span>
-                            <span className={`rounded-full px-2 py-0.5 text-[11px] ${active ? "bg-white text-[#0b2a6f]" : "bg-slate-800 text-slate-300"}`}>
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] ${active ? "bg-white text-[#0b2a6f]" : "bd-chip"}`}>
                               {monthCounts[i]}
                             </span>
                           </button>
@@ -917,13 +1103,13 @@ export default function BirthdayPage() {
                 {/* তালিকা */}
                 <div className={search ? "lg:col-span-12" : "lg:col-span-9"}>
                   <div className="mb-3 flex items-center justify-between">
-                    <h3 className="text-sm font-black text-sky-300 sm:text-base">
+                    <h3 className="bd-sky text-sm font-black sm:text-base">
                       {search ? `"${search}" — ${listToShow.length} জন পাওয়া গেছে` : `${MONTH_BN[activeMonthTab]} মাস • ${listToShow.length} জন`}
                     </h3>
                   </div>
 
                   {listToShow.length === 0 ? (
-                    <div className="rounded-2xl border border-slate-800 bg-[#0b1220]/60 p-8 text-center text-xs text-slate-400">
+                    <div className="bd-box bd-sub rounded-2xl border p-8 text-center text-xs">
                       {search ? "এই নামে কাউকে পাওয়া যায়নি। অন্য নাম লিখে দেখুন।" : "এই মাসে কোনো জন্মদিন নেই।"}
                     </div>
                   ) : (

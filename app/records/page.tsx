@@ -1,10 +1,22 @@
 "use client";
 
-import { useState, useEffect, useMemo, memo } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  memo,
+} from "react";
 import Link from "next/link";
 import PlayerCardModal from "../../components/PlayerCardModal";
 
-/* ═════════════════════════ TYPES ═════════════════════════ */
+/* =========================================================
+   FCL RECORD CORNER
+   OFFICIAL PREMIUM THEME
+   app/records/page.tsx
+========================================================= */
+
+/* ===================== TYPES ===================== */
 
 interface Player {
   id?: number;
@@ -63,319 +75,6 @@ interface TournamentRecord {
   topWicket: number;
 }
 
-type TeamCounts = Map<string, number>;
-
-/* ═════════════════════════ SHARED HELPERS ═════════════════════════ */
-
-export const calculateFclPoints = (p: Player): number => {
-  if (!p) return 0;
-  return Math.round(
-    (p.runs || 0) * 1 +
-      (p.sixes || 0) * 2 +
-      (p.fours || 0) * 1 +
-      (p.wickets || 0) * 20 +
-      (p.matches || 0) * 2 +
-      (p.champion || 0) * 100 +
-      (p.runnersUp || 0) * 40 +
-      ((p.mot || 0) + (p.cpot || 0)) * 60 +
-      (p.highestRunScorer || 0) * 30 +
-      (p.topWicketTaker || 0) * 30
-  );
-};
-
-const motTotal = (p: Player) => (Number(p.mot) || 0) + (Number(p.cpot) || 0);
-
-const nameKey = (s?: string) => (s || "").trim().toLowerCase();
-
-const matchPlayer = (p: Player, q: string) =>
-  !q || p.name.toLowerCase().includes(q) || (p.nickName || "").toLowerCase().includes(q);
-
-function filterHolders<T extends { player: Player; label: string }>(list: T[], query: string): T[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return list;
-  return list.filter((h) => matchPlayer(h.player, q) || h.label.toLowerCase().includes(q));
-}
-
-function buildTeammateCounts(data: TournamentRecord[]): TeamCounts {
-  const out: TeamCounts = new Map();
-  if (!data || data.length === 0) return out;
-
-  const squads = new Map<string, Set<string>>();
-  const playerSquads = new Map<string, Set<string>>();
-
-  for (const r of data) {
-    const tour = (r.tournament || "").trim();
-    const team = (r.team || "").trim();
-    const name = nameKey(r.playerName);
-    if (!tour || !team || !name) continue;
-    const key = `${tour}__${team}`;
-
-    let sq = squads.get(key);
-    if (!sq) { sq = new Set(); squads.set(key, sq); }
-    sq.add(name);
-
-    let ps = playerSquads.get(name);
-    if (!ps) { ps = new Set(); playerSquads.set(name, ps); }
-    ps.add(key);
-  }
-
-  playerSquads.forEach((keys, name) => {
-    const mates = new Set<string>();
-    keys.forEach((k) => {
-      squads.get(k)!.forEach((m) => { if (m !== name) mates.add(m); });
-    });
-    out.set(name, mates.size);
-  });
-
-  return out;
-}
-
-const teammateCountOf = (p: Player, tm: TeamCounts) => tm.get(nameKey(p.name)) || 0;
-
-type MTabId = string;
-
-const MOBILE_TABS: { id: MTabId; label: string; icon: string }[] = [
-  { id: "tournaments_history", label: "Tournament History", icon: "🏆" },
-  { id: "teammates_record", label: "Teammates", icon: "🤝" },
-  { id: "records", label: "Record Holders", icon: "🌟" },
-  { id: "clubs", label: "Elite Clubs", icon: "💎" },
-  { id: "points", label: "FCL Points", icon: "💯" },
-  { id: "runs", label: "Most Runs", icon: "🏏" },
-  { id: "wickets", label: "Most Wickets", icon: "🎯" },
-  { id: "sixes", label: "Six Machine", icon: "💥" },
-  { id: "fours", label: "Boundary Kings", icon: "🔷" },
-  { id: "hattricks", label: "Hat-Tricks", icon: "🎩" },
-  { id: "champions", label: "Champions", icon: "🏆" },
-  { id: "runnersup", label: "Runners-Up", icon: "🥈" },
-  { id: "finals", label: "Total Finals", icon: "⚔️" },
-  { id: "motcpot", label: "MOT / CPOT", icon: "⭐" },
-  { id: "runking", label: "Tour. Run King", icon: "👑" },
-  { id: "wicketking", label: "Tour. Wicket King", icon: "🛡️" },
-  { id: "matches", label: "Most Matches", icon: "⚡" },
-  { id: "innings", label: "Most Innings", icon: "📋" },
-  { id: "notout", label: "Most Not Outs", icon: "🧱" },
-  { id: "maxruns", label: "Highest Tour. Runs", icon: "🚀" },
-  { id: "maxwickets", label: "Highest Wickets", icon: "🔥" },
-  { id: "tournaments", label: "Tournaments", icon: "🗓️" },
-];
-
-const TIERS = [
-  { key: "Diamond", icon: "💎", title: "Diamond All-Rounder", range: "2500+ Runs • 150+ Wkts", test: (p: Player) => p.runs >= 2500 && p.wickets >= 150 },
-  { key: "Gold", icon: "🥇", title: "Gold All-Rounder", range: "2000–2500 Runs • 100+ Wkts", test: (p: Player) => p.runs >= 2000 && p.runs < 2500 && p.wickets >= 100 },
-  { key: "Silver", icon: "🥈", title: "Silver All-Rounder", range: "1000–2000 Runs • 50+ Wkts", test: (p: Player) => p.runs >= 1000 && p.runs < 2000 && p.wickets >= 50 },
-  { key: "Bronze", icon: "🥉", title: "Bronze All-Rounder", range: "500–1000 Runs • 50+ Wkts", test: (p: Player) => p.runs >= 500 && p.runs < 1000 && p.wickets >= 50 },
-];
-
-const COUNT_CHIPS = ["Top 5", "Top 10", "Top 20", "Top 50", "All"];
-const CLUB_CHIPS = ["All", "Diamond", "Gold", "Silver", "Bronze"];
-
-const SEARCH_PLACEHOLDER = "প্লেয়ার, টিম বা টুর্নামেন্টের নাম লিখুন...";
-
-const SAFE_WK = (p: Player) => {
-  if (p.wkAvg && p.wkAvg !== "0.00" && p.wkAvg !== "0") return p.wkAvg;
-  if (p.matches > 0 && p.wickets > 0) return (p.wickets / p.matches).toFixed(2);
-  return "0.00";
-};
-
-const MOBILE_CFG: Record<string, { v: (p: Player, tm: TeamCounts) => number; badge: (p: Player) => string; meta: (p: Player) => string; unit: string }> = {
-  points: { v: (p) => calculateFclPoints(p), badge: (p) => `${p.runs} Runs • ${p.wickets} Wkts`, meta: (p) => `${p.matches} Matches`, unit: "Pts" },
-  runs: { v: (p) => p.runs, badge: (p) => `Avg ${p.runAvg ?? "0.00"}`, meta: (p) => `${p.matches} Matches`, unit: "Runs" },
-  wickets: { v: (p) => p.wickets, badge: (p) => `Wk Avg ${SAFE_WK(p)}`, meta: (p) => `${p.matches} Matches`, unit: "Wkts" },
-  sixes: { v: (p) => p.sixes || 0, badge: (p) => `${p.runs} Runs`, meta: (p) => `${p.matches} Mat`, unit: "Sixes" },
-  fours: { v: (p) => p.fours || 0, badge: (p) => `${p.runs} Runs`, meta: (p) => `${p.matches} Mat`, unit: "Fours" },
-  hattricks: { v: (p) => p.hatTricks || 0, badge: (p) => `${p.wickets} Total Wkts`, meta: (p) => `${p.matches} Matches`, unit: "Hat-tricks" },
-  champions: { v: (p) => p.champion || 0, badge: (p) => `${p.totalFinal ?? 0} Finals`, meta: (p) => `${p.matches} Matches`, unit: "Titles" },
-  runnersup: { v: (p) => p.runnersUp || 0, badge: (p) => `${p.totalFinal ?? 0} Finals`, meta: (p) => `${p.matches} Matches`, unit: "Times" },
-  finals: { v: (p) => p.totalFinal || 0, badge: (p) => `${p.champion ?? 0}x Champion`, meta: (p) => `${p.runnersUp ?? 0}x Runner-Up`, unit: "Finals" },
-  motcpot: { v: motTotal, badge: (p) => `MOT ${p.mot ?? 0} | CPOT ${p.cpot ?? 0}`, meta: (p) => `${p.matches} Matches`, unit: "Awards" },
-  runking: { v: (p) => p.highestRunScorer || 0, badge: () => "Tournament Top Scorer", meta: (p) => `${p.runs} Runs`, unit: "Times" },
-  wicketking: { v: (p) => p.topWicketTaker || 0, badge: () => "Tournament Top Bowler", meta: (p) => `${p.wickets} Wkts`, unit: "Times" },
-  matches: { v: (p) => p.matches, badge: (p) => `${p.runs} Runs • ${p.wickets} Wkts`, meta: (p) => `@${p.nickName || "Player"}`, unit: "Matches" },
-  innings: { v: (p) => p.innings || 0, badge: (p) => `${p.runs} Runs`, meta: (p) => `${p.matches} Matches`, unit: "Inn" },
-  notout: { v: (p) => p.notOut || 0, badge: (p) => `${p.innings ?? 0} Innings`, meta: (p) => `${p.runs} Runs`, unit: "NO" },
-  maxruns: { v: (p) => p.maxRuns || 0, badge: () => "Best Batting Score", meta: (p) => `${p.runs} Career Runs`, unit: "Runs" },
-  maxwickets: { v: (p) => p.maxWickets || 0, badge: () => "In A Tournament", meta: (p) => `${p.wickets} Career Wkts`, unit: "Wkts" },
-  tournaments: { v: (p) => p.totalTournament || 0, badge: (p) => `${p.matches} Matches`, meta: (p) => `@${p.nickName || "Player"}`, unit: "Tours" },
-  teammates_record: { v: (p, tm) => teammateCountOf(p, tm), badge: (p) => `${p.matches} Matches`, meta: (p) => `@${p.nickName || "Player"}`, unit: "Players" },
-};
-
-// ✅ আগে সবাইকে র‍্যাংক করা হয়, তারপর সার্চ ফিল্টার — ফলে প্লেয়ারের আসল র‍্যাংক দেখায়
-function rankPlayers(
-  players: Player[],
-  getV: (p: Player) => number,
-  q: string,
-  limit: number
-): { player: Player; value: number; rank: number }[] {
-  const all: { player: Player; value: number }[] = [];
-  for (const p of players) {
-    const value = getV(p);
-    if (value <= 0) continue;
-    all.push({ player: p, value });
-  }
-  all.sort((a, b) => b.value - a.value);
-
-  // আসল র‍্যাংক (সমান ভ্যালুতে সমান র‍্যাংক)
-  const ranked: { player: Player; value: number; rank: number }[] = [];
-  all.forEach((r, i) => {
-    const rank = i > 0 && r.value === all[i - 1].value ? ranked[i - 1].rank : i + 1;
-    ranked.push({ ...r, rank });
-  });
-
-  // সার্চ থাকলে লিমিট ছাড়াই শুধু ঐ প্লেয়ারকে আসল র‍্যাংকসহ দেখাবে
-  if (q) return ranked.filter((r) => matchPlayer(r.player, q));
-  return limit === Infinity ? ranked : ranked.slice(0, limit);
-}
-
-const GROUPS: { title: string; ids: string[] }[] = [
-  { title: "Overview", ids: ["tournaments_history", "teammates_record", "records", "clubs"] },
-  { title: "Batting", ids: ["runs", "sixes", "fours", "maxruns", "innings", "notout"] },
-  { title: "Bowling", ids: ["wickets", "hattricks", "maxwickets"] },
-  { title: "Trophies & Honours", ids: ["champions", "runnersup", "finals", "motcpot", "runking", "wicketking"] },
-  { title: "Overall", ids: ["points", "matches", "tournaments"] },
-];
-
-const DESC: Record<string, string> = {
-  tournaments_history: "রান, উইকেট, ট্রফি আর টুর্নামেন্টের সোনালী ইতিহাস এক ঠিকানায়",
-  teammates_record: "যাঁরা সবচেয়ে বেশি সংখ্যক সতীর্থের সাথে একই টিমে খেলেছেন",
-  records: "প্রতিটি ক্যাটাগরির সর্বকালের এক নম্বর খেলোয়াড়",
-  points: "রান, উইকেট, ট্রফি ও অ্যাওয়ার্ড মিলিয়ে মোট FCL পয়েন্ট",
-  runs: "ক্যারিয়ারে সর্বোচ্চ রান",
-  wickets: "ক্যারিয়ারে সর্বোচ্চ উইকেট",
-  sixes: "সবচেয়ে বেশি ছক্কা",
-  fours: "সবচেয়ে বেশি চার",
-  hattricks: "সবচেয়ে বেশি হ্যাটট্রিক",
-  champions: "সবচেয়ে বেশি টুর্নামেন্ট জয়",
-  runnersup: "সবচেয়ে বেশিবার রানার্স-আপ",
-  finals: "সবচেয়ে বেশি ফাইনাল খেলা",
-  motcpot: "MOT ও CPOT মিলিয়ে মোট অ্যাওয়ার্ড",
-  runking: "টুর্নামেন্টে সর্বোচ্চ রানের মালিক হয়েছেন যতবার",
-  wicketking: "টুর্নামেন্টে সর্বোচ্চ উইকেটের মালিক হয়েছেন যতবার",
-  matches: "সবচেয়ে বেশি ম্যাচ খেলা",
-  innings: "সবচেয়ে বেশি ইনিংস",
-  notout: "সবচেয়ে বেশি নট-আউট",
-  maxruns: "এক টুর্নামেন্টে সর্বোচ্চ ব্যক্তিগত রান",
-  maxwickets: "এক টুর্নামেন্টে সর্বোচ্চ ব্যক্তিগত উইকেট",
-  tournaments: "সবচেয়ে বেশি টুর্নামেন্টে অংশগ্রহণ",
-  clubs: "রান ও উইকেটের স্ল্যাব অনুযায়ী অলরাউন্ডার ক্লাব",
-};
-
-const ACCENT: Record<string, string> = {
-  tournaments_history: "#f59e0b", teammates_record: "#38bdf8", records: "#f59e0b", points: "#f59e0b", runs: "#60a5fa", wickets: "#fb7185", sixes: "#c084fc",
-  fours: "#38bdf8", hattricks: "#f472b6", champions: "#fbbf24", runnersup: "#cbd5e1", finals: "#22d3ee",
-  motcpot: "#c084fc", runking: "#fb923c", wicketking: "#22d3ee", matches: "#34d399",
-  innings: "#60a5fa", notout: "#94a3b8", maxruns: "#f87171", maxwickets: "#fb923c",
-  tournaments: "#34d399", clubs: "#a78bfa",
-};
-
-const TIER_COLOR: Record<string, string> = { Bronze: "#cd7f32", Silver: "#cbd5e1", Gold: "#fbbf24", Diamond: "#67e8f9" };
-
-const MEDAL = ["#fbbf24", "#cbd5e1", "#cd7f32"];
-
-function buildHolders(players: Player[], tm: TeamCounts) {
-  if (!players || players.length === 0) return [];
-  const defs = [
-    { id: "champions", label: "Most Titles", icon: "🏆", fn: (p: Player) => p.champion || 0, unit: "Titles" },
-    { id: "runs", label: "All-Time Runs", icon: "🏏", fn: (p: Player) => p.runs, unit: "Runs" },
-    { id: "wickets", label: "All-Time Wickets", icon: "🎯", fn: (p: Player) => p.wickets, unit: "Wickets" },
-    { id: "finals", label: "Total Finals", icon: "⚔️", fn: (p: Player) => p.totalFinal || 0, unit: "Finals" },
-    { id: "matches", label: "Most Matches", icon: "⚡", fn: (p: Player) => p.matches, unit: "Matches" },
-    { id: "sixes", label: "Six Machine", icon: "💥", fn: (p: Player) => p.sixes || 0, unit: "Sixes" },
-    { id: "hattricks", label: "Hat-Trick Master", icon: "🎩", fn: (p: Player) => p.hatTricks || 0, unit: "Hat-tricks" },
-    { id: "points", label: "FCL Points", icon: "💯", fn: (p: Player) => calculateFclPoints(p), unit: "Points" },
-    { id: "fours", label: "Boundary Kings", icon: "🔷", fn: (p: Player) => p.fours || 0, unit: "Fours" },
-    { id: "runnersup", label: "Runners-Up", icon: "🥈", fn: (p: Player) => p.runnersUp || 0, unit: "Times" },
-    { id: "motcpot", label: "MOT / CPOT", icon: "⭐", fn: motTotal, unit: "Awards" },
-    { id: "runking", label: "Tour. Run King", icon: "👑", fn: (p: Player) => p.highestRunScorer || 0, unit: "Times" },
-    { id: "wicketking", label: "Tour. Wicket King", icon: "🛡️", fn: (p: Player) => p.topWicketTaker || 0, unit: "Times" },
-    { id: "innings", label: "Most Innings", icon: "📋", fn: (p: Player) => p.innings || 0, unit: "Innings" },
-    { id: "notout", label: "Most Not Outs", icon: "🧱", fn: (p: Player) => p.notOut || 0, unit: "Not Outs" },
-    { id: "maxruns", label: "Highest Tour. Runs", icon: "🚀", fn: (p: Player) => p.maxRuns || 0, unit: "Runs" },
-    { id: "maxwickets", label: "Highest Wicket", icon: "🔥", fn: (p: Player) => p.maxWickets || 0, unit: "Wickets" },
-    { id: "tournaments", label: "Tournaments", icon: "🗓️", fn: (p: Player) => p.totalTournament || 0, unit: "Tours" },
-    { id: "teammates_record", label: "Most Teammates", icon: "🤝", fn: (p: Player) => teammateCountOf(p, tm), unit: "Players" },
-  ];
-
-  return defs.map((d) => {
-    let best = players[0];
-    let bestV = d.fn(best);
-    for (let i = 1; i < players.length; i++) {
-      const v = d.fn(players[i]);
-      if (v > bestV) { bestV = v; best = players[i]; }
-    }
-    return { ...d, player: best, value: bestV };
-  });
-}
-
-const Avatar = memo(function Avatar({ player, size = 44 }: { player: Player; size?: number }) {
-  const rawPhoto = player?.photo || player?.photoUrl;
-  const photoPath = rawPhoto && rawPhoto !== "—" && rawPhoto !== ""
-    ? (rawPhoto.startsWith("/") ? rawPhoto : `/players/${rawPhoto}`)
-    : `/FCL Cricket Avatar Placeholder.jpg`;
-
-  return (
-    <div className="relative shrink-0 overflow-hidden rounded-full border border-[#1e293b] bg-[#0b1220]" style={{ width: size, height: size }}>
-      <img
-        src={photoPath}
-        alt={player?.name || "Player"}
-        loading="lazy"
-        decoding="async"
-        width={size}
-        height={size}
-        className="h-full w-full object-cover"
-        onError={(e) => { e.currentTarget.src = `/FCL Cricket Avatar Placeholder.jpg`; }}
-      />
-    </div>
-  );
-});
-
-/* ═════════════════════════ MOBILE TOP-3 PODIUM (সব ক্যাটেগরির জন্য) ═════════════════════════ */
-
-function MobilePodium({
-  rows,
-  onSelect,
-}: {
-  rows: { player: Player; value: number | string; unit: string }[];
-  onSelect: (p: Player) => void;
-}) {
-  const podium = rows.slice(0, 3);
-  const order = podium.length === 3 ? [1, 0, 2] : podium.map((_, i) => i);
-
-  return (
-    <div className="grid grid-cols-3 items-end gap-2">
-      {order.map((i) => {
-        const r = podium[i];
-        if (!r) return null;
-        const m = MEDAL[i];
-        const first = i === 0;
-        return (
-          <button
-            key={`${r.player.id ?? r.player.name}-${i}`}
-            onClick={() => onSelect(r.player)}
-            className={`group relative min-w-0 overflow-hidden rounded-2xl border px-1.5 text-center transition duration-300 active:scale-[0.97] ${first ? "pb-4 pt-8" : "pb-3 pt-7"}`}
-            style={{ borderColor: `${m}55`, background: `linear-gradient(180deg, ${m}${first ? "26" : "16"}, #0b1220 70%)` }}
-          >
-            <span
-              className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-lg text-xs font-black text-black"
-              style={{ background: m }}
-            >
-              {i + 1}
-            </span>
-            <div className="flex justify-center"><Avatar player={r.player} size={first ? 52 : 42} /></div>
-            <p className={`mt-2 truncate px-0.5 font-black text-white ${first ? "text-xs" : "text-[11px]"}`}>{r.player.name}</p>
-            <p className="truncate px-0.5 text-[10px] font-semibold text-slate-400">@{r.player.nickName || "Player"}</p>
-            <p className={`mt-2 font-black tabular-nums leading-none ${first ? "text-3xl" : "text-2xl"}`} style={{ color: m }}>
-              {typeof r.value === "number" ? r.value.toLocaleString() : r.value}
-            </p>
-            <p className="mt-0.5 text-[10px] font-semibold text-slate-400">{r.unit}</p>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ═════════════════════════ TOURNAMENT HISTORY ═════════════════════════ */
-
 interface Tour {
   id: number;
   name: string;
@@ -393,169 +92,1680 @@ interface Tour {
   search: string;
 }
 
-const GOLD = "#fbbf24";
-const SILVER = "#cbd5e1";
+interface RankedRow {
+  player: Player;
+  value: number;
+  rank: number;
+}
 
-const SORTS = [
-  { id: "old", label: "পুরনো থেকে নতুন (2013+)" },
-  { id: "new", label: "সর্বশেষ থেকে পুরোনো (Latest)" },
-  { id: "az", label: "A → Z" },
-  { id: "za", label: "Z → A" },
-  { id: "players", label: "বেশি প্লেয়ার" },
+interface Holder {
+  id: string;
+  label: string;
+  icon: string;
+  unit: string;
+  player: Player;
+  value: number;
+}
+
+type TeamCounts = Map<string, number>;
+
+type TabId = string;
+
+type SelectPlayer = (player: Player) => void;
+
+/* ===================== COLORS ===================== */
+
+const BLUE = "#1877F2";
+const GOLD = "#f59e0b";
+const GREEN = "#22c55e";
+const PURPLE = "#a855f7";
+const CYAN = "#22d3ee";
+const PINK = "#ec4899";
+
+const PLACEHOLDER =
+  "/FCL Cricket Avatar Placeholder.jpg";
+
+const MEDALS = [
+  "#f59e0b",
+  "#94a3b8",
+  "#cd7f32",
 ];
 
-const letterOf = (name: string) => {
-  const c = (name || "").trim().charAt(0).toUpperCase();
-  return /[A-Z]/.test(c) ? c : "#";
+/* ===================== HELPERS ===================== */
+
+const num = (value: unknown): number => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
 };
 
-const pushUnique = (arr: string[], v?: string) => {
-  if (v && !arr.includes(v)) arr.push(v);
+const fmt = (value: number) =>
+  value.toLocaleString("en-US");
+
+const nameKey = (value?: string) =>
+  (value || "").trim().toLowerCase();
+
+const matchPlayer = (player: Player, query: string) => {
+  const q = query.trim().toLowerCase();
+
+  return (
+    !q ||
+    nameKey(player.name).includes(q) ||
+    nameKey(player.nickName).includes(q)
+  );
 };
 
-const parseTourDate = (timeStr: string): number => {
-  if (!timeStr) return 0;
-  const parts = timeStr.trim().split(/\s+/);
-  const months: Record<string, number> = {
-    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
-  };
-  let month = 0;
-  let year = 2013;
-  for (const p of parts) {
-    const clean = p.toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (months[clean.substring(0, 3)] !== undefined) {
-      month = months[clean.substring(0, 3)];
-    }
-    const num = parseInt(clean);
-    if (!isNaN(num) && num > 1990 && num < 2100) {
-      year = num;
-    }
+const pushUnique = (
+  list: string[],
+  value?: string
+) => {
+  if (
+    value &&
+    !list.some(
+      (item) => nameKey(item) === nameKey(value)
+    )
+  ) {
+    list.push(value);
   }
-  return year * 12 + month;
 };
 
-function buildTours(data: TournamentRecord[]): Tour[] {
-  const map = new Map<string, Tour & { _all: Set<string> }>();
-  (data || []).forEach((r) => {
-    const name = (r.tournament || "Tournament").trim();
-    if (!map.has(name)) {
-      map.set(name, {
-        id: map.size, name, time: r.time || "", dateVal: 0,
-        champTeam: "", champPlayers: [], ruTeam: "", ruPlayers: [],
-        scorers: [], wickets: [], mots: [], cpots: [],
-        playerCount: 0, search: "", _all: new Set<string>(),
+/* ===================== MVP FORMULA ===================== */
+
+export const calculateFclPoints = (
+  player: Player
+): number => {
+  if (!player) return 0;
+
+  return Math.round(
+    num(player.runs) +
+      num(player.sixes) * 2 +
+      num(player.fours) +
+      num(player.wickets) * 20 +
+      num(player.matches) * 2 +
+      num(player.champion) * 100 +
+      num(player.runnersUp) * 40 +
+      (num(player.mot) + num(player.cpot)) * 60 +
+      num(player.highestRunScorer) * 30 +
+      num(player.topWicketTaker) * 30
+  );
+};
+
+const motTotal = (player: Player) =>
+  num(player.mot) + num(player.cpot);
+
+const safeWicketAverage = (player: Player) => {
+  if (
+    player.wkAvg &&
+    player.wkAvg !== "0" &&
+    player.wkAvg !== "0.00"
+  ) {
+    return player.wkAvg;
+  }
+
+  return num(player.matches) > 0
+    ? (
+        num(player.wickets) /
+        num(player.matches)
+      ).toFixed(2)
+    : "0.00";
+};
+
+/* ===================== TABS ===================== */
+
+const TABS = [
+  {
+    id: "tournaments_history",
+    label: "Tournament History",
+    icon: "🏆",
+  },
+  {
+    id: "teammates_record",
+    label: "Teammates",
+    icon: "🤝",
+  },
+  {
+    id: "records",
+    label: "Record Holders",
+    icon: "🌟",
+  },
+  {
+    id: "clubs",
+    label: "Elite Clubs",
+    icon: "💎",
+  },
+  {
+    id: "points",
+    label: "FCL Points",
+    icon: "💯",
+  },
+  {
+    id: "runs",
+    label: "Most Runs",
+    icon: "🏏",
+  },
+  {
+    id: "wickets",
+    label: "Most Wickets",
+    icon: "🎯",
+  },
+  {
+    id: "sixes",
+    label: "Six Machine",
+    icon: "💥",
+  },
+  {
+    id: "fours",
+    label: "Boundary Kings",
+    icon: "🔷",
+  },
+  {
+    id: "hattricks",
+    label: "Hat-Tricks",
+    icon: "🎩",
+  },
+  {
+    id: "champions",
+    label: "Champions",
+    icon: "🏆",
+  },
+  {
+    id: "runnersup",
+    label: "Runners-Up",
+    icon: "🥈",
+  },
+  {
+    id: "finals",
+    label: "Total Finals",
+    icon: "⚔️",
+  },
+  {
+    id: "motcpot",
+    label: "MOT / CPOT",
+    icon: "⭐",
+  },
+  {
+    id: "runking",
+    label: "Tour. Run King",
+    icon: "👑",
+  },
+  {
+    id: "wicketking",
+    label: "Tour. Wicket King",
+    icon: "🛡️",
+  },
+  {
+    id: "matches",
+    label: "Most Matches",
+    icon: "⚡",
+  },
+  {
+    id: "innings",
+    label: "Most Innings",
+    icon: "📋",
+  },
+  {
+    id: "notout",
+    label: "Most Not Outs",
+    icon: "🧱",
+  },
+  {
+    id: "maxruns",
+    label: "Highest Tour. Runs",
+    icon: "🚀",
+  },
+  {
+    id: "maxwickets",
+    label: "Highest Wickets",
+    icon: "🔥",
+  },
+  {
+    id: "tournaments",
+    label: "Tournaments",
+    icon: "🗓️",
+  },
+];
+
+const GROUPS = [
+  {
+    title: "Overview",
+    ids: [
+      "tournaments_history",
+      "teammates_record",
+      "records",
+      "clubs",
+    ],
+  },
+  {
+    title: "Batting Records",
+    ids: [
+      "runs",
+      "sixes",
+      "fours",
+      "maxruns",
+      "innings",
+      "notout",
+    ],
+  },
+  {
+    title: "Bowling Records",
+    ids: [
+      "wickets",
+      "hattricks",
+      "maxwickets",
+    ],
+  },
+  {
+    title: "Trophies & Honours",
+    ids: [
+      "champions",
+      "runnersup",
+      "finals",
+      "motcpot",
+      "runking",
+      "wicketking",
+    ],
+  },
+  {
+    title: "Overall Performance",
+    ids: [
+      "points",
+      "matches",
+      "tournaments",
+    ],
+  },
+];
+
+const DESCRIPTIONS: Record<string, string> = {
+  tournaments_history:
+    "রান, উইকেট, ট্রফি এবং টুর্নামেন্টের সোনালী ইতিহাস।",
+
+  teammates_record:
+    "সবচেয়ে বেশি ভিন্ন সতীর্থের সঙ্গে একই দলে খেলার রেকর্ড।",
+
+  records:
+    "প্রতিটি ক্যাটাগরির সর্বকালের সেরা রেকর্ডধারী।",
+
+  clubs:
+    "রান এবং উইকেটের মাইলফলক অনুযায়ী Elite All-Rounder Clubs।",
+
+  points:
+    "ব্যাটিং, বোলিং, ট্রফি ও অ্যাওয়ার্ডের ভিত্তিতে FCL Points।",
+
+  runs: "ক্যারিয়ারে সর্বোচ্চ রান।",
+
+  wickets: "ক্যারিয়ারে সর্বোচ্চ উইকেট।",
+
+  sixes: "ক্যারিয়ারে সবচেয়ে বেশি ছক্কা।",
+
+  fours: "ক্যারিয়ারে সবচেয়ে বেশি চার।",
+
+  hattricks: "সবচেয়ে বেশি হ্যাটট্রিক।",
+
+  champions: "সবচেয়ে বেশি টুর্নামেন্ট জয়।",
+
+  runnersup: "সবচেয়ে বেশিবার রানার্স-আপ।",
+
+  finals: "সবচেয়ে বেশি ফাইনাল খেলা।",
+
+  motcpot: "MOT এবং CPOT মিলিয়ে মোট অ্যাওয়ার্ড।",
+
+  runking:
+    "টুর্নামেন্টের সর্বোচ্চ রান সংগ্রাহক হওয়ার রেকর্ড।",
+
+  wicketking:
+    "টুর্নামেন্টের সর্বোচ্চ উইকেট শিকারি হওয়ার রেকর্ড।",
+
+  matches: "সবচেয়ে বেশি ম্যাচ খেলা।",
+
+  innings: "সবচেয়ে বেশি ইনিংস খেলা।",
+
+  notout: "সবচেয়ে বেশি নট-আউট।",
+
+  maxruns:
+    "এক টুর্নামেন্টে সর্বোচ্চ ব্যক্তিগত রান।",
+
+  maxwickets:
+    "এক টুর্নামেন্টে সর্বোচ্চ ব্যক্তিগত উইকেট।",
+
+  tournaments:
+    "সবচেয়ে বেশি টুর্নামেন্টে অংশগ্রহণ।",
+};
+
+const ACCENTS: Record<string, string> = {
+  tournaments_history: GOLD,
+  teammates_record: CYAN,
+  records: GOLD,
+  clubs: PURPLE,
+  points: GOLD,
+  runs: BLUE,
+  wickets: PINK,
+  sixes: PURPLE,
+  fours: CYAN,
+  hattricks: PINK,
+  champions: GOLD,
+  runnersup: "#94a3b8",
+  finals: CYAN,
+  motcpot: PURPLE,
+  runking: "#fb923c",
+  wicketking: CYAN,
+  matches: GREEN,
+  innings: BLUE,
+  notout: "#94a3b8",
+  maxruns: PINK,
+  maxwickets: "#fb923c",
+  tournaments: GREEN,
+};
+
+const COUNT_CHIPS = [
+  "Top 5",
+  "Top 10",
+  "Top 20",
+  "Top 50",
+  "All",
+];
+
+const CLUB_CHIPS = [
+  "All",
+  "Diamond",
+  "Gold",
+  "Silver",
+  "Bronze",
+];
+
+/* ===================== RANKING CONFIG ===================== */
+
+interface RankingConfig {
+  value: (
+    player: Player,
+    counts: TeamCounts
+  ) => number;
+
+  badge: (player: Player) => string;
+
+  meta: (player: Player) => string;
+
+  unit: string;
+}
+
+const CONFIG: Record<string, RankingConfig> = {
+  points: {
+    value: calculateFclPoints,
+    badge: (p) =>
+      `${fmt(num(p.runs))} Runs • ${p.wickets} Wkts`,
+    meta: (p) => `${p.matches} Matches`,
+    unit: "Pts",
+  },
+
+  runs: {
+    value: (p) => num(p.runs),
+    badge: (p) => `Avg ${p.runAvg || "0.00"}`,
+    meta: (p) => `${p.matches} Matches`,
+    unit: "Runs",
+  },
+
+  wickets: {
+    value: (p) => num(p.wickets),
+    badge: (p) =>
+      `Wk Avg ${safeWicketAverage(p)}`,
+    meta: (p) => `${p.matches} Matches`,
+    unit: "Wkts",
+  },
+
+  sixes: {
+    value: (p) => num(p.sixes),
+    badge: (p) => `${p.runs} Runs`,
+    meta: (p) => `${p.matches} Matches`,
+    unit: "Sixes",
+  },
+
+  fours: {
+    value: (p) => num(p.fours),
+    badge: (p) => `${p.runs} Runs`,
+    meta: (p) => `${p.matches} Matches`,
+    unit: "Fours",
+  },
+
+  hattricks: {
+    value: (p) => num(p.hatTricks),
+    badge: (p) => `${p.wickets} Wickets`,
+    meta: (p) => `${p.matches} Matches`,
+    unit: "Hat-tricks",
+  },
+
+  champions: {
+    value: (p) => num(p.champion),
+    badge: (p) => `${p.totalFinal || 0} Finals`,
+    meta: (p) => `${p.matches} Matches`,
+    unit: "Titles",
+  },
+
+  runnersup: {
+    value: (p) => num(p.runnersUp),
+    badge: (p) => `${p.totalFinal || 0} Finals`,
+    meta: (p) => `${p.matches} Matches`,
+    unit: "Times",
+  },
+
+  finals: {
+    value: (p) => num(p.totalFinal),
+    badge: (p) =>
+      `${p.champion || 0}x Champion`,
+    meta: (p) =>
+      `${p.runnersUp || 0}x Runner-Up`,
+    unit: "Finals",
+  },
+
+  motcpot: {
+    value: motTotal,
+    badge: (p) =>
+      `MOT ${p.mot || 0} • CPOT ${p.cpot || 0}`,
+    meta: (p) => `${p.matches} Matches`,
+    unit: "Awards",
+  },
+
+  runking: {
+    value: (p) => num(p.highestRunScorer),
+    badge: () => "Tournament Top Scorer",
+    meta: (p) => `${p.runs} Runs`,
+    unit: "Times",
+  },
+
+  wicketking: {
+    value: (p) => num(p.topWicketTaker),
+    badge: () => "Tournament Top Bowler",
+    meta: (p) => `${p.wickets} Wkts`,
+    unit: "Times",
+  },
+
+  matches: {
+    value: (p) => num(p.matches),
+    badge: (p) =>
+      `${p.runs} Runs • ${p.wickets} Wkts`,
+    meta: (p) =>
+      `@${p.nickName || "Player"}`,
+    unit: "Matches",
+  },
+
+  innings: {
+    value: (p) => num(p.innings),
+    badge: (p) => `${p.runs} Runs`,
+    meta: (p) => `${p.matches} Matches`,
+    unit: "Innings",
+  },
+
+  notout: {
+    value: (p) => num(p.notOut),
+    badge: (p) =>
+      `${p.innings || 0} Innings`,
+    meta: (p) => `${p.runs} Runs`,
+    unit: "Not Outs",
+  },
+
+  maxruns: {
+    value: (p) => num(p.maxRuns),
+    badge: () => "Best Tournament Runs",
+    meta: (p) => `${p.runs} Career Runs`,
+    unit: "Runs",
+  },
+
+  maxwickets: {
+    value: (p) => num(p.maxWickets),
+    badge: () => "Best Tournament Wickets",
+    meta: (p) => `${p.wickets} Career Wkts`,
+    unit: "Wkts",
+  },
+
+  tournaments: {
+    value: (p) => num(p.totalTournament),
+    badge: (p) => `${p.matches} Matches`,
+    meta: (p) =>
+      `@${p.nickName || "Player"}`,
+    unit: "Tours",
+  },
+
+  teammates_record: {
+    value: (p, counts) =>
+      counts.get(nameKey(p.name)) || 0,
+    badge: (p) => `${p.matches} Matches`,
+    meta: (p) =>
+      `@${p.nickName || "Player"}`,
+    unit: "Players",
+  },
+};
+
+/* ===================== ELITE CLUBS ===================== */
+
+const TIERS = [
+  {
+    key: "Diamond",
+    icon: "💎",
+    title: "Diamond All-Rounder",
+    range: "2500+ Runs • 150+ Wickets",
+    color: CYAN,
+    test: (p: Player) =>
+      num(p.runs) >= 2500 &&
+      num(p.wickets) >= 150,
+  },
+  {
+    key: "Gold",
+    icon: "🥇",
+    title: "Gold All-Rounder",
+    range: "2000–2499 Runs • 100+ Wickets",
+    color: GOLD,
+    test: (p: Player) =>
+      num(p.runs) >= 2000 &&
+      num(p.runs) < 2500 &&
+      num(p.wickets) >= 100,
+  },
+  {
+    key: "Silver",
+    icon: "🥈",
+    title: "Silver All-Rounder",
+    range: "1000–1999 Runs • 50+ Wickets",
+    color: "#94a3b8",
+    test: (p: Player) =>
+      num(p.runs) >= 1000 &&
+      num(p.runs) < 2000 &&
+      num(p.wickets) >= 50,
+  },
+  {
+    key: "Bronze",
+    icon: "🥉",
+    title: "Bronze All-Rounder",
+    range: "500–999 Runs • 50+ Wickets",
+    color: "#cd7f32",
+    test: (p: Player) =>
+      num(p.runs) >= 500 &&
+      num(p.runs) < 1000 &&
+      num(p.wickets) >= 50,
+  },
+];
+
+/* ===================== THEME DETECTION ===================== */
+
+function detectDarkTheme(): boolean {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  const html = document.documentElement;
+  const body = document.body;
+
+  const explicit = [
+    html.getAttribute("data-theme"),
+    html.getAttribute("data-mode"),
+    body.getAttribute("data-theme"),
+    body.getAttribute("data-mode"),
+  ].find(
+    (value) =>
+      value?.toLowerCase() === "dark" ||
+      value?.toLowerCase() === "light"
+  );
+
+  if (explicit) {
+    return explicit.toLowerCase() === "dark";
+  }
+
+  if (
+    html.classList.contains("dark") ||
+    body.classList.contains("dark")
+  ) {
+    return true;
+  }
+
+  if (
+    html.classList.contains("light") ||
+    body.classList.contains("light")
+  ) {
+    return false;
+  }
+
+  const scheme =
+    html.style.colorScheme ||
+    body.style.colorScheme;
+
+  if (scheme === "dark") return true;
+  if (scheme === "light") return false;
+
+  try {
+    const saved = localStorage.getItem("theme");
+
+    if (saved === "dark") return true;
+    if (saved === "light") return false;
+  } catch {
+    // Local storage may be unavailable.
+  }
+
+  return window.matchMedia(
+    "(prefers-color-scheme: dark)"
+  ).matches;
+}
+
+function useIsDark() {
+  const [dark, setDark] = useState(true);
+
+  useEffect(() => {
+    const update = () =>
+      setDark(detectDarkTheme());
+
+    update();
+
+    const observer = new MutationObserver(update);
+
+    const options: MutationObserverInit = {
+      attributes: true,
+      attributeFilter: [
+        "class",
+        "data-theme",
+        "data-mode",
+        "style",
+      ],
+    };
+
+    observer.observe(
+      document.documentElement,
+      options
+    );
+
+    observer.observe(
+      document.body,
+      options
+    );
+
+    window.addEventListener("storage", update);
+
+    const media = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    );
+
+    media.addEventListener("change", update);
+
+    return () => {
+      observer.disconnect();
+
+      window.removeEventListener(
+        "storage",
+        update
+      );
+
+      media.removeEventListener(
+        "change",
+        update
+      );
+    };
+  }, []);
+
+  return dark;
+}
+
+/* ===================== AVATAR ===================== */
+
+const Avatar = memo(function Avatar({
+  player,
+  size = 44,
+}: {
+  player: Player;
+  size?: number;
+}) {
+  const raw = player.photo || player.photoUrl;
+
+  let photo = PLACEHOLDER;
+
+  if (
+    raw &&
+    raw.trim() &&
+    raw.trim() !== "—"
+  ) {
+    photo =
+      raw.startsWith("/") ||
+      raw.startsWith("https://") ||
+      raw.startsWith("http://") ||
+      raw.startsWith("data:")
+        ? raw
+        : `/players/${raw}`;
+  }
+
+  const [src, setSrc] = useState(photo);
+
+  useEffect(() => {
+    setSrc(photo);
+  }, [photo]);
+
+  return (
+    <span
+      className="fcl-avatar relative inline-flex shrink-0 overflow-hidden rounded-full"
+      style={{
+        width: size,
+        height: size,
+      }}
+    >
+      <img
+        src={src}
+        alt={player.name}
+        width={size}
+        height={size}
+        loading="lazy"
+        decoding="async"
+        className="h-full w-full object-cover"
+        onError={() => {
+          if (src !== PLACEHOLDER) {
+            setSrc(PLACEHOLDER);
+          }
+        }}
+      />
+    </span>
+  );
+});
+
+/* ===================== TEAMMATES CALCULATION ===================== */
+
+function buildTeammateCounts(
+  data: TournamentRecord[]
+): TeamCounts {
+  const result: TeamCounts = new Map();
+
+  const squads = new Map<
+    string,
+    Set<string>
+  >();
+
+  const playerSquads = new Map<
+    string,
+    Set<string>
+  >();
+
+  for (const record of data) {
+    const tournament = nameKey(
+      record.tournament
+    );
+
+    const team = nameKey(record.team);
+
+    const player = nameKey(
+      record.playerName
+    );
+
+    if (!tournament || !team || !player) {
+      continue;
+    }
+
+    const key = JSON.stringify([
+      tournament,
+      team,
+    ]);
+
+    if (!squads.has(key)) {
+      squads.set(key, new Set());
+    }
+
+    squads.get(key)!.add(player);
+
+    if (!playerSquads.has(player)) {
+      playerSquads.set(player, new Set());
+    }
+
+    playerSquads.get(player)!.add(key);
+  }
+
+  playerSquads.forEach((keys, player) => {
+    const teammates = new Set<string>();
+
+    keys.forEach((key) => {
+      squads.get(key)?.forEach((mate) => {
+        if (mate !== player) {
+          teammates.add(mate);
+        }
       });
-    }
-    const t = map.get(name)!;
-    if (!t.time && r.time) t.time = r.time;
-    if (r.playerName) t._all.add(r.playerName);
+    });
 
-    const cr = (r.chamRu || "").toUpperCase();
-    if (cr.includes("CHAM") || cr.includes("WIN")) {
-      if (r.team) t.champTeam = r.team;
-      pushUnique(t.champPlayers, r.playerName);
-    } else if (cr.includes("RU") || cr.includes("RUNNER")) {
-      if (r.team) t.ruTeam = r.team;
-      pushUnique(t.ruPlayers, r.playerName);
-    }
-
-    if (Number(r.topScorer) === 1) pushUnique(t.scorers, r.playerName);
-    if (Number(r.topWicket) === 1) pushUnique(t.wickets, r.playerName);
-
-    const m = (r.motCpot || "").toUpperCase();
-    if (m.includes("CPOT")) pushUnique(t.cpots, r.playerName);
-    else if (m.includes("MOT")) pushUnique(t.mots, r.playerName);
+    result.set(player, teammates.size);
   });
 
-  return Array.from(map.values()).map((t) => {
-    const { _all, ...rest } = t;
-    const dateVal = parseTourDate(rest.time);
-    const out: Tour = { ...rest, dateVal, playerCount: _all.size };
-    // সার্চে এখন টুর্নামেন্টের সব খেলোয়াড়ের নামও ধরা হবে
-    out.search = [
-      out.name, out.time, out.champTeam, out.ruTeam,
-      ...Array.from(_all),
-      ...out.champPlayers, ...out.ruPlayers,
-      ...out.scorers, ...out.wickets, ...out.mots, ...out.cpots,
-    ].join(" ").toLowerCase();
-    return out;
+  return result;
+}
+
+/* ===================== REAL RANKING ===================== */
+
+function rankPlayers(
+  players: Player[],
+  getValue: (player: Player) => number,
+  query: string,
+  limit: number
+): RankedRow[] {
+  const all = players
+    .map((player) => ({
+      player,
+      value: getValue(player),
+    }))
+    .filter(
+      (item) =>
+        Number.isFinite(item.value) &&
+        item.value > 0
+    )
+    .sort(
+      (a, b) =>
+        b.value - a.value ||
+        a.player.name.localeCompare(
+          b.player.name
+        )
+    );
+
+  let previousRank = 0;
+
+  const ranked = all.map((item, index) => {
+    if (
+      index === 0 ||
+      item.value !== all[index - 1].value
+    ) {
+      previousRank = index + 1;
+    }
+
+    return {
+      ...item,
+      rank: previousRank,
+    };
+  });
+
+  if (query.trim()) {
+    return ranked.filter(({ player }) =>
+      matchPlayer(player, query)
+    );
+  }
+
+  return limit === Infinity
+    ? ranked
+    : ranked.slice(0, limit);
+}
+
+/* ===================== RECORD HOLDERS ===================== */
+
+function buildHolders(
+  players: Player[],
+  teamCounts: TeamCounts
+): Holder[] {
+  if (!players.length) return [];
+
+  const definitions = [
+    {
+      id: "champions",
+      label: "Most Titles",
+      unit: "Titles",
+      icon: "🏆",
+    },
+    {
+      id: "runs",
+      label: "All-Time Runs",
+      unit: "Runs",
+      icon: "🏏",
+    },
+    {
+      id: "wickets",
+      label: "All-Time Wickets",
+      unit: "Wickets",
+      icon: "🎯",
+    },
+    {
+      id: "finals",
+      label: "Total Finals",
+      unit: "Finals",
+      icon: "⚔️",
+    },
+    {
+      id: "matches",
+      label: "Most Matches",
+      unit: "Matches",
+      icon: "⚡",
+    },
+    {
+      id: "sixes",
+      label: "Six Machine",
+      unit: "Sixes",
+      icon: "💥",
+    },
+    {
+      id: "hattricks",
+      label: "Hat-Trick Master",
+      unit: "Hat-tricks",
+      icon: "🎩",
+    },
+    {
+      id: "points",
+      label: "FCL Points",
+      unit: "Points",
+      icon: "💯",
+    },
+    {
+      id: "fours",
+      label: "Boundary Kings",
+      unit: "Fours",
+      icon: "🔷",
+    },
+    {
+      id: "runnersup",
+      label: "Runners-Up",
+      unit: "Times",
+      icon: "🥈",
+    },
+    {
+      id: "motcpot",
+      label: "MOT / CPOT",
+      unit: "Awards",
+      icon: "⭐",
+    },
+    {
+      id: "runking",
+      label: "Tour. Run King",
+      unit: "Times",
+      icon: "👑",
+    },
+    {
+      id: "wicketking",
+      label: "Tour. Wicket King",
+      unit: "Times",
+      icon: "🛡️",
+    },
+    {
+      id: "innings",
+      label: "Most Innings",
+      unit: "Innings",
+      icon: "📋",
+    },
+    {
+      id: "notout",
+      label: "Most Not Outs",
+      unit: "Not Outs",
+      icon: "🧱",
+    },
+    {
+      id: "maxruns",
+      label: "Highest Tour. Runs",
+      unit: "Runs",
+      icon: "🚀",
+    },
+    {
+      id: "maxwickets",
+      label: "Highest Wickets",
+      unit: "Wickets",
+      icon: "🔥",
+    },
+    {
+      id: "tournaments",
+      label: "Tournaments",
+      unit: "Tours",
+      icon: "🗓️",
+    },
+    {
+      id: "teammates_record",
+      label: "Most Teammates",
+      unit: "Players",
+      icon: "🤝",
+    },
+  ];
+
+  return definitions.map((definition) => {
+    const getValue = CONFIG[
+      definition.id
+    ].value;
+
+    let best = players[0];
+
+    let bestValue = getValue(
+      best,
+      teamCounts
+    );
+
+    for (
+      let index = 1;
+      index < players.length;
+      index++
+    ) {
+      const value = getValue(
+        players[index],
+        teamCounts
+      );
+
+      if (value > bestValue) {
+        best = players[index];
+        bestValue = value;
+      }
+    }
+
+    return {
+      ...definition,
+      player: best,
+      value: bestValue,
+    };
   });
 }
 
-// query এখন উপরের গ্লোবাল সার্চ থেকে আসে
-function useTourState(data: TournamentRecord[], query: string) {
-  const tours = useMemo(() => buildTours(data), [data]);
-  const [sort, setSort] = useState("old");
-  const [letter, setLetter] = useState("All");
+/* ===================== TOURNAMENT DATE ===================== */
 
-  const letters = useMemo(
-    () => Array.from(new Set(tours.map((t) => letterOf(t.name)))).sort((a, b) => (a === "#" ? 1 : b === "#" ? -1 : a.localeCompare(b))),
-    [tours]
+const MONTHS: Record<string, number> = {
+  jan: 0,
+  feb: 1,
+  mar: 2,
+  apr: 3,
+  may: 4,
+  jun: 5,
+  jul: 6,
+  aug: 7,
+  sep: 8,
+  oct: 9,
+  nov: 10,
+  dec: 11,
+};
+
+function parseTourDate(value: string) {
+  if (!value) return 0;
+
+  const parts = value
+    .trim()
+    .split(/\s+/);
+
+  let month = 0;
+  let year = 2013;
+
+  for (const part of parts) {
+    const clean = part
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+    const monthKey = clean.slice(0, 3);
+
+    if (MONTHS[monthKey] !== undefined) {
+      month = MONTHS[monthKey];
+    }
+
+    const number = parseInt(clean, 10);
+
+    if (
+      Number.isFinite(number) &&
+      number > 1990 &&
+      number < 2100
+    ) {
+      year = number;
+    }
+  }
+
+  return year * 12 + month;
+}
+
+function letterOf(value: string) {
+  const letter = value
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+
+  return /^[A-Z]$/.test(letter)
+    ? letter
+    : "#";
+}
+
+/* ===================== BUILD TOURNAMENTS ===================== */
+
+function buildTours(
+  data: TournamentRecord[]
+): Tour[] {
+  const map = new Map<
+    string,
+    Tour & {
+      allPlayers: Set<string>;
+    }
+  >();
+
+  data.forEach((record) => {
+    const name =
+      record.tournament?.trim() ||
+      "Tournament";
+
+    const key = nameKey(name);
+
+    if (!map.has(key)) {
+      map.set(key, {
+        id: map.size,
+        name,
+        time: record.time || "",
+        dateVal: 0,
+        champTeam: "",
+        champPlayers: [],
+        ruTeam: "",
+        ruPlayers: [],
+        scorers: [],
+        wickets: [],
+        mots: [],
+        cpots: [],
+        playerCount: 0,
+        search: "",
+        allPlayers: new Set(),
+      });
+    }
+
+    const tour = map.get(key)!;
+
+    if (!tour.time && record.time) {
+      tour.time = record.time;
+    }
+
+    if (record.playerName) {
+      tour.allPlayers.add(
+        record.playerName.trim()
+      );
+    }
+
+    const result = (
+      record.chamRu || ""
+    ).toUpperCase();
+
+    if (
+      result.includes("CHAM") ||
+      result.includes("WIN")
+    ) {
+      if (record.team) {
+        tour.champTeam = record.team;
+      }
+
+      pushUnique(
+        tour.champPlayers,
+        record.playerName
+      );
+    } else if (
+      result.includes("RU") ||
+      result.includes("RUNNER")
+    ) {
+      if (record.team) {
+        tour.ruTeam = record.team;
+      }
+
+      pushUnique(
+        tour.ruPlayers,
+        record.playerName
+      );
+    }
+
+    if (num(record.topScorer) === 1) {
+      pushUnique(
+        tour.scorers,
+        record.playerName
+      );
+    }
+
+    if (num(record.topWicket) === 1) {
+      pushUnique(
+        tour.wickets,
+        record.playerName
+      );
+    }
+
+    const award = (
+      record.motCpot || ""
+    ).toUpperCase();
+
+    if (award.includes("CPOT")) {
+      pushUnique(
+        tour.cpots,
+        record.playerName
+      );
+    } else if (award.includes("MOT")) {
+      pushUnique(
+        tour.mots,
+        record.playerName
+      );
+    }
+  });
+
+  return Array.from(map.values()).map(
+    (tour) => {
+      const {
+        allPlayers,
+        ...rest
+      } = tour;
+
+      return {
+        ...rest,
+
+        dateVal: parseTourDate(
+          rest.time
+        ),
+
+        playerCount:
+          allPlayers.size,
+
+        search: [
+          rest.name,
+          rest.time,
+          rest.champTeam,
+          rest.ruTeam,
+          ...allPlayers,
+          ...rest.champPlayers,
+          ...rest.ruPlayers,
+          ...rest.scorers,
+          ...rest.wickets,
+          ...rest.mots,
+          ...rest.cpots,
+        ]
+          .join(" ")
+          .toLowerCase(),
+      };
+    }
+  );
+}
+
+/* ===================== TOURNAMENT HOOK ===================== */
+
+const SORT_OPTIONS = [
+  {
+    id: "old",
+    label: "পুরনো থেকে নতুন (2013+)",
+  },
+  {
+    id: "new",
+    label: "সর্বশেষ থেকে পুরনো",
+  },
+  {
+    id: "az",
+    label: "Name A → Z",
+  },
+  {
+    id: "za",
+    label: "Name Z → A",
+  },
+  {
+    id: "players",
+    label: "Most Players",
+  },
+];
+
+function useTourState(
+  data: TournamentRecord[],
+  query: string
+) {
+  const tours = useMemo(
+    () => buildTours(data),
+    [data]
   );
 
+  const [sort, setSort] = useState("old");
+
+  const [letter, setLetter] =
+    useState("All");
+
+  const letters = useMemo(() => {
+    return Array.from(
+      new Set(
+        tours.map((tour) =>
+          letterOf(tour.name)
+        )
+      )
+    ).sort((a, b) =>
+      a === "#"
+        ? 1
+        : b === "#"
+        ? -1
+        : a.localeCompare(b)
+    );
+  }, [tours]);
+
   const list = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const l = tours.filter((t) => (letter === "All" || letterOf(t.name) === letter) && (!q || t.search.includes(q)));
+    const q = query
+      .trim()
+      .toLowerCase();
+
+    const filtered = tours.filter(
+      (tour) =>
+        (letter === "All" ||
+          letterOf(tour.name) ===
+            letter) &&
+        (!q || tour.search.includes(q))
+    );
+
     switch (sort) {
-      case "az": l.sort((a, b) => a.name.localeCompare(b.name)); break;
-      case "za": l.sort((a, b) => b.name.localeCompare(a.name)); break;
-      case "new": l.sort((a, b) => b.dateVal - a.dateVal || b.id - a.id); break;
-      case "old": l.sort((a, b) => a.dateVal - b.dateVal || a.id - b.id); break;
-      case "players": l.sort((a, b) => b.playerCount - a.playerCount || a.name.localeCompare(b.name)); break;
-      default: l.sort((a, b) => a.dateVal - b.dateVal || a.id - b.id);
+      case "new":
+        filtered.sort(
+          (a, b) =>
+            b.dateVal - a.dateVal ||
+            b.id - a.id
+        );
+        break;
+
+      case "az":
+        filtered.sort((a, b) =>
+          a.name.localeCompare(b.name)
+        );
+        break;
+
+      case "za":
+        filtered.sort((a, b) =>
+          b.name.localeCompare(a.name)
+        );
+        break;
+
+      case "players":
+        filtered.sort(
+          (a, b) =>
+            b.playerCount -
+              a.playerCount ||
+            a.name.localeCompare(b.name)
+        );
+        break;
+
+      default:
+        filtered.sort(
+          (a, b) =>
+            a.dateVal - b.dateVal ||
+            a.id - b.id
+        );
     }
-    return l;
-  }, [tours, query, sort, letter]);
+
+    return filtered;
+  }, [tours, query, letter, sort]);
+
+  const grouped = useMemo(() => {
+    const groups = new Map<
+      string,
+      Tour[]
+    >();
+
+    [...tours]
+      .sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
+      .forEach((tour) => {
+        const key = letterOf(
+          tour.name
+        );
+
+        if (!groups.has(key)) {
+          groups.set(key, []);
+        }
+
+        groups.get(key)!.push(tour);
+      });
+
+    return Array.from(
+      groups.entries()
+    ).sort(([a], [b]) =>
+      a === "#"
+        ? 1
+        : b === "#"
+        ? -1
+        : a.localeCompare(b)
+    );
+  }, [tours]);
 
   const stats = useMemo(() => {
     const names = new Set<string>();
+
     const teams = new Set<string>();
-    (data || []).forEach((r) => { if (r.playerName) names.add(r.playerName); });
-    tours.forEach((t) => t.champTeam && teams.add(t.champTeam));
-    return { tournaments: tours.length, players: names.size, champTeams: teams.size };
+
+    data.forEach((record) => {
+      if (record.playerName) {
+        names.add(
+          nameKey(record.playerName)
+        );
+      }
+    });
+
+    tours.forEach((tour) => {
+      if (tour.champTeam) {
+        teams.add(
+          nameKey(tour.champTeam)
+        );
+      }
+    });
+
+    return {
+      tournaments: tours.length,
+      players: names.size,
+      champTeams: teams.size,
+    };
   }, [data, tours]);
 
-  const grouped = useMemo(() => {
-    const g = new Map<string, Tour[]>();
-    [...tours].sort((a, b) => a.name.localeCompare(b.name)).forEach((t) => {
-      const k = letterOf(t.name);
-      const arr = g.get(k);
-      if (arr) arr.push(t);
-      else g.set(k, [t]);
-    });
-    return Array.from(g.entries()).sort(([a], [b]) => (a === "#" ? 1 : b === "#" ? -1 : a.localeCompare(b)));
-  }, [tours]);
-
-  return { tours, list, letters, grouped, stats, sort, setSort, letter, setLetter };
+  return {
+    tours,
+    list,
+    grouped,
+    letters,
+    stats,
+    sort,
+    setSort,
+    letter,
+    setLetter,
+  };
 }
 
-function SquadChips({ names, tour, players, onSelect }: { names: string[]; tour: Tour; players: Player[]; onSelect: (p: Player) => void }) {
-  const byName = useMemo(() => {
-    const m = new Map<string, Player>();
-    players.forEach((p) => m.set(nameKey(p.name), p));
-    return m;
-  }, [players]);
+/* ===================== SHARED UI ===================== */
 
-  if (!names.length) return <p className="text-xs text-slate-500">স্কোয়াডের তথ্য নেই</p>;
-  const badge = (n: string) =>
-    (tour.scorers.includes(n) ? "🏏" : "") +
-    (tour.wickets.includes(n) ? "🎯" : "") +
-    (tour.mots.includes(n) ? "⭐" : "") +
-    (tour.cpots.includes(n) ? "🏅" : "");
+function SectionHeading({
+  icon,
+  title,
+  description,
+  color = BLUE,
+}: {
+  icon: string;
+  title: string;
+  description?: string;
+  color?: string;
+}) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {names.map((n) => {
-        const p = byName.get(nameKey(n));
+    <div className="fcl-section-heading mb-5">
+      <div className="flex items-center gap-3">
+        <span
+          className="fcl-heading-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl"
+          style={{
+            color,
+            borderColor: `${color}35`,
+            background: `${color}12`,
+          }}
+        >
+          {icon}
+        </span>
+
+        <div className="min-w-0">
+          <h2 className="text-lg font-black tracking-tight sm:text-2xl">
+            {title}
+          </h2>
+
+          {description && (
+            <p className="mt-1 text-xs leading-relaxed text-[var(--fcl-muted)] sm:text-sm">
+              {description}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  text = "কিছু পাওয়া যায়নি। অন্য নাম দিয়ে চেষ্টা করুন।",
+}: {
+  text?: string;
+}) {
+  return (
+    <div className="fcl-empty rounded-3xl px-5 py-12 text-center">
+      <div className="text-4xl">
+        🔎
+      </div>
+
+      <p className="mt-4 text-sm font-bold text-[var(--fcl-text)]">
+        No Results Found
+      </p>
+
+      <p className="mt-2 text-xs text-[var(--fcl-muted)]">
+        {text}
+      </p>
+    </div>
+  );
+}
+
+function CountChips({
+  selected,
+  onChange,
+}: {
+  selected: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="fcl-chip-scroll flex gap-1.5 overflow-x-auto pb-1">
+      {COUNT_CHIPS.map((chip) => (
+        <button
+          key={chip}
+          type="button"
+          onClick={() => onChange(chip)}
+          aria-pressed={selected === chip}
+          className={`fcl-count-chip shrink-0 rounded-full px-3.5 py-2 text-[11px] font-black transition-all sm:px-4 sm:text-xs ${
+            selected === chip
+              ? "fcl-count-active"
+              : ""
+          }`}
+        >
+          {chip}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RankBadge({
+  rank,
+}: {
+  rank: number;
+}) {
+  const color =
+    rank === 1
+      ? MEDALS[0]
+      : rank === 2
+      ? MEDALS[1]
+      : rank === 3
+      ? MEDALS[2]
+      : "";
+
+  return (
+    <span
+      className="fcl-rank-badge flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black"
+      style={
+        color
+          ? {
+              background: `${color}20`,
+              borderColor: `${color}55`,
+              color,
+            }
+          : undefined
+      }
+    >
+      {rank}
+    </span>
+  );
+}
+
+/* ===================== PREMIUM PODIUM ===================== */
+
+function PremiumPodium({
+  rows,
+  unit,
+  onSelect,
+}: {
+  rows: RankedRow[];
+  unit: string;
+  onSelect: SelectPlayer;
+}) {
+  const top = rows.slice(0, 3);
+
+  const order =
+    top.length === 3
+      ? [1, 0, 2]
+      : top.map((_, index) => index);
+
+  if (!top.length) return null;
+
+  return (
+    <div className="fcl-podium-grid mb-5 grid grid-cols-3 items-end gap-2 sm:mb-7 sm:gap-4 xl:gap-5">
+      {order.map((index) => {
+        const row = top[index];
+
+        if (!row) return null;
+
+        const first = index === 0;
+
+        const color =
+          MEDALS[index];
+
         return (
           <button
-            key={n}
-            disabled={!p}
-            onClick={() => p && onSelect(p)}
-            className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-100 transition enabled:hover:border-amber-400/60 enabled:hover:bg-amber-400/10 enabled:active:scale-95"
+            key={`podium-${row.player.id ?? row.player.name}-${index}`}
+            type="button"
+            onClick={() =>
+              onSelect(row.player)
+            }
+            className={`fcl-podium group relative flex min-w-0 flex-col items-center overflow-hidden rounded-2xl px-1.5 pb-4 pt-7 text-center transition-all duration-300 hover:-translate-y-1.5 sm:rounded-3xl sm:px-4 sm:pb-7 sm:pt-9 ${
+              first
+                ? "fcl-podium-first"
+                : ""
+            }`}
+            style={{
+              borderColor: `${color}70`,
+              background: `linear-gradient(180deg, ${color}20, var(--fcl-card) 75%)`,
+            }}
           >
-            {n}
-            {badge(n) && <span className="ml-1">{badge(n)}</span>}
+            {first && (
+              <span className="fcl-crown absolute right-2 top-1 text-lg sm:right-4 sm:top-2 sm:text-2xl">
+                👑
+              </span>
+            )}
+
+            <span
+              className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-lg text-xs font-black text-[#020617] sm:left-4 sm:top-4 sm:h-8 sm:w-8"
+              style={{
+                background: color,
+              }}
+            >
+              {index + 1}
+            </span>
+
+            <div
+              className="rounded-full p-1"
+              style={{
+                border: `2px solid ${color}`,
+                boxShadow: `0 0 24px ${color}25`,
+              }}
+            >
+              <div className="fcl-podium-avatar">
+                <Avatar
+                  player={row.player}
+                  size={first ? 58 : 48}
+                />
+              </div>
+            </div>
+
+            <p className="mt-3 w-full break-words text-[11px] font-black leading-tight text-[var(--fcl-text)] sm:mt-5 sm:text-base xl:text-lg">
+              {row.player.name}
+            </p>
+
+            <p className="mt-1 w-full truncate text-[9px] text-[var(--fcl-muted)] sm:text-xs">
+              @{row.player.nickName || "Player"}
+            </p>
+
+            <div className="fcl-podium-value mt-3 w-full rounded-xl px-1 py-3 sm:mt-5 sm:rounded-2xl sm:py-4">
+              <p
+                className={`font-black leading-none tabular-nums ${
+                  first
+                    ? "text-xl sm:text-4xl xl:text-5xl"
+                    : "text-lg sm:text-3xl xl:text-4xl"
+                }`}
+                style={{
+                  color,
+                }}
+              >
+                {fmt(row.value)}
+              </p>
+
+              <p className="mt-1.5 text-[9px] font-bold uppercase text-[var(--fcl-muted)] sm:text-xs">
+                {unit}
+              </p>
+            </div>
+
+            <span className="mt-3 hidden text-[10px] font-bold text-[var(--fcl-muted)] group-hover:text-[#1877F2] sm:block">
+              View Profile ↗
+            </span>
           </button>
         );
       })}
@@ -563,1038 +1773,3237 @@ function SquadChips({ names, tour, players, onSelect }: { names: string[]; tour:
   );
 }
 
-function AwardCell({ icon, label, names, color }: { icon: string; label: string; names: string[]; color: string }) {
+/* ===================== PLAYER ROW ===================== */
+
+function PlayerRankingRow({
+  row,
+  config,
+  accent,
+  onSelect,
+}: {
+  row: RankedRow;
+  config: RankingConfig;
+  accent: string;
+  onSelect: SelectPlayer;
+}) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-black/30 px-3 py-2.5">
-      <p className="text-[10px] font-bold text-slate-500">{icon} {label}</p>
-      <p className="mt-0.5 text-[13px] font-black leading-snug" style={{ color: names.length ? color : "#475569" }}>
-        {names.length ? names.join(", ") : "—"}
-      </p>
+    <button
+      type="button"
+      onClick={() =>
+        onSelect(row.player)
+      }
+      className="fcl-ranking-row group flex w-full items-center gap-2.5 px-3 py-3 text-left transition-all sm:gap-4 sm:px-5 sm:py-3.5"
+    >
+      <RankBadge rank={row.rank} />
+
+      <Avatar
+        player={row.player}
+        size={38}
+      />
+
+      <div className="min-w-0 flex-1">
+        <p className="fcl-player-name truncate text-xs font-black sm:text-sm">
+          {row.player.name}
+        </p>
+
+        <p className="mt-1 truncate text-[10px] text-[var(--fcl-muted)] sm:text-xs">
+          {config.badge(row.player)}
+        </p>
+
+        <p className="mt-0.5 truncate text-[9px] text-[var(--fcl-muted)] sm:hidden">
+          {config.meta(row.player)}
+        </p>
+      </div>
+
+      <div className="hidden min-w-0 flex-1 text-xs text-[var(--fcl-muted)] sm:block">
+        {config.meta(row.player)}
+      </div>
+
+      <div className="shrink-0 text-right">
+        <p
+          className="text-base font-black tabular-nums sm:text-xl"
+          style={{
+            color: accent,
+          }}
+        >
+          {fmt(row.value)}
+        </p>
+
+        <p className="mt-0.5 text-[9px] font-bold uppercase text-[var(--fcl-muted)]">
+          {config.unit}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+/* ===================== STANDARD RANKINGS ===================== */
+
+function RankingView({
+  tab,
+  players,
+  teamCounts,
+  query,
+  chip,
+  setChip,
+  onSelect,
+}: {
+  tab: string;
+  players: Player[];
+  teamCounts: TeamCounts;
+  query: string;
+  chip: string;
+  setChip: (value: string) => void;
+  onSelect: SelectPlayer;
+}) {
+  const config = CONFIG[tab];
+
+  const tabInfo = TABS.find(
+    (item) => item.id === tab
+  );
+
+  const accent =
+    ACCENTS[tab] || GOLD;
+
+  const rows = useMemo(() => {
+    if (!config) return [];
+
+    const limit =
+      chip === "All"
+        ? Infinity
+        : parseInt(
+            chip.replace("Top ", ""),
+            10
+          ) || 10;
+
+    return rankPlayers(
+      players,
+      (player) =>
+        config.value(
+          player,
+          teamCounts
+        ),
+      query,
+      limit
+    );
+  }, [
+    players,
+    teamCounts,
+    query,
+    chip,
+    config,
+  ]);
+
+  const hasQuery =
+    query.trim().length > 0;
+
+  const list = hasQuery
+    ? rows
+    : rows.slice(3);
+
+  if (!config) {
+    return <EmptyState />;
+  }
+
+  return (
+    <div className="fcl-content-enter min-w-0">
+      <div className="mb-5 flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
+        <SectionHeading
+          icon={tabInfo?.icon || "🏆"}
+          title={tabInfo?.label || "Records"}
+          description={DESCRIPTIONS[tab]}
+          color={accent}
+        />
+
+        <CountChips
+          selected={chip}
+          onChange={setChip}
+        />
+      </div>
+
+      {rows.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <>
+          {!hasQuery && (
+            <PremiumPodium
+              rows={rows}
+              unit={config.unit}
+              onSelect={onSelect}
+            />
+          )}
+
+          {list.length > 0 && (
+            <div className="fcl-ranking-list overflow-hidden rounded-2xl sm:rounded-3xl">
+              <div className="fcl-list-header hidden grid-cols-[40px_46px_minmax(0,1fr)_minmax(0,1fr)_110px] gap-4 border-b px-5 py-3 text-[10px] font-black uppercase tracking-wider sm:grid">
+                <span>Rank</span>
+                <span>Photo</span>
+                <span>Player</span>
+                <span>Details</span>
+                <span className="text-right">
+                  {config.unit}
+                </span>
+              </div>
+
+              <div className="fcl-list-body">
+                {list.map((row) => (
+                  <PlayerRankingRow
+                    key={`${row.player.id ?? row.player.name}-${row.rank}`}
+                    row={row}
+                    config={config}
+                    accent={accent}
+                    onSelect={onSelect}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {hasQuery && (
+            <p className="mt-4 text-center text-xs text-[var(--fcl-muted)]">
+              Showing original all-time ranks
+              for matching players.
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-// সার্চ বক্স সরানো হয়েছে (উপরের গ্লোবাল সার্চ ব্যবহার হয়), শুধু সর্ট ও অক্ষর ফিল্টার আছে
-function TourToolbar({ s, compact }: { s: ReturnType<typeof useTourState>; compact?: boolean }) {
+/* ===================== TEAMMATES ===================== */
+
+function TeammatesView({
+  players,
+  teamCounts,
+  query,
+  onSelect,
+}: {
+  players: Player[];
+  teamCounts: TeamCounts;
+  query: string;
+  onSelect: SelectPlayer;
+}) {
+  const [chip, setChip] =
+    useState("Top 10");
+
   return (
-    <div className="space-y-2.5">
-      <div className="flex gap-2">
-        <select
-          value={s.sort}
-          onChange={(e) => s.setSort(e.target.value)}
-          aria-label="Sort"
-          className={`rounded-xl border border-[#1e293b] bg-[#0b1220] px-2.5 py-2.5 text-xs font-bold text-amber-400 outline-none focus:border-amber-500 ${compact ? "w-full" : "w-full"}`}
-        >
-          {SORTS.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-        </select>
-      </div>
-      <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {["All", ...s.letters].map((l) => (
+    <RankingView
+      tab="teammates_record"
+      players={players}
+      teamCounts={teamCounts}
+      query={query}
+      chip={chip}
+      setChip={setChip}
+      onSelect={onSelect}
+    />
+  );
+}
+
+/* ===================== RECORD HOLDERS ===================== */
+
+function RecordHoldersView({
+  players,
+  teamCounts,
+  query,
+  onSelect,
+}: {
+  players: Player[];
+  teamCounts: TeamCounts;
+  query: string;
+  onSelect: SelectPlayer;
+}) {
+  const holders = useMemo(
+    () =>
+      buildHolders(
+        players,
+        teamCounts
+      ),
+    [players, teamCounts]
+  );
+
+  const filtered = useMemo(() => {
+    const q = query
+      .trim()
+      .toLowerCase();
+
+    if (!q) return holders;
+
+    return holders.filter(
+      (holder) =>
+        matchPlayer(
+          holder.player,
+          q
+        ) ||
+        holder.label
+          .toLowerCase()
+          .includes(q)
+    );
+  }, [holders, query]);
+
+  return (
+    <div className="fcl-content-enter">
+      <SectionHeading
+        icon="🌟"
+        title="Hall of Fame"
+        description={DESCRIPTIONS.records}
+        color={GOLD}
+      />
+
+      {filtered.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {filtered.map(
+            (holder, index) => {
+              const color =
+                ACCENTS[holder.id] ||
+                GOLD;
+
+              return (
+                <button
+                  key={holder.id}
+                  type="button"
+                  onClick={() =>
+                    onSelect(
+                      holder.player
+                    )
+                  }
+                  className={`fcl-holder-card group relative overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 hover:-translate-y-1 sm:rounded-3xl sm:p-5 ${
+                    index < 3
+                      ? "fcl-holder-featured"
+                      : ""
+                  }`}
+                  style={{
+                    borderColor: `${color}35`,
+                  }}
+                >
+                  <div
+                    className="pointer-events-none absolute -right-5 -top-7 text-8xl opacity-[0.07]"
+                    aria-hidden="true"
+                  >
+                    {holder.icon}
+                  </div>
+
+                  <div className="relative z-10">
+                    <p
+                      className="text-xs font-black sm:text-sm"
+                      style={{
+                        color,
+                      }}
+                    >
+                      {holder.icon}{" "}
+                      {holder.label}
+                    </p>
+
+                    <div className="mt-4 flex items-end justify-between gap-3">
+                      <p
+                        className="text-3xl font-black tabular-nums sm:text-4xl"
+                        style={{
+                          color,
+                        }}
+                      >
+                        {fmt(
+                          holder.value
+                        )}
+                      </p>
+
+                      <span className="text-[10px] font-semibold text-[var(--fcl-muted)]">
+                        {holder.unit}
+                      </span>
+                    </div>
+
+                    <div className="fcl-holder-divider mt-4 flex items-center gap-3 border-t pt-4">
+                      <Avatar
+                        player={
+                          holder.player
+                        }
+                        size={40}
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-black text-[var(--fcl-text)]">
+                          {
+                            holder.player
+                              .name
+                          }
+                        </p>
+
+                        <p className="mt-0.5 truncate text-[10px] text-[var(--fcl-muted)]">
+                          @
+                          {holder.player
+                            .nickName ||
+                            "Player"}
+                        </p>
+                      </div>
+
+                      <span className="text-[#1877F2]">
+                        ↗
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            }
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===================== ELITE CLUBS ===================== */
+
+function EliteClubsView({
+  players,
+  query,
+  onSelect,
+}: {
+  players: Player[];
+  query: string;
+  onSelect: SelectPlayer;
+}) {
+  const [chip, setChip] =
+    useState("All");
+
+  const visibleTiers = useMemo(() => {
+    return TIERS.filter(
+      (tier) =>
+        chip === "All" ||
+        tier.key === chip
+    ).map((tier) => ({
+      ...tier,
+
+      players: players
+        .filter(tier.test)
+        .filter((player) =>
+          matchPlayer(
+            player,
+            query
+          )
+        )
+        .sort(
+          (a, b) =>
+            calculateFclPoints(b) -
+            calculateFclPoints(a)
+        ),
+    }));
+  }, [players, query, chip]);
+
+  const available = query.trim()
+    ? visibleTiers.filter(
+        (tier) =>
+          tier.players.length > 0
+      )
+    : visibleTiers;
+
+  return (
+    <div className="fcl-content-enter">
+      <SectionHeading
+        icon="💎"
+        title="Elite Milestone Clubs"
+        description={DESCRIPTIONS.clubs}
+        color={PURPLE}
+      />
+
+      <div className="fcl-chip-scroll mb-6 flex gap-2 overflow-x-auto pb-1">
+        {CLUB_CHIPS.map((item) => (
           <button
-            key={l}
-            onClick={() => s.setLetter(l)}
-            className={`h-7 shrink-0 rounded-lg px-2.5 text-[11px] font-black transition ${
-              s.letter === l ? "bg-amber-500 text-black" : "border border-[#1e293b] bg-[#0b1220] text-slate-300"
-            } ${l === "All" ? "px-3" : "min-w-[28px]"}`}
+            key={item}
+            type="button"
+            onClick={() =>
+              setChip(item)
+            }
+            aria-pressed={
+              chip === item
+            }
+            className={`fcl-count-chip shrink-0 rounded-full px-4 py-2 text-xs font-black ${
+              chip === item
+                ? "fcl-count-active"
+                : ""
+            }`}
           >
-            {l === "All" ? "সব" : l}
+            {item}
           </button>
         ))}
       </div>
-    </div>
-  );
-}
 
-function StatTile({ value, label, color }: { value: number; label: string; color: string }) {
-  return (
-    <div className="flex-1 px-3 py-3 text-center">
-      <p className="text-xl font-black tabular-nums md:text-3xl" style={{ color }}>{value.toLocaleString()}</p>
-      <p className="mt-0.5 text-[10px] font-semibold text-slate-400 md:text-xs">{label}</p>
-    </div>
-  );
-}
+      {available.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+          {available.map((tier) => (
+            <div
+              key={tier.key}
+              className="fcl-tier-card overflow-hidden rounded-3xl"
+              style={{
+                borderColor: `${tier.color}45`,
+              }}
+            >
+              <div
+                className="relative p-4 sm:p-5"
+                style={{
+                  background: `linear-gradient(120deg, ${tier.color}12, transparent)`,
+                }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3
+                      className="text-base font-black sm:text-lg"
+                      style={{
+                        color:
+                          tier.color,
+                      }}
+                    >
+                      {tier.icon}{" "}
+                      {tier.title}
+                    </h3>
 
-/* ── Tournament history: MOBILE ── */
-function TournamentHistoryMobile({ players, onSelect, data, query, clearQuery }: { players: Player[]; onSelect: (p: Player) => void; data: TournamentRecord[]; query: string; clearQuery: () => void }) {
-  const s = useTourState(data, query);
-  const [openId, setOpenId] = useState<number | null>(null);
-  const [seg, setSeg] = useState<"champ" | "ru">("champ");
-  const [visible, setVisible] = useState(10);
-  const [indexOpen, setIndexOpen] = useState(false);
+                    <p className="mt-1 text-xs text-[var(--fcl-muted)]">
+                      {tier.range}
+                    </p>
+                  </div>
 
-  // সার্চ করলে লিস্ট শুরু থেকে দেখাবে
-  useEffect(() => { setVisible(10); }, [query]);
-
-  const toggle = (id: number) => {
-    setSeg("champ");
-    setOpenId((cur) => (cur === id ? null : id));
-  };
-
-  const jump = (t: Tour) => {
-    clearQuery();
-    s.setLetter("All");
-    setVisible(9999);
-    setSeg("champ");
-    setOpenId(t.id);
-    setIndexOpen(false);
-    setTimeout(() => document.getElementById(`tour-${t.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 120);
-  };
-
-  const shown = s.list.slice(0, visible);
-
-  return (
-    <div className="space-y-3">
-      <div className="overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-br from-[#14120a] via-[#0b1220] to-[#070c18]">
-        <div className="flex divide-x divide-white/10">
-          <StatTile value={s.stats.tournaments} label="টুর্নামেন্ট" color="#fbbf24" />
-          <StatTile value={s.stats.players} label="প্লেয়ার" color="#34d399" />
-          <StatTile value={s.stats.champTeams} label="চ্যাম্পিয়ন টিম" color="#60a5fa" />
-        </div>
-        <button
-          onClick={() => setIndexOpen((o) => !o)}
-          className="flex w-full items-center justify-between border-t border-white/10 px-4 py-2.5 text-xs font-black text-amber-400"
-        >
-          <span>📚 সব টুর্নামেন্টের নাম (A–Z)</span>
-          <span className={`transition ${indexOpen ? "rotate-180" : ""}`}>⌄</span>
-        </button>
-        {indexOpen && (
-          <div className="max-h-64 space-y-2.5 overflow-y-auto border-t border-white/10 px-3 py-3 [scrollbar-width:thin]">
-            {s.grouped.map(([l, items]) => (
-              <div key={l} className="flex gap-2">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-500/15 text-[11px] font-black text-amber-400">{l}</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {items.map((t) => (
-                    <button key={t.id} onClick={() => jump(t)} className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-200 active:scale-95">
-                      {t.name}
-                    </button>
-                  ))}
+                  <span
+                    className="rounded-full border px-3 py-1 text-xs font-black"
+                    style={{
+                      borderColor: `${tier.color}45`,
+                      color:
+                        tier.color,
+                    }}
+                  >
+                    {
+                      tier.players
+                        .length
+                    }
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      <TourToolbar s={s} compact />
+              <div className="fcl-tier-list max-h-[440px] space-y-1 overflow-y-auto p-2 sm:p-3">
+                {tier.players.length ===
+                0 ? (
+                  <p className="py-8 text-center text-xs text-[var(--fcl-muted)]">
+                    No players in
+                    this club yet.
+                  </p>
+                ) : (
+                  tier.players.map(
+                    (player) => (
+                      <button
+                        key={
+                          player.id ??
+                          player.name
+                        }
+                        type="button"
+                        onClick={() =>
+                          onSelect(
+                            player
+                          )
+                        }
+                        className="fcl-tier-player flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-all"
+                      >
+                        <Avatar
+                          player={
+                            player
+                          }
+                          size={38}
+                        />
 
-      <p className="px-1 text-[11px] font-semibold text-slate-500">
-        {s.list.length === s.tours.length ? `মোট ${s.tours.length}টি টুর্নামেন্ট` : `${s.list.length}টি পাওয়া গেছে (মোট ${s.tours.length})`}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-black text-[var(--fcl-text)] sm:text-sm">
+                            {
+                              player.name
+                            }
+                          </p>
+
+                          <p className="mt-1 truncate text-[10px] text-[var(--fcl-muted)]">
+                            @
+                            {player.nickName ||
+                              "Player"}{" "}
+                            •{" "}
+                            {
+                              player.matches
+                            }{" "}
+                            Matches
+                          </p>
+                        </div>
+
+                        <div className="shrink-0 text-right text-xs font-black">
+                          <span className="text-[#22c55e]">
+                            {fmt(
+                              num(
+                                player.runs
+                              )
+                            )}
+                            R
+                          </span>
+
+                          <span className="mx-1 text-[var(--fcl-muted)]">
+                            /
+                          </span>
+
+                          <span className="text-[#f59e0b]">
+                            {
+                              player.wickets
+                            }
+                            W
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  )
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===================== TOURNAMENT COMPONENTS ===================== */
+
+function SquadChips({
+  names,
+  tour,
+  playersByName,
+  onSelect,
+}: {
+  names: string[];
+  tour: Tour;
+  playersByName: Map<string, Player>;
+  onSelect: SelectPlayer;
+}) {
+  if (!names.length) {
+    return (
+      <p className="text-xs text-[var(--fcl-muted)]">
+        স্কোয়াডের তথ্য নেই।
+      </p>
+    );
+  }
+
+  const hasName = (
+    list: string[],
+    name: string
+  ) =>
+    list.some(
+      (item) =>
+        nameKey(item) ===
+        nameKey(name)
+    );
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {names.map((name) => {
+        const player =
+          playersByName.get(
+            nameKey(name)
+          );
+
+        const badge = [
+          hasName(
+            tour.scorers,
+            name
+          )
+            ? "🏏"
+            : "",
+
+          hasName(
+            tour.wickets,
+            name
+          )
+            ? "🎯"
+            : "",
+
+          hasName(
+            tour.mots,
+            name
+          )
+            ? "⭐"
+            : "",
+
+          hasName(
+            tour.cpots,
+            name
+          )
+            ? "🏅"
+            : "",
+        ].join("");
+
+        return (
+          <button
+            key={name}
+            type="button"
+            disabled={!player}
+            onClick={() => {
+              if (player) {
+                onSelect(
+                  player
+                );
+              }
+            }}
+            className="fcl-squad-chip rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all enabled:hover:-translate-y-0.5 disabled:cursor-default"
+          >
+            {name}
+
+            {badge && (
+              <span className="ml-1">
+                {badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function AwardCell({
+  icon,
+  label,
+  names,
+  color,
+}: {
+  icon: string;
+  label: string;
+  names: string[];
+  color: string;
+}) {
+  return (
+    <div className="fcl-award-cell min-w-0 rounded-xl p-3">
+      <p className="text-[10px] font-bold text-[var(--fcl-muted)]">
+        {icon} {label}
       </p>
 
-      {shown.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-[#1e293b] py-10 text-center text-xs text-slate-400">
-          কিছু পাওয়া যায়নি। অন্য নাম বা অক্ষর দিয়ে চেষ্টা করুন।
-        </div>
-      )}
-
-      <div className="space-y-2.5">
-        {shown.map((t) => {
-          const open = openId === t.id;
-          const squad = seg === "champ" ? t.champPlayers : t.ruPlayers;
-          const team = seg === "champ" ? t.champTeam : t.ruTeam;
-          return (
-            <div
-              key={t.id}
-              id={`tour-${t.id}`}
-              className="scroll-mt-24 overflow-hidden rounded-2xl border bg-[#0b1220] transition-colors"
-              style={{ borderColor: open ? "#f59e0b66" : "#1e293b" }}
-            >
-              <button onClick={() => toggle(t.id)} className="flex w-full items-center gap-3 p-3 text-left">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-300 to-amber-600 text-lg font-black text-black">
-                  {letterOf(t.name) === "#" ? "🏆" : letterOf(t.name)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-black text-white">{t.name}</span>
-                  <span className="mt-0.5 block truncate text-[11px] text-slate-400">
-                    {t.time ? `📅 ${t.time}  ` : ""}👥 {t.playerCount}
-                  </span>
-                  <span className="mt-0.5 block truncate text-[11px] font-bold text-amber-400">🏆 {t.champTeam || "—"}</span>
-                </span>
-                <span className={`text-slate-400 transition ${open ? "rotate-180" : ""}`}>⌄</span>
-              </button>
-
-              {open && (
-                <div className="space-y-3 border-t border-white/[0.07] p-3">
-                  <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/40 p-1">
-                    {([
-                      ["champ", "🏆 চ্যাম্পিয়ন", GOLD, t.champPlayers.length],
-                      ["ru", "🥈 রানার্স-আপ", SILVER, t.ruPlayers.length],
-                    ] as const).map(([id, label, c, n]) => (
-                      <button
-                        key={id}
-                        onClick={() => setSeg(id)}
-                        className="rounded-lg py-2 text-[11px] font-black transition"
-                        style={seg === id ? { background: c, color: "#000" } : { color: "#94a3b8" }}
-                      >
-                        {label} ({n})
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="rounded-xl border p-3" style={{ borderColor: seg === "champ" ? "#fbbf2440" : "#cbd5e130", background: seg === "champ" ? "#fbbf2410" : "#cbd5e108" }}>
-                    <p className="mb-2 text-xs font-black" style={{ color: seg === "champ" ? GOLD : SILVER }}>
-                      {team || "টিমের নাম নেই"}
-                    </p>
-                    <SquadChips names={squad} tour={t} players={players} onSelect={onSelect} />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <AwardCell icon="🏏" label="টপ স্কোরার" names={t.scorers} color="#34d399" />
-                    <AwardCell icon="🎯" label="টপ উইকেট" names={t.wickets} color="#fbbf24" />
-                    <AwardCell icon="⭐" label="MOT" names={t.mots} color="#c084fc" />
-                    <AwardCell icon="🏅" label="CPOT" names={t.cpots} color="#38bdf8" />
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {visible < s.list.length && (
-        <button
-          onClick={() => setVisible((v) => v + 10)}
-          className="w-full rounded-2xl border border-[#1e293b] bg-[#0b1220] py-3 text-xs font-black text-amber-400 active:scale-[0.98]"
-        >
-          আরও দেখুন ({s.list.length - visible}টি বাকি)
-        </button>
-      )}
+      <p
+        className="mt-1 break-words text-xs font-black leading-relaxed sm:text-sm"
+        style={{
+          color: names.length
+            ? color
+            : "var(--fcl-muted)",
+        }}
+      >
+        {names.length
+          ? names.join(", ")
+          : "—"}
+      </p>
     </div>
   );
 }
 
-/* ── Tournament history: DESKTOP ── */
-function TournamentHistoryDesktop({ players, onSelect, data, query, clearQuery }: { players: Player[]; onSelect: (p: Player) => void; data: TournamentRecord[]; query: string; clearQuery: () => void }) {
-  const s = useTourState(data, query);
-  const [selId, setSelId] = useState<number | null>(null);
-  const selected = s.list.find((t) => t.id === selId) || s.list[0];
+function TournamentDetails({
+  tour,
+  playersByName,
+  onSelect,
+}: {
+  tour: Tour;
+  playersByName: Map<string, Player>;
+  onSelect: SelectPlayer;
+}) {
+  const [segment, setSegment] =
+    useState<
+      "champ" | "ru"
+    >("champ");
+
+  useEffect(() => {
+    setSegment("champ");
+  }, [tour.id]);
+
+  const squad =
+    segment === "champ"
+      ? tour.champPlayers
+      : tour.ruPlayers;
+
+  const team =
+    segment === "champ"
+      ? tour.champTeam
+      : tour.ruTeam;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-black">🏆 Tournament History Archive</h2>
-        <p className="mt-1 text-sm text-slate-400">বাম পাশ থেকে টুর্নামেন্ট বেছে নিন, ডান পাশে স্কোয়াড ও সেরা পারফর্মারদের তথ্য দেখুন। স্কোয়াডের নামে ক্লিক করলে প্লেয়ার কার্ড খুলবে।</p>
-      </div>
+    <div className="space-y-4">
+      <div className="fcl-tour-detail-heading border-b pb-4">
+        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#1877F2]">
+          FCL Tournament Archive
+        </p>
 
-      <div className="grid grid-cols-[auto_1fr] overflow-hidden rounded-3xl border border-amber-500/25 bg-gradient-to-br from-[#14120a] via-[#0b1220] to-[#070c18]">
-        <div className="flex divide-x divide-white/10 border-r border-white/10">
-          <div className="w-36"><StatTile value={s.stats.tournaments} label="মোট টুর্নামেন্ট" color="#fbbf24" /></div>
-          <div className="w-36"><StatTile value={s.stats.players} label="প্লেয়ার" color="#34d399" /></div>
-          <div className="w-36"><StatTile value={s.stats.champTeams} label="চ্যাম্পিয়ন টিম" color="#60a5fa" /></div>
-        </div>
-        <div className="max-h-[132px] overflow-y-auto px-5 py-3 [scrollbar-width:thin]">
-          <p className="mb-2 text-xs font-bold text-slate-500">সব টুর্নামেন্ট (A–Z)</p>
-          <div className="space-y-1.5">
-            {s.grouped.map(([l, items]) => (
-              <div key={l} className="flex items-start gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-amber-500/15 text-[10px] font-black text-amber-400">{l}</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {items.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => { clearQuery(); s.setLetter("All"); setSelId(t.id); }}
-                      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition hover:border-amber-400/60 ${selected?.id === t.id ? "border-amber-400 bg-amber-400/15 text-amber-300" : "border-white/10 text-slate-300"}`}
-                    >
-                      {t.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+        <h3 className="mt-2 break-words text-xl font-black text-[var(--fcl-text)] sm:text-3xl">
+          🏟️ {tour.name}
+        </h3>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {tour.time && (
+            <span className="fcl-detail-chip rounded-full px-3 py-1.5 text-xs font-bold">
+              📅 {tour.time}
+            </span>
+          )}
+
+          <span className="fcl-detail-chip rounded-full px-3 py-1.5 text-xs font-bold">
+            👥 {tour.playerCount} Players
+          </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-[360px_1fr] items-start gap-6">
-        <div className="space-y-3">
-          <TourToolbar s={s} />
-          <p className="px-1 text-xs font-semibold text-slate-500">{s.list.length}টি টুর্নামেন্ট</p>
-          <div className="max-h-[620px] space-y-1.5 overflow-y-auto pr-1 [scrollbar-width:thin]">
-            {s.list.length === 0 && <p className="py-10 text-center text-xs text-slate-400">কিছু পাওয়া যায়নি</p>}
-            {s.list.map((t) => {
-              const active = selected?.id === t.id;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setSelId(t.id)}
-                  className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${active ? "border-amber-500/60 bg-amber-500/10" : "border-[#1e293b] bg-[#0b1220] hover:bg-[#0f192c]"}`}
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          {
+            id: "champ" as const,
+            icon: "🏆",
+            title: "Champion",
+            team: tour.champTeam,
+            count:
+              tour.champPlayers.length,
+            color: GOLD,
+          },
+          {
+            id: "ru" as const,
+            icon: "🥈",
+            title: "Runner-Up",
+            team: tour.ruTeam,
+            count:
+              tour.ruPlayers.length,
+            color: "#94a3b8",
+          },
+        ].map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() =>
+              setSegment(
+                item.id
+              )
+            }
+            className={`fcl-tour-segment rounded-2xl p-3 text-left transition-all sm:p-4 ${
+              segment === item.id
+                ? "fcl-tour-segment-active"
+                : ""
+            }`}
+            style={{
+              borderColor:
+                segment ===
+                item.id
+                  ? item.color
+                  : undefined,
+            }}
+          >
+            <p
+              className="text-xs font-black sm:text-sm"
+              style={{
+                color: item.color,
+              }}
+            >
+              {item.icon}{" "}
+              {item.title}
+            </p>
+
+            <p className="mt-2 break-words text-xs font-black text-[var(--fcl-text)] sm:text-base">
+              {item.team || "—"}
+            </p>
+
+            <p className="mt-1 text-[10px] text-[var(--fcl-muted)]">
+              {item.count} Squad
+              Members
+            </p>
+          </button>
+        ))}
+      </div>
+
+      <div className="fcl-squad-panel rounded-2xl p-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h4 className="text-sm font-black text-[var(--fcl-text)]">
+            {segment === "champ"
+              ? "🏆 Champion Squad"
+              : "🥈 Runner-Up Squad"}
+          </h4>
+
+          <span className="text-[10px] font-bold text-[var(--fcl-muted)]">
+            {squad.length} Players
+          </span>
+        </div>
+
+        <p className="mb-3 text-xs font-bold text-[#1877F2]">
+          {team || "Team Information Unavailable"}
+        </p>
+
+        <SquadChips
+          names={squad}
+          tour={tour}
+          playersByName={
+            playersByName
+          }
+          onSelect={onSelect}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <AwardCell
+          icon="🏏"
+          label="Top Scorer"
+          names={tour.scorers}
+          color={GREEN}
+        />
+
+        <AwardCell
+          icon="🎯"
+          label="Top Wicket"
+          names={tour.wickets}
+          color={GOLD}
+        />
+
+        <AwardCell
+          icon="⭐"
+          label="MOT"
+          names={tour.mots}
+          color={PURPLE}
+        />
+
+        <AwardCell
+          icon="🏅"
+          label="CPOT"
+          names={tour.cpots}
+          color={CYAN}
+        />
+      </div>
+
+      <p className="text-[10px] leading-relaxed text-[var(--fcl-muted)]">
+        🏏 Top Scorer • 🎯 Top Wicket • ⭐ MOT •
+        🏅 CPOT
+      </p>
+    </div>
+  );
+}
+
+/* ===================== TOURNAMENT HISTORY ===================== */
+
+function TournamentHistoryView({
+  data,
+  players,
+  query,
+  clearQuery,
+  onSelect,
+}: {
+  data: TournamentRecord[];
+  players: Player[];
+  query: string;
+  clearQuery: () => void;
+  onSelect: SelectPlayer;
+}) {
+  const state = useTourState(
+    data,
+    query
+  );
+
+  const [selectedId, setSelectedId] =
+    useState<number | null>(
+      null
+    );
+
+  const [mobileOpenId, setMobileOpenId] =
+    useState<number | null>(
+      null
+    );
+
+  const [indexOpen, setIndexOpen] =
+    useState(false);
+
+  const [visible, setVisible] =
+    useState(10);
+
+  const playersByName = useMemo(() => {
+    const map = new Map<
+      string,
+      Player
+    >();
+
+    players.forEach(
+      (player) => {
+        map.set(
+          nameKey(player.name),
+          player
+        );
+      }
+    );
+
+    return map;
+  }, [players]);
+
+  useEffect(() => {
+    setVisible(10);
+  }, [
+    query,
+    state.sort,
+    state.letter,
+  ]);
+
+  const selected =
+    state.list.find(
+      (tour) =>
+        tour.id === selectedId
+    ) || state.list[0];
+
+  const grouped = state.grouped;
+
+  const jumpTo = (
+    tour: Tour
+  ) => {
+    clearQuery();
+
+    state.setLetter("All");
+
+    setSelectedId(tour.id);
+    setMobileOpenId(tour.id);
+    setVisible(Infinity);
+    setIndexOpen(false);
+
+    setTimeout(() => {
+      document
+        .getElementById(
+          `fcl-tour-${tour.id}`
+        )
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+    }, 150);
+  };
+
+  return (
+    <div className="fcl-content-enter">
+      <SectionHeading
+        icon="🏆"
+        title="Tournament History Archive"
+        description={
+          DESCRIPTIONS.tournaments_history
+        }
+        color={GOLD}
+      />
+
+      {/* TOURNAMENT SUMMARY */}
+
+      <div className="fcl-tour-summary mb-5 overflow-hidden rounded-3xl">
+        <div className="grid grid-cols-3">
+          {[
+            {
+              label: "Tournaments",
+              value:
+                state.stats
+                  .tournaments,
+              color: GOLD,
+              icon: "🏆",
+            },
+            {
+              label: "Players",
+              value:
+                state.stats.players,
+              color: GREEN,
+              icon: "👥",
+            },
+            {
+              label: "Champion Teams",
+              value:
+                state.stats
+                  .champTeams,
+              color: BLUE,
+              icon: "👑",
+            },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="fcl-tour-stat px-2 py-4 text-center sm:py-5"
+            >
+              <p className="text-lg sm:text-xl">
+                {stat.icon}
+              </p>
+
+              <p
+                className="mt-1 text-xl font-black sm:text-3xl"
+                style={{
+                  color:
+                    stat.color,
+                }}
+              >
+                {fmt(
+                  stat.value
+                )}
+              </p>
+
+              <p className="mt-1 text-[9px] font-semibold text-[var(--fcl-muted)] sm:text-xs">
+                {stat.label}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setIndexOpen(
+              (previous) =>
+                !previous
+            )
+          }
+          aria-expanded={indexOpen}
+          className="fcl-tour-index-toggle flex w-full items-center justify-between gap-3 border-t px-4 py-3 text-left text-xs font-black"
+        >
+          <span>
+            📚 All Tournaments
+            (A–Z)
+          </span>
+
+          <span
+            className={`transition-transform ${
+              indexOpen
+                ? "rotate-180"
+                : ""
+            }`}
+          >
+            ▼
+          </span>
+        </button>
+
+        {indexOpen && (
+          <div className="fcl-tour-index max-h-64 space-y-3 overflow-y-auto border-t p-3 sm:p-4">
+            {grouped.map(
+              ([letter, tours]) => (
+                <div
+                  key={letter}
+                  className="flex items-start gap-2"
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-300 to-amber-600 text-base font-black text-black">
-                    {letterOf(t.name) === "#" ? "🏆" : letterOf(t.name)}
+                  <span className="fcl-letter-badge flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-black">
+                    {letter}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-black text-white">{t.name}</span>
-                    <span className="block truncate text-[11px] text-slate-400">{t.time || "—"} • 👥 {t.playerCount}</span>
-                    <span className="block truncate text-[11px] font-bold text-amber-400">🏆 {t.champTeam || "—"}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
 
-        {selected ? (
-          <div className="sticky top-6 space-y-5 rounded-3xl border border-[#1e293b] bg-gradient-to-br from-[#0b1220] via-[#080e1a] to-[#04070b] p-7 shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-[#1e293b] pb-5">
-              <div>
-                <h3 className="text-3xl font-black text-amber-400">🏟️ {selected.name}</h3>
-                {selected.time && <p className="mt-1.5 text-sm font-bold text-sky-400">📅 {selected.time}</p>}
-              </div>
-              <span className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-sm font-black text-emerald-400">
-                👥 {selected.playerCount} Players
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              {([
-                ["🏆 Champion", selected.champTeam, selected.champPlayers, GOLD],
-                ["🥈 Runner-Up", selected.ruTeam, selected.ruPlayers, SILVER],
-              ] as const).map(([title, team, names, c]) => (
-                <div key={title} className="rounded-2xl border p-5" style={{ borderColor: `${c}40`, background: `linear-gradient(170deg, ${c}18, transparent 60%)` }}>
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <p className="text-sm font-black" style={{ color: c }}>{title}</p>
-                    <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-black" style={{ borderColor: `${c}60`, color: c }}>{names.length}</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tours.map(
+                      (tour) => (
+                        <button
+                          key={
+                            tour.id
+                          }
+                          type="button"
+                          onClick={() =>
+                            jumpTo(
+                              tour
+                            )
+                          }
+                          className="fcl-index-chip rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all"
+                        >
+                          {
+                            tour.name
+                          }
+                        </button>
+                      )
+                    )}
                   </div>
-                  <p className="mb-3 text-lg font-black text-white">{team || "—"}</p>
-                  <SquadChips names={names as string[]} tour={selected} players={players} onSelect={onSelect} />
                 </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-4 gap-3">
-              <AwardCell icon="🏏" label="টপ স্কোরার" names={selected.scorers} color="#34d399" />
-              <AwardCell icon="🎯" label="টপ উইকেট" names={selected.wickets} color="#fbbf24" />
-              <AwardCell icon="⭐" label="MOT" names={selected.mots} color="#c084fc" />
-              <AwardCell icon="🏅" label="CPOT" names={selected.cpots} color="#38bdf8" />
-            </div>
-            <p className="text-[11px] text-slate-500">স্কোয়াডে: 🏏 টপ স্কোরার • 🎯 টপ উইকেট • ⭐ MOT • 🏅 CPOT</p>
+              )
+            )}
           </div>
-        ) : (
-          <div className="rounded-3xl border border-dashed border-[#1e293b] py-24 text-center text-sm text-slate-400">কোনো টুর্নামেন্ট নির্বাচিত নেই</div>
         )}
       </div>
-    </div>
-  );
-}
 
-/* ═════════════════════════ TEAMMATES RECORD VIEW ═════════════ */
-// সার্চ বক্স সরানো হয়েছে — উপরের গ্লোবাল সার্চ (query prop) ব্যবহার হয়
-function TeammatesRecordView({ players, teamCounts, onSelect, query, compact = false }: { players: Player[]; teamCounts: TeamCounts; onSelect: (p: Player) => void; query: string; compact?: boolean }) {
-  const [chip, setChip] = useState("Top 10");
-  const q = query.trim().toLowerCase();
+      {/* SORTING */}
 
-  // ✅ আসল র‍্যাংকসহ সাজানো
-  const teammatesRanking = useMemo(() => {
-    const arr = players.map((p) => ({ player: p, teammateCount: teammateCountOf(p, teamCounts) }));
-    arr.sort((a, b) => b.teammateCount - a.teammateCount);
-    return arr.map((item, i) => ({ ...item, rank: i + 1 }));
-  }, [players, teamCounts]);
+      <div className="mb-4 space-y-3">
+        <select
+          value={state.sort}
+          onChange={(event) =>
+            state.setSort(
+              event.target.value
+            )
+          }
+          aria-label="Sort tournaments"
+          className="fcl-select w-full rounded-xl px-4 py-3 text-xs font-black outline-none sm:max-w-sm"
+        >
+          {SORT_OPTIONS.map(
+            (option) => (
+              <option
+                key={option.id}
+                value={option.id}
+              >
+                {option.label}
+              </option>
+            )
+          )}
+        </select>
 
-  const filtered = useMemo(() => {
-    const list = q ? teammatesRanking.filter(item =>
-      item.player.name.toLowerCase().includes(q) ||
-      (item.player.nickName || "").toLowerCase().includes(q)
-    ) : teammatesRanking;
-
-    const limit = chip === "All" ? Infinity : parseInt(chip.replace("Top ", "")) || 10;
-    // সার্চ থাকলে লিমিট ছাড়াই দেখাবে
-    return q ? list : list.slice(0, limit);
-  }, [teammatesRanking, q, chip]);
-
-  const podium = filtered.slice(0, 3);
-  const rest = filtered.slice(3);
-  const podiumOrder = podium.length === 3 ? [1, 0, 2] : podium.map((_, i) => i);
-  const medal = MEDAL;
-  const list = q ? filtered : rest;
-
-  return (
-    <div className="min-w-0">
-      <div className={compact ? "mb-4 flex flex-col gap-3" : "mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-end"}>
-        <div>
-          <h2 className={`${compact ? "text-lg" : "text-2xl"} font-black`}>🤝 Most Teammates</h2>
-          <p className={`mt-1 text-slate-400 ${compact ? "text-xs" : "text-sm"}`}>{DESC.teammates_record}</p>
-        </div>
-        <div className={`flex rounded-full border border-[#1e293b] bg-[#0b1220] p-1 ${compact ? "w-full justify-between gap-0.5" : "gap-1.5"}`}>
-          {COUNT_CHIPS.map((c) => (
+        <div className="fcl-chip-scroll flex gap-1.5 overflow-x-auto pb-1">
+          {[
+            "All",
+            ...state.letters,
+          ].map((letter) => (
             <button
-              key={c}
-              onClick={() => setChip(c)}
-              className={`rounded-full font-bold transition ${compact ? "flex-1 px-1 py-1.5 text-[11px]" : "px-4 py-1.5 text-xs"} ${chip === c ? "text-black" : "text-slate-400 hover:text-white"}`}
-              style={chip === c ? { background: "#38bdf8" } : undefined}
+              key={letter}
+              type="button"
+              onClick={() =>
+                state.setLetter(
+                  letter
+                )
+              }
+              className={`fcl-letter-filter shrink-0 rounded-lg px-3 py-2 text-[11px] font-black ${
+                state.letter ===
+                letter
+                  ? "fcl-letter-active"
+                  : ""
+              }`}
             >
-              {c}
+              {letter === "All"
+                ? "সব"
+                : letter}
             </button>
           ))}
         </div>
+
+        <p className="text-[11px] font-semibold text-[var(--fcl-muted)]">
+          Showing{" "}
+          {state.list.length} of{" "}
+          {state.tours.length}{" "}
+          tournaments
+        </p>
       </div>
 
-      {filtered.length === 0 && (
-        <p className="rounded-2xl border border-dashed border-[#1e293b] py-10 text-center text-xs text-slate-400">কিছু পাওয়া যায়নি</p>
-      )}
+      {state.list.length ===
+      0 ? (
+        <EmptyState />
+      ) : (
+        <>
+          {/* MOBILE TOURNAMENT ACCORDION */}
 
-      {podium.length > 0 && !q && (
-        <div className={`grid grid-cols-3 items-end ${compact ? "gap-2" : "gap-5"}`}>
-          {podiumOrder.map((i) => {
-            const r = podium[i];
-            if (!r) return null;
-            const m = medal[i];
-            const first = i === 0;
-            const pad = compact
-              ? first ? "px-1.5 pb-4 pt-8" : "px-1.5 pb-3 pt-7"
-              : first ? "px-6 pb-8 pt-9" : "px-6 pb-6 pt-7";
-            return (
-              <button
-                key={r.player.id || r.player.name}
-                onClick={() => onSelect(r.player)}
-                className={`group relative min-w-0 overflow-hidden border text-center transition duration-300 hover:-translate-y-1 ${compact ? "rounded-2xl" : "rounded-3xl"} ${pad}`}
-                style={{ borderColor: `${m}55`, background: `linear-gradient(180deg, ${m}${first ? "26" : "16"}, #0b1220 70%)` }}
-              >
-                <span
-                  className={`absolute flex items-center justify-center font-black text-black ${compact ? "left-1.5 top-1.5 h-6 w-6 rounded-lg text-xs" : "left-4 top-4 h-8 w-8 rounded-xl text-sm"}`}
-                  style={{ background: m }}
-                >
-                  {i + 1}
-                </span>
-                <div className="flex justify-center"><Avatar player={r.player} size={compact ? (first ? 52 : 42) : (first ? 76 : 62)} /></div>
-                <p className={`truncate font-black text-white ${compact ? `mt-2 px-0.5 ${first ? "text-xs" : "text-[11px]"}` : `mt-4 ${first ? "text-xl" : "text-lg"}`}`}>{r.player.name}</p>
-                <p className={`truncate font-semibold text-slate-400 ${compact ? "px-0.5 text-[10px]" : "mt-0.5 text-xs"}`}>@{r.player.nickName || "Player"}</p>
-                <p className={`font-black tabular-nums leading-none ${compact ? `mt-2 ${first ? "text-3xl" : "text-2xl"}` : `mt-4 ${first ? "text-5xl" : "text-4xl"}`}`} style={{ color: m }}>{r.teammateCount}</p>
-                <p className={`font-semibold text-slate-400 ${compact ? "mt-0.5 text-[10px]" : "mt-1.5 text-xs"}`}>Players</p>
-              </button>
-            );
-          })}
-        </div>
-      )}
+          <div className="space-y-3 lg:hidden">
+            {state.list
+              .slice(0, visible)
+              .map((tour) => {
+                const open =
+                  mobileOpenId ===
+                  tour.id;
 
-      {list.length > 0 && (
-        <div className={`overflow-hidden border border-[#1e293b] bg-[#0b1220] ${compact ? "mt-3 rounded-2xl" : "mt-6 rounded-3xl"}`}>
-          {!compact && (
-            <div className="grid grid-cols-[56px_1fr_220px_160px_110px] gap-4 border-b border-[#172033] px-5 py-3 text-xs font-bold text-slate-500">
-              <span>Rank</span><span>Player</span><span>Details</span><span>Info</span><span className="text-right">Teammates</span>
-            </div>
-          )}
-          <div className={`divide-y divide-[#172033]/70 ${compact ? "" : "max-h-[640px] overflow-y-auto [scrollbar-width:thin]"}`}>
-            {list.map((item) => {
-              const rankNum = item.rank;
-              if (compact) {
                 return (
-                  <button
-                    key={item.player.id || item.player.name}
-                    onClick={() => onSelect(item.player)}
-                    className="grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-2.5 text-left transition active:bg-white/[0.04] [content-visibility:auto] [contain-intrinsic-size:52px]"
+                  <div
+                    key={tour.id}
+                    id={`fcl-tour-${tour.id}`}
+                    className="fcl-tour-card scroll-mt-28 overflow-hidden rounded-2xl"
+                    style={{
+                      borderColor:
+                        open
+                          ? `${GOLD}80`
+                          : undefined,
+                    }}
                   >
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#16223b] text-[11px] font-black text-slate-400">{rankNum}</span>
-                    <span className="flex min-w-0 items-center gap-2.5">
-                      <Avatar player={item.player} size={32} />
-                      <span className="min-w-0">
-                        <span className="block truncate text-xs font-bold text-white">{item.player.name}</span>
-                        <span className="block truncate text-[10px] text-slate-500">@{item.player.nickName || "Player"} • {item.player.matches} Matches</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMobileOpenId(
+                          open
+                            ? null
+                            : tour.id
+                        )
+                      }
+                      aria-expanded={
+                        open
+                      }
+                      className="flex w-full items-center gap-3 p-3 text-left"
+                    >
+                      <span className="fcl-tour-letter flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-black">
+                        {letterOf(
+                          tour.name
+                        ) === "#"
+                          ? "🏆"
+                          : letterOf(
+                              tour.name
+                            )}
                       </span>
-                    </span>
-                    <span className="text-right text-base font-black tabular-nums text-sky-400">{item.teammateCount}</span>
-                  </button>
+
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-black text-[var(--fcl-text)]">
+                          {
+                            tour.name
+                          }
+                        </span>
+
+                        <span className="mt-1 block truncate text-[11px] text-[var(--fcl-muted)]">
+                          📅{" "}
+                          {tour.time ||
+                            "—"}{" "}
+                          • 👥{" "}
+                          {
+                            tour.playerCount
+                          }
+                        </span>
+
+                        <span className="mt-1 block truncate text-[11px] font-black text-[#f59e0b]">
+                          🏆{" "}
+                          {tour.champTeam ||
+                            "—"}
+                        </span>
+                      </span>
+
+                      <span
+                        className={`text-[var(--fcl-muted)] transition-transform ${
+                          open
+                            ? "rotate-180"
+                            : ""
+                        }`}
+                      >
+                        ▼
+                      </span>
+                    </button>
+
+                    {open && (
+                      <div className="fcl-tour-expanded border-t p-3">
+                        <TournamentDetails
+                          tour={tour}
+                          playersByName={
+                            playersByName
+                          }
+                          onSelect={
+                            onSelect
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
                 );
-              }
-              return (
-                <button
-                  key={item.player.id || item.player.name}
-                  onClick={() => onSelect(item.player)}
-                  className="group grid w-full grid-cols-[56px_1fr_220px_160px_110px] items-center gap-4 px-5 py-3 text-left transition hover:bg-white/[0.04] [content-visibility:auto] [contain-intrinsic-size:56px]"
-                >
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#16223b] text-xs font-black text-slate-400">{rankNum}</span>
-                  <span className="flex min-w-0 items-center gap-3">
-                    <Avatar player={item.player} size={34} />
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-bold text-white">{item.player.name}</span>
-                      <span className="block truncate text-[11px] text-slate-500">@{item.player.nickName || "Player"}</span>
-                    </span>
-                  </span>
-                  <span className="truncate text-xs text-slate-300">{item.player.matches} Matches</span>
-                  <span className="truncate text-xs text-slate-500">{item.player.role || "All-Rounder"}</span>
-                  <span className="text-right text-lg font-black tabular-nums text-sky-400">{item.teammateCount}</span>
-                </button>
-              );
-            })}
+              })}
+
+            {visible <
+              state.list.length && (
+              <button
+                type="button"
+                onClick={() =>
+                  setVisible(
+                    (previous) =>
+                      previous + 10
+                  )
+                }
+                className="fcl-load-more w-full rounded-2xl px-5 py-3.5 text-xs font-black"
+              >
+                আরও ১০টি দেখুন (
+                {state.list.length -
+                  visible}{" "}
+                বাকি) ↓
+              </button>
+            )}
           </div>
-        </div>
+
+          {/* DESKTOP TOURNAMENT LAYOUT */}
+
+          <div className="hidden grid-cols-[310px_minmax(0,1fr)] items-start gap-5 lg:grid xl:grid-cols-[350px_minmax(0,1fr)]">
+            <div className="fcl-tour-sidebar max-h-[650px] space-y-2 overflow-y-auto rounded-3xl p-3">
+              {state.list.map(
+                (tour) => {
+                  const active =
+                    selected?.id ===
+                    tour.id;
+
+                  return (
+                    <button
+                      key={tour.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedId(
+                          tour.id
+                        )
+                      }
+                      className={`fcl-tour-list-item flex w-full items-center gap-3 rounded-2xl p-3 text-left transition-all ${
+                        active
+                          ? "fcl-tour-list-active"
+                          : ""
+                      }`}
+                    >
+                      <span className="fcl-tour-letter flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-black">
+                        {letterOf(
+                          tour.name
+                        ) === "#"
+                          ? "🏆"
+                          : letterOf(
+                              tour.name
+                            )}
+                      </span>
+
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-black text-[var(--fcl-text)]">
+                          {
+                            tour.name
+                          }
+                        </span>
+
+                        <span className="mt-1 block truncate text-[11px] text-[var(--fcl-muted)]">
+                          {tour.time ||
+                            "—"}{" "}
+                          • 👥{" "}
+                          {
+                            tour.playerCount
+                          }
+                        </span>
+
+                        <span className="mt-1 block truncate text-[11px] font-bold text-[#f59e0b]">
+                          🏆{" "}
+                          {tour.champTeam ||
+                            "—"}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                }
+              )}
+            </div>
+
+            <div className="fcl-tour-desktop-detail sticky top-6 min-w-0 rounded-3xl p-5 xl:p-7">
+              {selected && (
+                <TournamentDetails
+                  tour={selected}
+                  playersByName={
+                    playersByName
+                  }
+                  onSelect={
+                    onSelect
+                  }
+                />
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
 }
 
-/* ═════════════════════════ MOBILE RECORDS ═════════════════════════ */
-function MobileRecords({ players, tournamentsData, teamCounts, loading, onSelect }: { players: Player[]; tournamentsData: TournamentRecord[]; teamCounts: TeamCounts; loading: boolean; onSelect: (p: Player) => void }) {
-  const [tab, setTab] = useState<MTabId>("tournaments_history");
-  const [chip, setChip] = useState("Top 10");
-  const [expanded, setExpanded] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [query, setQuery] = useState("");
+/* ===================== LOADING ===================== */
 
-  // ✅ ট্যাব বদলালে সার্চ আর মুছবে না — সার্চ লক থাকবে
-  const changeTab = (id: MTabId) => {
+function RecordsSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        {[0, 1, 2].map(
+          (index) => (
+            <div
+              key={index}
+              className="fcl-skeleton h-40 rounded-3xl sm:h-72"
+            />
+          )
+        )}
+      </div>
+
+      {Array.from({
+        length: 6,
+      }).map((_, index) => (
+        <div
+          key={index}
+          className="fcl-skeleton h-16 rounded-2xl"
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ===================== MAIN PAGE ===================== */
+
+export default function RecordsPage() {
+  const isDark = useIsDark();
+
+  const [players, setPlayers] =
+    useState<Player[]>([]);
+
+  const [
+    tournamentsData,
+    setTournamentsData,
+  ] = useState<
+    TournamentRecord[]
+  >([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
+
+  const [
+    selectedPlayer,
+    setSelectedPlayer,
+  ] = useState<
+    Player | null
+  >(null);
+
+  const [tab, setTab] =
+    useState<TabId>(
+      "tournaments_history"
+    );
+
+  const [chip, setChip] =
+    useState("Top 10");
+
+  const [query, setQuery] =
+    useState("");
+
+  const [
+    mobileExpanded,
+    setMobileExpanded,
+  ] = useState(false);
+
+  const [
+    mobileSearchOpen,
+    setMobileSearchOpen,
+  ] = useState(false);
+
+  /* ===================== API ===================== */
+
+  const loadData =
+    useCallback(async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const response =
+          await fetch(
+            "/api/fcl-data",
+            {
+              cache: "no-store",
+            }
+          );
+
+        if (!response.ok) {
+          throw new Error(
+            `HTTP ${response.status}`
+          );
+        }
+
+        const data =
+          await response.json();
+
+        const loadedPlayers:
+          Player[] =
+          Array.isArray(data)
+            ? data
+            : Array.isArray(
+                data?.players
+              )
+            ? data.players
+            : [];
+
+        const loadedTours:
+          TournamentRecord[] =
+          Array.isArray(
+            data?.tournaments
+          )
+            ? data.tournaments
+            : [];
+
+        setPlayers(
+          loadedPlayers.filter(
+            (player) =>
+              player &&
+              typeof player.name ===
+                "string" &&
+              player.name.trim()
+          )
+        );
+
+        setTournamentsData(
+          loadedTours
+        );
+      } catch (err) {
+        console.error(
+          "FCL Records API Error:",
+          err
+        );
+
+        setError(
+          "Unable to load FCL Records. Please try again."
+        );
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  /* ===================== CALCULATIONS ===================== */
+
+  const teamCounts = useMemo(
+    () =>
+      buildTeammateCounts(
+        tournamentsData
+      ),
+    [tournamentsData]
+  );
+
+  const totals = useMemo(() => {
+    const tournaments =
+      new Set(
+        tournamentsData
+          .map((record) =>
+            nameKey(
+              record.tournament
+            )
+          )
+          .filter(Boolean)
+      ).size;
+
+    return {
+      players:
+        players.length,
+
+      runs: players.reduce(
+        (sum, player) =>
+          sum +
+          num(player.runs),
+        0
+      ),
+
+      wickets:
+        players.reduce(
+          (sum, player) =>
+            sum +
+            num(
+              player.wickets
+            ),
+          0
+        ),
+
+      tournaments,
+    };
+  }, [
+    players,
+    tournamentsData,
+  ]);
+
+  const tabInfo =
+    TABS.find(
+      (item) =>
+        item.id === tab
+    );
+
+  /* ===================== ACTIONS ===================== */
+
+  const changeTab = (
+    id: TabId
+  ) => {
     setTab(id);
-    setChip(id === "clubs" ? "All" : "Top 10");
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+
+    setChip(
+      id === "clubs"
+        ? "All"
+        : "Top 10"
+    );
+
+    if (
+      typeof window !==
+      "undefined"
+    ) {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
   };
 
-  const chips = tab === "records" ? [] : tab === "clubs" ? CLUB_CHIPS : COUNT_CHIPS;
-  const tabInfo = MOBILE_TABS.find((t) => t.id === tab);
-  const q = query.trim().toLowerCase();
+  const onSelect =
+    useCallback(
+      (player: Player) => {
+        setSelectedPlayer(
+          player
+        );
+      },
+      []
+    );
 
-  // ⚡ শুধু Record Holders ট্যাবে গেলেই হিসাব হবে
-  const holders = useMemo(
-    () => (tab === "records" ? buildHolders(players, teamCounts) : []),
-    [tab, players, teamCounts]
-  );
-  const holdersF = useMemo(() => filterHolders(holders, query), [holders, query]);
+  /* ===================== CONTENT ===================== */
 
-  const rows = useMemo(() => {
-    if (tab === "tournaments_history" || tab === "teammates_record" || tab === "records" || tab === "clubs") return [];
-    const c = MOBILE_CFG[tab];
-    if (!c) return [];
-    const limit = chip === "All" ? Infinity : parseInt(chip.replace("Top ", "")) || 10;
-    return rankPlayers(players, (p) => c.v(p, teamCounts), q, limit).map(({ player: p, value, rank }, i) => ({
-      key: (p.id ?? p.name) + "-" + i,
-      player: p,
-      badge: c.badge(p),
-      meta: c.meta(p),
-      value,
-      rank,
-      unit: c.unit,
-    }));
-  }, [players, teamCounts, tab, chip, q]);
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <RecordsSkeleton />
+      );
+    }
 
-  const listRows = q ? rows : rows.slice(3);
+    if (error) {
+      return (
+        <div className="fcl-empty rounded-3xl px-5 py-14 text-center">
+          <p className="text-4xl">
+            ⚠️
+          </p>
+
+          <p className="mt-4 text-sm font-black text-[var(--fcl-text)]">
+            Records Unavailable
+          </p>
+
+          <p className="mt-2 text-xs text-[var(--fcl-muted)]">
+            {error}
+          </p>
+
+          <button
+            type="button"
+            onClick={() =>
+              void loadData()
+            }
+            className="mt-5 rounded-xl bg-[#1877F2] px-6 py-3 text-xs font-black text-white"
+          >
+            ↻ Try Again
+          </button>
+        </div>
+      );
+    }
+
+    if (
+      tab ===
+      "tournaments_history"
+    ) {
+      return (
+        <TournamentHistoryView
+          data={
+            tournamentsData
+          }
+          players={
+            players
+          }
+          query={query}
+          clearQuery={() =>
+            setQuery("")
+          }
+          onSelect={
+            onSelect
+          }
+        />
+      );
+    }
+
+    if (
+      tab ===
+      "teammates_record"
+    ) {
+      return (
+        <TeammatesView
+          players={
+            players
+          }
+          teamCounts={
+            teamCounts
+          }
+          query={query}
+          onSelect={
+            onSelect
+          }
+        />
+      );
+    }
+
+    if (tab === "records") {
+      return (
+        <RecordHoldersView
+          players={
+            players
+          }
+          teamCounts={
+            teamCounts
+          }
+          query={query}
+          onSelect={
+            onSelect
+          }
+        />
+      );
+    }
+
+    if (tab === "clubs") {
+      return (
+        <EliteClubsView
+          players={
+            players
+          }
+          query={query}
+          onSelect={
+            onSelect
+          }
+        />
+      );
+    }
+
+    return (
+      <RankingView
+        tab={tab}
+        players={players}
+        teamCounts={
+          teamCounts
+        }
+        query={query}
+        chip={chip}
+        setChip={
+          setChip
+        }
+        onSelect={
+          onSelect
+        }
+      />
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-[#020617] pb-28 text-white selection:bg-amber-500/30 selection:text-white">
-      <header className="sticky top-0 z-30 bg-[#020617]/95 px-4 pb-2 pt-4 backdrop-blur border-b border-[#1e293b]/50">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex h-9 w-9 items-center justify-center rounded-full text-2xl text-slate-300">‹</Link>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-black tracking-tight truncate">FCL Record Corner</h1>
-            <p className="text-[10px] text-slate-400 truncate">{tab === "tournaments_history" ? "Tournament History" : tab === "teammates_record" ? "Teammates Leaderboard" : tabInfo?.label || "Hall of Fame"}</p>
+    <div
+      data-fcl-theme={
+        isDark
+          ? "dark"
+          : "light"
+      }
+      className="fcl-records relative min-h-screen overflow-x-hidden pb-28 selection:bg-[#1877F2]/25 lg:pb-20"
+    >
+      <style>
+        {RECORDS_STYLES}
+      </style>
+
+      {/* BACKGROUND */}
+
+      <div className="fcl-page-background pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="fcl-grid absolute inset-0" />
+
+        <div className="fcl-orb fcl-orb-blue absolute -top-32 left-1/2 h-[450px] w-[650px] -translate-x-1/2 rounded-full" />
+
+        <div className="fcl-orb fcl-orb-gold absolute -right-40 top-[550px] h-[350px] w-[350px] rounded-full" />
+
+        <div className="fcl-orb fcl-orb-purple absolute -left-40 top-[1100px] h-[350px] w-[350px] rounded-full" />
+      </div>
+
+      {/* MOBILE HEADER */}
+
+      <header className="fcl-mobile-header sticky top-0 z-40 border-b px-3 py-3 backdrop-blur-xl lg:hidden">
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/"
+            aria-label="Home"
+            className="fcl-back-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl"
+          >
+            ‹
+          </Link>
+
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-base font-black tracking-tight text-[var(--fcl-text)]">
+              FCL Record Corner
+            </h1>
+
+            <p className="mt-0.5 truncate text-[10px] text-[var(--fcl-muted)]">
+              {tabInfo?.icon}{" "}
+              {tabInfo?.label ||
+                "Hall of Fame"}
+            </p>
           </div>
-          <Link href="/rankings" className="rounded-full bg-amber-500 px-3 py-1.5 text-xs font-black text-black">Rankings</Link>
+
+          <Link
+            href="/rankings"
+            className="fcl-rankings-link shrink-0 rounded-xl px-3 py-2 text-[11px] font-black"
+          >
+            Rankings ↗
+          </Link>
+
           <button
-            onClick={() => { setShowSearch((s) => !s); if (showSearch) setQuery(""); }}
-            aria-label="Search"
-            className={`flex h-9 w-9 items-center justify-center rounded-full border bg-[#0b1220] ${showSearch ? "border-amber-500" : "border-[#1e293b]"}`}
+            type="button"
+            onClick={() =>
+              setMobileSearchOpen(
+                (previous) =>
+                  !previous
+              )
+            }
+            aria-label="Toggle search"
+            aria-expanded={
+              mobileSearchOpen
+            }
+            className="fcl-search-toggle flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
           >
             🔍
           </button>
         </div>
-        {showSearch && (
+
+        {mobileSearchOpen && (
           <div className="relative mt-3">
             <input
               autoFocus
+              type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={SEARCH_PLACEHOLDER}
-              className="w-full rounded-xl border border-[#1e293b] bg-[#0b1220] py-2.5 pl-4 pr-9 text-xs text-white outline-none placeholder:text-slate-500 focus:border-amber-500"
+              onChange={(
+                event
+              ) =>
+                setQuery(
+                  event.target.value
+                )
+              }
+              placeholder="প্লেয়ার, টিম বা টুর্নামেন্ট..."
+              className="fcl-search-input w-full rounded-xl py-3 pl-4 pr-10 text-xs outline-none"
             />
+
             {query && (
-              <button onClick={() => setQuery("")} aria-label="Clear" className="absolute right-2 top-1/2 -translate-y-1/2 px-1 text-slate-400">✕</button>
+              <button
+                type="button"
+                onClick={() =>
+                  setQuery("")
+                }
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--fcl-muted)]"
+              >
+                ✕
+              </button>
             )}
           </div>
         )}
       </header>
 
-      {/* Mobile Category Grid / Selector */}
-      <div className="mx-3 mt-3 rounded-3xl bg-[#0a1324] p-3 border border-[#1e293b]">
-        <button
-          onClick={() => changeTab("tournaments_history")}
-          className={`mb-3 flex w-full items-center justify-center gap-2.5 rounded-2xl p-3 text-sm font-black transition-all duration-300 ${
-            tab === "tournaments_history"
-              ? "bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 text-black shadow-lg shadow-amber-500/40 scale-[1.02] border-2 border-amber-300"
-              : "bg-gradient-to-r from-[#172033] to-[#0f172a] text-amber-400 border border-amber-500/40 hover:border-amber-500"
-          }`}
-        >
-          <span className="text-lg">🏆</span>
-          <span className="tracking-wide uppercase">Tournament History Archive</span>
-        </button>
+      <div className="relative z-10 mx-auto max-w-[1450px] px-3 pt-5 sm:px-6 lg:px-8 lg:pt-9">
+        {/* DESKTOP HEADER */}
 
-        <div className="grid grid-cols-4 gap-2">
-          {(expanded ? MOBILE_TABS.filter(t => t.id !== "tournaments_history") : MOBILE_TABS.filter(t => t.id !== "tournaments_history").slice(0, 8)).map((t) => (
-            <button
-              key={t.id}
-              onClick={() => changeTab(t.id)}
-              className={`flex flex-col items-center justify-center gap-1 rounded-2xl p-2 text-center transition ${
-                tab === t.id ? "bg-amber-500 text-black font-black shadow-lg" : "bg-[#0f1b33] text-slate-300 font-bold text-xs"
-              }`}
-            >
-              <span className="text-xl">{t.icon}</span>
-              <span className="text-[10px] truncate w-full">{t.label}</span>
-            </button>
-          ))}
-        </div>
-        <button onClick={() => setExpanded((e) => !e)} className="mx-auto mt-3 block text-xs font-black text-sky-400">
-          {expanded ? "Show Less ⌃" : "More Categories ⌄"}
-        </button>
-      </div>
+        <header className="fcl-page-header mb-8 hidden items-end justify-between gap-6 lg:flex">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#1877F2]/25 bg-[#1877F2]/10 px-3 py-1.5">
+              <span className="text-xs">
+                🏏
+              </span>
 
-      {chips.length > 0 && tab !== "clubs" && tab !== "tournaments_history" && tab !== "teammates_record" && (
-        <div className="mx-3 mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {chips.map((c) => (
-            <button key={c} onClick={() => setChip(c)} className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition ${chip === c ? "bg-emerald-500 text-white" : "border border-[#1e293b] bg-[#0b1220] text-slate-300"}`}>
-              {c}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <main className="px-3 pt-4">
-        {loading ? (
-          <div className="py-20 text-center text-xs font-bold text-amber-400 animate-pulse">Loading FCL Records...</div>
-        ) : tab === "tournaments_history" ? (
-          <TournamentHistoryMobile data={tournamentsData} players={players} onSelect={onSelect} query={query} clearQuery={() => setQuery("")} />
-        ) : tab === "teammates_record" ? (
-          <TeammatesRecordView players={players} teamCounts={teamCounts} onSelect={onSelect} query={query} compact />
-        ) : tab === "records" ? (
-          <div className="space-y-3">
-            <h2 className="text-sm font-black text-amber-400 px-1">⭐ Hall of Fame — Top Record Holders</h2>
-            {holdersF.length === 0 && <p className="rounded-2xl border border-dashed border-[#1e293b] py-10 text-center text-xs text-slate-400">কিছু পাওয়া যায়নি</p>}
-            {holdersF.map((h, i) => (
-              <button key={h.id} onClick={() => onSelect(h.player)} className="flex w-full items-center gap-3 rounded-2xl border border-[#1e293b] bg-[#0b1220] p-3 text-left transition active:scale-[0.98]">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/20 text-xs font-black text-amber-400">{i + 1}</span>
-                <Avatar player={h.player} size={40} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-slate-400">{h.icon} {h.label}</p>
-                  <p className="text-sm font-black text-white truncate">{h.player.name}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-base font-black text-amber-400">{Number(h.value).toLocaleString()}</p>
-                  <p className="text-[10px] text-slate-500">{h.unit}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        ) : tab === "clubs" ? (
-          <div className="space-y-4">
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {CLUB_CHIPS.map((c) => (
-                <button key={c} onClick={() => setChip(c)} className={`rounded-full px-4 py-1.5 text-xs font-bold ${chip === c ? "bg-purple-500 text-black" : "border border-[#1e293b] bg-[#0b1220] text-slate-300"}`}>
-                  {c}
-                </button>
-              ))}
-            </div>
-            {TIERS.filter((t) => chip === "All" || chip === t.key).map((t) => {
-              const c = TIER_COLOR[t.key];
-              const list = players.filter(t.test).filter((p) => matchPlayer(p, q));
-              if (q && list.length === 0) return null;
-              return (
-                <div key={t.key} className="rounded-3xl border bg-[#0b1220] p-4 shadow-xl" style={{ borderColor: `${c}40` }}>
-                  <div className="flex items-start justify-between border-b border-[#1e293b] pb-2.5">
-                    <div>
-                      <h3 className="text-sm font-black" style={{ color: c }}>{t.icon} {t.title}</h3>
-                      <p className="mt-0.5 text-[11px] text-slate-400">{t.range}</p>
-                    </div>
-                    <span className="text-xs font-bold rounded-full border px-2 py-0.5" style={{ borderColor: `${c}60`, color: c }}>{list.length}</span>
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    {list.map((p, idx) => (
-                      <button key={idx} onClick={() => onSelect(p)} className="flex w-full items-center justify-between rounded-2xl bg-white/[0.03] p-2.5 text-left transition hover:bg-white/[0.06]">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Avatar player={p} size={36} />
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-black text-white">{p.name}</p>
-                            <p className="text-[10px] text-slate-400">@{p.nickName || "Player"} • {p.matches} Matches</p>
-                          </div>
-                        </div>
-                        <div className="text-right text-xs font-black shrink-0">
-                          <span className="text-[#22c55e]">{p.runs}R</span>
-                          <span className="text-slate-500 mx-1">|</span>
-                          <span className="text-[#fbbf24]">{p.wickets}W</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          /* ✅ সব ক্যাটেগরিতে Teammates এর মতো Top 3 পডিয়াম + নিচে লিস্ট */
-          <div className="space-y-3">
-            <div className="px-1">
-              <h2 className="text-lg font-black">{tabInfo?.icon} {tabInfo?.label}</h2>
-              <p className="mt-1 text-xs text-slate-400">{DESC[tab]}</p>
+              <span className="text-[10px] font-black uppercase tracking-[0.17em] text-[#1877F2]">
+                FCL OFFICIAL ARCHIVE
+              </span>
             </div>
 
-            {rows.length === 0 && (
-              <p className="rounded-2xl border border-dashed border-[#1e293b] py-10 text-center text-xs text-slate-400">কিছু পাওয়া যায়নি</p>
-            )}
+            <h1 className="text-4xl font-black tracking-tight xl:text-5xl">
+              FCL{" "}
+              <span className="fcl-gradient-text">
+                Record Corner.
+              </span>
+            </h1>
 
-            {!q && rows.length > 0 && (
-              <MobilePodium rows={rows.slice(0, 3)} onSelect={onSelect} />
-            )}
-
-            {listRows.length > 0 && (
-              <div className="overflow-hidden rounded-2xl border border-[#1e293b] bg-[#0b1220]">
-                <div className="divide-y divide-[#172033]/70">
-                  {listRows.map((r) => (
-                    <button
-                      key={r.key}
-                      onClick={() => onSelect(r.player)}
-                      className="grid w-full grid-cols-[26px_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-2.5 text-left transition active:bg-white/[0.04] [content-visibility:auto] [contain-intrinsic-size:52px]"
-                    >
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#16223b] text-[11px] font-black text-slate-400">{r.rank}</span>
-                      <span className="flex min-w-0 items-center gap-2.5">
-                        <Avatar player={r.player} size={32} />
-                        <span className="min-w-0">
-                          <span className="block truncate text-xs font-bold text-white">{r.player.name}</span>
-                          <span className="block truncate text-[10px] text-slate-500">{r.badge} • {r.meta}</span>
-                        </span>
-                      </span>
-                      <span className="text-right">
-                        <span className="block text-base font-black tabular-nums text-amber-400">{typeof r.value === "number" ? r.value.toLocaleString() : r.value}</span>
-                        <span className="block text-[9px] text-slate-500">{r.unit}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--fcl-muted)]">
+              রান, উইকেট, ট্রফি,
+              রেকর্ড এবং
+              টুর্নামেন্টের
+              সোনালী ইতিহাস
+              এক ঠিকানায়।
+            </p>
           </div>
-        )}
-      </main>
 
-      {/* Bottom nav */}
-      <nav className="fixed bottom-3 left-3 right-3 z-40 md:hidden">
-        <div className="flex items-center justify-between rounded-3xl border border-[#1e293b] bg-[#0b1220]/95 px-5 py-2 shadow-2xl backdrop-blur">
-          <Link href="/" className="flex flex-col items-center text-[10px] font-semibold text-slate-400"><span>🏠</span>Home</Link>
-          <button onClick={() => changeTab("teammates_record")} className="flex flex-col items-center rounded-2xl bg-amber-500/15 px-3 py-1 text-[10px] font-black text-amber-400"><span>🤝</span>Teammates</button>
-          <Link href="/rankings" className="flex flex-col items-center text-[10px] font-semibold text-slate-400"><span>🚀</span>Rankings</Link>
-          <button onClick={() => changeTab("clubs")} className="flex flex-col items-center text-[10px] font-semibold text-slate-400"><span>💎</span>Clubs</button>
-        </div>
-      </nav>
-    </div>
-  );
-}
-
-/* ═════════════════════════ DESKTOP RECORDS ═════════════════════════ */
-function DesktopRecords({ players, tournamentsData, teamCounts, loading, onSelect }: { players: Player[]; tournamentsData: TournamentRecord[]; teamCounts: TeamCounts; loading: boolean; onSelect: (p: Player) => void }) {
-  const [tab, setTab] = useState("tournaments_history");
-  const [chip, setChip] = useState("Top 10");
-  const [query, setQuery] = useState("");
-
-  const tabInfo = MOBILE_TABS.find((t) => t.id === tab);
-  const accent = ACCENT[tab] || "#f59e0b";
-  const q = query.trim().toLowerCase();
-
-  // ✅ ট্যাব বদলালে সার্চ আর মুছবে না — সার্চ লক থাকবে
-  const changeTab = (id: string) => {
-    setTab(id);
-    setChip(id === "clubs" ? "All" : "Top 10");
-  };
-
-  const totalTournamentsCount = useMemo(() => {
-    if (!tournamentsData || tournamentsData.length === 0) return 0;
-    return new Set(tournamentsData.map((t) => (t.tournament || "").trim().toLowerCase())).size;
-  }, [tournamentsData]);
-
-  const totals = useMemo(() => ({
-    runs: players.reduce((s, p) => s + (Number(p.runs) || 0), 0),
-    wickets: players.reduce((s, p) => s + (Number(p.wickets) || 0), 0),
-    tournaments: totalTournamentsCount,
-  }), [players, totalTournamentsCount]);
-
-  // ⚡ শুধু Record Holders ট্যাবে গেলেই হিসাব হবে
-  const holders = useMemo(
-    () => (tab === "records" ? buildHolders(players, teamCounts) : []),
-    [tab, players, teamCounts]
-  );
-  const holdersF = useMemo(() => filterHolders(holders, query), [holders, query]);
-
-  const rows = useMemo(() => {
-    if (tab === "tournaments_history" || tab === "teammates_record") return [];
-    const c = MOBILE_CFG[tab];
-    if (!c) return [];
-    const limit = chip === "All" ? Infinity : parseInt(chip.replace("Top ", "")) || 10;
-    return rankPlayers(players, (p) => c.v(p, teamCounts), q, limit).map(({ player: p, value, rank }) => ({
-      player: p,
-      badge: c.badge(p),
-      meta: c.meta(p),
-      value,
-      rank,
-      unit: c.unit,
-    }));
-  }, [players, teamCounts, tab, chip, q]);
-
-  // ✅ সার্চ থাকলে পডিয়াম বন্ধ, শুধু আসল র‍্যাংকসহ লিস্ট
-  const podium = q ? [] : rows.slice(0, 3);
-  const rest = q ? rows : rows.slice(3);
-  const podiumOrder = podium.length === 3 ? [1, 0, 2] : podium.map((_, i) => i);
-  const medal = MEDAL;
-  const featured = holdersF.slice(0, 3);
-  const others = holdersF.slice(3);
-
-  return (
-    <div className="relative min-h-screen bg-[#020617] text-white">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(ellipse_at_top,rgba(245,158,11,0.10),transparent_60%)]" />
-
-      <div className="relative mx-auto max-w-[1400px] px-8 pb-20 pt-8">
-        <div className="flex items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex h-10 w-10 items-center justify-center rounded-full border border-[#1e293b] bg-[#0b1220] text-xl text-slate-300 transition hover:border-amber-500/50 hover:text-white">‹</Link>
-            <div>
-              <h1 className="text-4xl font-black tracking-tight">FCL Record Corner</h1>
-              <p className="mt-1 text-sm text-slate-400">রান, উইকেট, ট্রফি আর টুর্নামেন্টের সোনালী ইতিহাস এক ঠিকানায়।</p>
-            </div>
-          </div>
           <div className="flex items-center gap-3">
-            {/* ✅ সব ক্যাটেগরিতে সার্চ কাজ করবে */}
             <div className="relative">
+              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2">
+                🔍
+              </span>
+
               <input
+                type="search"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={SEARCH_PLACEHOLDER}
-                className="w-80 rounded-full border border-[#1e293b] bg-[#0b1220] py-2.5 pl-5 pr-9 text-sm text-white outline-none placeholder:text-slate-500 focus:border-amber-500"
+                onChange={(
+                  event
+                ) =>
+                  setQuery(
+                    event.target.value
+                  )
+                }
+                placeholder="Search players, teams, tournaments..."
+                className="fcl-search-input w-[310px] rounded-2xl py-3.5 pl-11 pr-10 text-xs outline-none xl:w-[360px]"
               />
+
               {query && (
-                <button onClick={() => setQuery("")} aria-label="Clear" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">✕</button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setQuery("")
+                  }
+                  aria-label="Clear search"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-[var(--fcl-muted)]"
+                >
+                  ✕
+                </button>
               )}
             </div>
-            <Link href="/rankings" className="rounded-full bg-amber-500 px-6 py-2.5 text-sm font-black text-black shadow-lg shadow-amber-500/20 hover:bg-amber-400">Complete Leaderboard</Link>
-          </div>
-        </div>
 
-        <div className="mt-8 grid grid-cols-4 overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220]/70 backdrop-blur">
+            <Link
+              href="/rankings"
+              className="fcl-rankings-link shrink-0 rounded-2xl px-5 py-3.5 text-xs font-black transition-all hover:-translate-y-1"
+            >
+              🏆 Complete Leaderboard ↗
+            </Link>
+          </div>
+        </header>
+
+        {/* SUMMARY DASHBOARD */}
+
+        <section className="fcl-summary-grid mb-6 grid grid-cols-2 gap-2.5 sm:gap-4 lg:mb-9 lg:grid-cols-4">
           {[
-            { label: "Players", value: players.length, color: "#f59e0b" },
-            { label: "Career Runs", value: totals.runs, color: "#60a5fa" },
-            { label: "Career Wickets", value: totals.wickets, color: "#fb7185" },
-            { label: "Total Tournaments", value: totals.tournaments, color: "#34d399" },
-          ].map((s, i) => (
-            <div key={s.label} className={`px-8 py-5 ${i > 0 ? "border-l border-[#1e293b]" : ""}`}>
-              <p className="text-3xl font-black tabular-nums" style={{ color: s.color }}>{loading ? "—" : s.value.toLocaleString()}</p>
-              <p className="mt-1 text-xs font-semibold text-slate-400">{s.label}</p>
+            {
+              icon: "👥",
+              label: "TOTAL PLAYERS",
+              value: totals.players,
+              color: BLUE,
+            },
+            {
+              icon: "🏏",
+              label: "CAREER RUNS",
+              value: totals.runs,
+              color: GREEN,
+            },
+            {
+              icon: "🎯",
+              label: "CAREER WICKETS",
+              value: totals.wickets,
+              color: GOLD,
+            },
+            {
+              icon: "🏆",
+              label: "TOURNAMENTS",
+              value: totals.tournaments,
+              color: PURPLE,
+            },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="fcl-summary-card group relative overflow-hidden rounded-2xl p-4 transition-all duration-300 hover:-translate-y-1 sm:rounded-3xl sm:p-5"
+            >
+              <div className="relative z-10 flex items-start justify-between">
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-wider text-[var(--fcl-muted)] sm:text-xs">
+                    {stat.label}
+                  </p>
+
+                  <p
+                    className="mt-2 text-2xl font-black tabular-nums sm:mt-3 sm:text-3xl xl:text-4xl"
+                    style={{
+                      color:
+                        stat.color,
+                    }}
+                  >
+                    {loading
+                      ? "—"
+                      : fmt(
+                          stat.value
+                        )}
+                  </p>
+                </div>
+
+                <span className="fcl-stat-icon flex h-9 w-9 items-center justify-center rounded-xl text-lg sm:h-11 sm:w-11 sm:text-xl">
+                  {stat.icon}
+                </span>
+              </div>
+
+              <div
+                className="pointer-events-none absolute -bottom-10 -right-10 h-28 w-28 rounded-full opacity-10 blur-2xl transition-opacity group-hover:opacity-25"
+                style={{
+                  background:
+                    stat.color,
+                }}
+              />
             </div>
           ))}
-        </div>
+        </section>
 
-        <div className="mt-8 grid grid-cols-[270px_1fr] gap-8">
-          <aside className="self-start">
-            <nav className="sticky top-6 max-h-[calc(100vh-3rem)] space-y-5 overflow-y-auto rounded-3xl border border-[#1e293b] bg-[#0b1220]/80 p-4 [scrollbar-width:thin]">
-              <button
-                onClick={() => changeTab("tournaments_history")}
-                className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-black transition-all ${
-                  tab === "tournaments_history"
-                    ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-lg shadow-amber-500/30 border border-amber-300 scale-[1.02]"
-                    : "text-amber-400 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20"
-                }`}
-              >
-                <span className="text-xl">🏆</span>
-                <span className="tracking-wide">Tournament History</span>
-              </button>
+        {/* MOBILE CATEGORY SELECTOR */}
 
-              {GROUPS.map((g) => (
-                <div key={g.title}>
-                  <p className="px-3 pb-2 text-xs font-bold text-slate-500">{g.title}</p>
-                  <div className="space-y-0.5">
-                    {g.ids.filter(id => id !== "tournaments_history").map((id) => {
-                      const t = MOBILE_TABS.find((x) => x.id === id);
-                      if (!t) return null;
-                      const active = tab === id;
-                      const a = ACCENT[id] || "#f59e0b";
-                      return (
-                        <button key={id} onClick={() => changeTab(id)} className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${active ? "bg-white/[0.06] text-white" : "text-slate-400 hover:bg-white/[0.03] hover:text-slate-200"}`}>
-                          {active && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: a }} />}
-                          <span className="text-lg leading-none">{t.icon}</span>
-                          <span>{t.label}</span>
-                        </button>
-                      );
-                    })}
+        <section className="fcl-mobile-categories mb-6 rounded-3xl p-3 lg:hidden">
+          <button
+            type="button"
+            onClick={() =>
+              changeTab(
+                "tournaments_history"
+              )
+            }
+            className={`fcl-history-button mb-3 flex w-full items-center justify-center gap-2 rounded-2xl px-3 py-3.5 text-xs font-black uppercase tracking-wide transition-all sm:text-sm ${
+              tab ===
+              "tournaments_history"
+                ? "fcl-history-active"
+                : ""
+            }`}
+          >
+            <span className="text-lg">
+              🏆
+            </span>
+
+            Tournament History Archive
+          </button>
+
+          <div className="grid grid-cols-4 gap-2">
+            {TABS.filter(
+              (item) =>
+                item.id !==
+                "tournaments_history"
+            )
+              .slice(
+                0,
+                mobileExpanded
+                  ? undefined
+                  : 8
+              )
+              .map((item) => {
+                const active =
+                  tab === item.id;
+
+                return (
+                  <button
+                    key={
+                      item.id
+                    }
+                    type="button"
+                    onClick={() =>
+                      changeTab(
+                        item.id
+                      )
+                    }
+                    aria-pressed={
+                      active
+                    }
+                    className={`fcl-mobile-category flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl px-1 py-2.5 text-center transition-all ${
+                      active
+                        ? "fcl-mobile-category-active"
+                        : ""
+                    }`}
+                  >
+                    <span className="text-xl">
+                      {
+                        item.icon
+                      }
+                    </span>
+
+                    <span className="w-full break-words text-[9px] font-black leading-tight sm:text-[11px]">
+                      {
+                        item.label
+                      }
+                    </span>
+                  </button>
+                );
+              })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              setMobileExpanded(
+                (previous) =>
+                  !previous
+              )
+            }
+            className="mx-auto mt-3 flex items-center gap-2 px-4 py-2 text-xs font-black text-[#1877F2]"
+          >
+            {mobileExpanded
+              ? "Show Less"
+              : "More Categories"}
+
+            <span>
+              {mobileExpanded
+                ? "⌃"
+                : "⌄"}
+            </span>
+          </button>
+        </section>
+
+        {/* DESKTOP SIDEBAR + CONTENT */}
+
+        <div className="grid gap-8 lg:grid-cols-[255px_minmax(0,1fr)] xl:grid-cols-[275px_minmax(0,1fr)]">
+          <aside className="hidden self-start lg:block">
+            <nav className="fcl-sidebar sticky top-6 max-h-[calc(100vh-3rem)] space-y-5 overflow-y-auto rounded-3xl p-4">
+              <div className="px-3 pt-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#1877F2]">
+                  EXPLORE RECORDS
+                </p>
+              </div>
+
+              {GROUPS.map(
+                (group) => (
+                  <div
+                    key={
+                      group.title
+                    }
+                  >
+                    <p className="px-3 pb-2 text-[10px] font-black uppercase tracking-wider text-[var(--fcl-muted)]">
+                      {
+                        group.title
+                      }
+                    </p>
+
+                    <div className="space-y-1">
+                      {group.ids.map(
+                        (id) => {
+                          const item =
+                            TABS.find(
+                              (
+                                value
+                              ) =>
+                                value.id ===
+                                id
+                            );
+
+                          if (
+                            !item
+                          ) {
+                            return null;
+                          }
+
+                          const active =
+                            tab ===
+                            id;
+
+                          return (
+                            <button
+                              key={
+                                id
+                              }
+                              type="button"
+                              onClick={() =>
+                                changeTab(
+                                  id
+                                )
+                              }
+                              className={`fcl-sidebar-item flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-bold transition-all ${
+                                active
+                                  ? "fcl-sidebar-active"
+                                  : ""
+                              }`}
+                            >
+                              <span className="text-lg">
+                                {
+                                  item.icon
+                                }
+                              </span>
+
+                              <span className="min-w-0 flex-1">
+                                {
+                                  item.label
+                                }
+                              </span>
+                            </button>
+                          );
+                        }
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </nav>
           </aside>
 
-          <section className="min-w-0">
-            {loading ? (
-              <div className="flex h-96 items-center justify-center text-sm font-semibold text-amber-400 animate-pulse">Loading Records...</div>
-            ) : tab === "tournaments_history" ? (
-              <TournamentHistoryDesktop data={tournamentsData} players={players} onSelect={onSelect} query={query} clearQuery={() => setQuery("")} />
-            ) : tab === "teammates_record" ? (
-              <TeammatesRecordView players={players} teamCounts={teamCounts} onSelect={onSelect} query={query} />
-            ) : tab === "records" ? (
-              <div>
-                <div className="mb-5"><h2 className="text-2xl font-black">Hall of Fame</h2><p className="mt-1 text-sm text-slate-400">{DESC.records}</p></div>
-                {holdersF.length === 0 && <p className="rounded-3xl border border-dashed border-[#1e293b] py-16 text-center text-sm text-slate-400">কিছু পাওয়া যায়নি</p>}
-                <div className="grid grid-cols-3 gap-5">
-                  {featured.map((h) => {
-                    const c = ACCENT[h.id];
-                    return (
-                      <button key={h.id} onClick={() => onSelect(h.player)} className="group relative overflow-hidden rounded-3xl border p-6 text-left transition hover:-translate-y-1" style={{ borderColor: `${c}45`, background: `linear-gradient(160deg, ${c}22, #0b1220 55%, #050914)` }}>
-                        <span className="pointer-events-none absolute -right-4 -top-6 select-none text-[110px] opacity-[0.07]">{h.icon}</span>
-                        <p className="text-sm font-bold" style={{ color: c }}>{h.icon} {h.label}</p>
-                        <p className="mt-5 text-6xl font-black tabular-nums leading-none" style={{ color: c }}>{Number(h.value).toLocaleString()}</p>
-                        <p className="mt-1.5 text-xs font-semibold text-slate-400">{h.unit}</p>
-                        <div className="mt-6 flex items-center gap-3 border-t border-white/10 pt-4">
-                          <Avatar player={h.player} size={42} />
-                          <div className="min-w-0 flex-1"><p className="text-sm font-black text-white truncate">{h.player.name}</p><p className="text-xs text-slate-400 truncate">@{h.player.nickName || "Player"}</p></div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-5 grid grid-cols-3 gap-4 xl:grid-cols-4">
-                  {others.map((h) => {
-                    const c = ACCENT[h.id] || "#f59e0b";
-                    return (
-                      <button key={h.id} onClick={() => onSelect(h.player)} className="group rounded-2xl border border-[#1e293b] bg-[#0b1220] p-4 text-left transition hover:-translate-y-0.5 hover:bg-[#0f192c]">
-                        <p className="text-xs font-bold text-slate-400">{h.icon} {h.label}</p>
-                        <p className="mt-3 text-3xl font-black tabular-nums leading-none" style={{ color: c }}>{Number(h.value).toLocaleString()}</p>
-                        <div className="mt-3 flex items-center gap-2.5 border-t border-[#172033] pt-3">
-                          <Avatar player={h.player} size={30} />
-                          <p className="text-xs font-bold text-white truncate">{h.player.name}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : tab === "clubs" ? (
-              <div>
-                <div className="mb-5"><h2 className="text-2xl font-black">💎 Elite Milestone Clubs</h2><p className="mt-1 text-sm text-slate-400">{DESC.clubs}</p></div>
-                <div className="mb-6 flex gap-2">{CLUB_CHIPS.map((c) => (<button key={c} onClick={() => setChip(c)} className={`rounded-full px-5 py-2 text-sm font-bold ${chip === c ? "bg-purple-500 text-black" : "border border-[#1e293b] bg-[#0b1220] text-slate-300"}`}>{c}</button>))}</div>
-                <div className="grid grid-cols-2 gap-5">
-                  {TIERS.filter((t) => chip === "All" || chip === t.key).map((t) => {
-                    const c = TIER_COLOR[t.key];
-                    const list = players.filter(t.test).filter((p) => matchPlayer(p, q));
-                    if (q && list.length === 0) return null;
-                    return (
-                      <div key={t.key} className="overflow-hidden rounded-3xl border" style={{ borderColor: `${c}40`, background: `linear-gradient(170deg, ${c}18, #0b1220 45%)` }}>
-                        <div className="flex items-center justify-between p-5 pb-4">
-                          <div><p className="text-lg font-black" style={{ color: c }}>{t.icon} {t.title}</p><p className="mt-0.5 text-xs text-slate-400">{t.range}</p></div>
-                          <span className="rounded-full border px-3 py-1 text-sm font-black" style={{ borderColor: `${c}60`, color: c }}>{list.length}</span>
-                        </div>
-                        <div className="max-h-[360px] space-y-1 overflow-y-auto px-3 pb-3 [scrollbar-width:thin]">
-                          {list.map((p, i) => (
-                            <button key={i} onClick={() => onSelect(p)} className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-white/[0.05]">
-                              <Avatar player={p} size={36} />
-                              <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-white">{p.name}</p><p className="truncate text-[11px] text-slate-400">@{p.nickName || "Player"} • {p.matches} Matches</p></div>
-                              <div className="text-right text-xs font-black"><span className="text-emerald-400">{p.runs}R</span> | <span className="text-amber-400">{p.wickets}W</span></div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div className="mb-6 flex items-end justify-between gap-4">
-                  <div><h2 className="text-2xl font-black">{tabInfo?.icon} {tabInfo?.label}</h2><p className="mt-1 text-sm text-slate-400">{DESC[tab]}</p></div>
-                  <div className="flex gap-1.5 rounded-full border border-[#1e293b] bg-[#0b1220] p-1">
-                    {COUNT_CHIPS.map((c) => (<button key={c} onClick={() => setChip(c)} className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${chip === c ? "text-black" : "text-slate-400 hover:text-white"}`} style={chip === c ? { background: accent } : undefined}>{c}</button>))}
-                  </div>
-                </div>
+          <main className="min-w-0">
+            {query.trim() && (
+              <div className="fcl-search-notice mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3">
+                <p className="min-w-0 break-words text-xs font-semibold">
+                  🔍 Searching for:{" "}
+                  <strong>
+                    {query}
+                  </strong>
+                </p>
 
-                {rows.length === 0 && (
-                  <p className="rounded-3xl border border-dashed border-[#1e293b] py-16 text-center text-sm text-slate-400">কিছু পাওয়া যায়নি</p>
-                )}
-
-                {podium.length > 0 && (
-                  <div className="grid grid-cols-3 items-end gap-5">
-                    {podiumOrder.map((i) => {
-                      const r = podium[i];
-                      if (!r) return null;
-                      const m = medal[i];
-                      const first = i === 0;
-                      return (
-                        <button key={i} onClick={() => onSelect(r.player)} className={`group relative overflow-hidden rounded-3xl border text-center transition duration-300 hover:-translate-y-1 ${first ? "px-6 pb-8 pt-9" : "px-6 pb-6 pt-7"}`} style={{ borderColor: `${m}55`, background: `linear-gradient(180deg, ${m}${first ? "26" : "16"}, #0b1220 70%)` }}>
-                          <span className="absolute left-4 top-4 flex h-8 w-8 items-center justify-center rounded-xl text-sm font-black text-black" style={{ background: m }}>{i + 1}</span>
-                          <div className="flex justify-center"><Avatar player={r.player} size={first ? 76 : 62} /></div>
-                          <p className={`mt-4 truncate font-black text-white ${first ? "text-xl" : "text-lg"}`}>{r.player.name}</p>
-                          <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">@{r.player.nickName || "Player"}</p>
-                          <p className={`mt-4 font-black tabular-nums leading-none ${first ? "text-5xl" : "text-4xl"}`} style={{ color: m }}>{typeof r.value === "number" ? r.value.toLocaleString() : r.value}</p>
-                          <p className="mt-1.5 text-xs font-semibold text-slate-400">{r.unit}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {rest.length > 0 && (
-                  <div className="mt-6 overflow-hidden rounded-3xl border border-[#1e293b] bg-[#0b1220]">
-                    <div className="grid grid-cols-[56px_1fr_220px_160px_110px] gap-4 border-b border-[#172033] px-5 py-3 text-xs font-bold text-slate-500">
-                      <span>Rank</span><span>Player</span><span>Details</span><span>Info</span><span className="text-right">{MOBILE_CFG[tab]?.unit}</span>
-                    </div>
-                    <div className="max-h-[640px] divide-y divide-[#172033]/70 overflow-y-auto [scrollbar-width:thin]">
-                      {rest.map((r, idx) => (
-                        <button key={idx} onClick={() => onSelect(r.player)} className="group grid w-full grid-cols-[56px_1fr_220px_160px_110px] items-center gap-4 px-5 py-3 text-left transition hover:bg-white/[0.04] [content-visibility:auto] [contain-intrinsic-size:56px]">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#16223b] text-xs font-black text-slate-400">{r.rank}</span>
-                          <span className="flex min-w-0 items-center gap-3"><Avatar player={r.player} size={34} /><span className="min-w-0"><span className="block truncate text-sm font-bold text-white">{r.player.name}</span><span className="block truncate text-[11px] text-slate-500">@{r.player.nickName || "Player"}</span></span></span>
-                          <span className="truncate text-xs text-slate-300">{r.badge}</span>
-                          <span className="truncate text-xs text-slate-500">{r.meta}</span>
-                          <span className="text-right text-lg font-black tabular-nums" style={{ color: accent }}>{typeof r.value === "number" ? r.value.toLocaleString() : r.value}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setQuery("")
+                  }
+                  className="text-xs font-black text-[#1877F2]"
+                >
+                  ✕ Clear
+                </button>
               </div>
             )}
-          </section>
+
+            {renderContent()}
+          </main>
         </div>
       </div>
+
+      {/* MOBILE BOTTOM NAVIGATION */}
+
+      <nav
+        aria-label="Mobile navigation"
+        className="fcl-bottom-nav fixed bottom-3 left-3 right-3 z-40 rounded-3xl px-4 py-2.5 shadow-2xl backdrop-blur-xl lg:hidden"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <Link
+            href="/"
+            className="fcl-bottom-item flex flex-col items-center gap-1 text-[10px] font-bold"
+          >
+            <span className="text-lg">
+              🏠
+            </span>
+            Home
+          </Link>
+
+          <button
+            type="button"
+            onClick={() =>
+              changeTab(
+                "teammates_record"
+              )
+            }
+            className={`fcl-bottom-item flex flex-col items-center gap-1 rounded-2xl px-3 py-1 text-[10px] font-bold ${
+              tab ===
+              "teammates_record"
+                ? "fcl-bottom-active"
+                : ""
+            }`}
+          >
+            <span className="text-lg">
+              🤝
+            </span>
+            Teammates
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              changeTab(
+                "tournaments_history"
+              )
+            }
+            className={`fcl-bottom-item flex flex-col items-center gap-1 rounded-2xl px-3 py-1 text-[10px] font-bold ${
+              tab ===
+              "tournaments_history"
+                ? "fcl-bottom-active"
+                : ""
+            }`}
+          >
+            <span className="text-lg">
+              🏆
+            </span>
+            History
+          </button>
+
+          <Link
+            href="/rankings"
+            className="fcl-bottom-item flex flex-col items-center gap-1 text-[10px] font-bold"
+          >
+            <span className="text-lg">
+              🚀
+            </span>
+            Rankings
+          </Link>
+
+          <button
+            type="button"
+            onClick={() =>
+              changeTab(
+                "clubs"
+              )
+            }
+            className={`fcl-bottom-item flex flex-col items-center gap-1 rounded-2xl px-3 py-1 text-[10px] font-bold ${
+              tab ===
+              "clubs"
+                ? "fcl-bottom-active"
+                : ""
+            }`}
+          >
+            <span className="text-lg">
+              💎
+            </span>
+            Clubs
+          </button>
+        </div>
+      </nav>
+
+      {/* PLAYER MODAL */}
+
+      <PlayerCardModal
+        selectedPlayer={
+          selectedPlayer
+        }
+        onClose={() =>
+          setSelectedPlayer(
+            null
+          )
+        }
+        tournamentsData={
+          tournamentsData
+        }
+        allPlayers={
+          players
+        }
+      />
     </div>
   );
 }
 
-/* ═════════════════════════ PAGE ═════════════════════════ */
+/* =========================================================
+   FCL OFFICIAL PREMIUM STYLES
+========================================================= */
 
-function useIsDesktop(): boolean | null {
-  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
-    const update = () => setIsDesktop(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-  return isDesktop;
+const RECORDS_STYLES = `
+
+/* ===================== VARIABLES ===================== */
+
+.fcl-records {
+  --fcl-bg: #020617;
+  --fcl-card: #0f172a;
+  --fcl-card-secondary: #0b1220;
+  --fcl-surface: #070d19;
+
+  --fcl-text: #ffffff;
+  --fcl-secondary-text: #cbd5e1;
+  --fcl-muted: #94a3b8;
+
+  --fcl-border: #172033;
+
+  --fcl-input: #0b1220;
+  --fcl-hover: rgba(24,119,242,.09);
+
+  --fcl-header: rgba(2,6,23,.94);
+  --fcl-nav: rgba(11,18,32,.96);
+
+  color-scheme: dark;
+
+  background: var(--fcl-bg);
+  color: var(--fcl-text);
+
+  transition:
+    background .3s ease,
+    color .3s ease;
 }
 
-export default function RecordsPage() {
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [tournamentsData, setTournamentsData] = useState<TournamentRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedPlayer, setSelectedPlayer] = useState<any>(null);
-  const isDesktop = useIsDesktop();
+.fcl-records[data-fcl-theme="light"] {
+  --fcl-bg: #ffffff;
+  --fcl-card: #f8fafc;
+  --fcl-card-secondary: #f1f5f9;
+  --fcl-surface: #ffffff;
 
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/fcl-data")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!alive) return;
-        if (Array.isArray(data)) setPlayers(data);
-        else if (data.players && Array.isArray(data.players)) setPlayers(data.players);
-        if (data.tournaments && Array.isArray(data.tournaments)) setTournamentsData(data.tournaments);
-        setLoading(false);
-      })
-      .catch((err) => { console.error("Error loading records:", err); if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, []);
+  --fcl-text: #0f172a;
+  --fcl-secondary-text: #475569;
+  --fcl-muted: #64748b;
 
-  const teamCounts = useMemo(() => buildTeammateCounts(tournamentsData), [tournamentsData]);
+  --fcl-border: #e2e8f0;
 
-  const handleSelect = (p: Player) => setSelectedPlayer(p);
+  --fcl-input: #f8fafc;
+  --fcl-hover: rgba(24,119,242,.07);
 
-  return (
-    <div className="min-h-screen bg-[#020617] text-white selection:bg-amber-500/30 selection:text-white">
-      {isDesktop === null ? (
-        <div className="flex min-h-screen items-center justify-center text-xs font-bold text-amber-400 animate-pulse">Loading FCL Records...</div>
-      ) : isDesktop ? (
-        <DesktopRecords players={players} tournamentsData={tournamentsData} teamCounts={teamCounts} loading={loading} onSelect={handleSelect} />
-      ) : (
-        <MobileRecords players={players} tournamentsData={tournamentsData} teamCounts={teamCounts} loading={loading} onSelect={handleSelect} />
-      )}
-      <PlayerCardModal selectedPlayer={selectedPlayer} onClose={() => setSelectedPlayer(null)} tournamentsData={tournamentsData || []} allPlayers={players || []} />
-    </div>
-  );
+  --fcl-header: rgba(255,255,255,.95);
+  --fcl-nav: rgba(248,250,252,.96);
+
+  color-scheme: light;
 }
+
+/* ===================== ANIMATIONS ===================== */
+
+@keyframes fclRecordReveal {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fclRecordFloat {
+  0%,100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes fclRecordGlow {
+  0%,100% {
+    box-shadow:
+      0 0 22px rgba(245,158,11,.12);
+  }
+
+  50% {
+    box-shadow:
+      0 0 45px rgba(245,158,11,.28);
+  }
+}
+
+@keyframes fclRecordSkeleton {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.fcl-content-enter {
+  animation:
+    fclRecordReveal .45s ease both;
+}
+
+.fcl-summary-card {
+  animation:
+    fclRecordReveal .55s ease both;
+}
+
+.fcl-crown {
+  animation:
+    fclRecordFloat 3s ease-in-out infinite;
+}
+
+/* ===================== BACKGROUND ===================== */
+
+.fcl-page-background {
+  z-index: 0;
+}
+
+.fcl-grid {
+  opacity: .24;
+
+  background-image:
+    linear-gradient(
+      rgba(24,119,242,.08) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(24,119,242,.08) 1px,
+      transparent 1px
+    );
+
+  background-size: 48px 48px;
+
+  mask-image:
+    linear-gradient(
+      to bottom,
+      black,
+      transparent 85%
+    );
+}
+
+.fcl-records[data-fcl-theme="light"] .fcl-grid {
+  opacity: .4;
+}
+
+.fcl-orb {
+  filter: blur(110px);
+}
+
+.fcl-orb-blue {
+  background: rgba(24,119,242,.13);
+}
+
+.fcl-orb-gold {
+  background: rgba(245,158,11,.08);
+}
+
+.fcl-orb-purple {
+  background: rgba(168,85,247,.08);
+}
+
+/* ===================== HEADER ===================== */
+
+.fcl-gradient-text {
+  background:
+    linear-gradient(
+      110deg,
+      #1877F2,
+      #60a5fa,
+      #22d3ee
+    );
+
+  background-clip: text;
+  -webkit-background-clip: text;
+
+  -webkit-text-fill-color: transparent;
+}
+
+.fcl-mobile-header {
+  background: var(--fcl-header);
+
+  border-color: var(--fcl-border);
+}
+
+.fcl-back-button,
+.fcl-search-toggle {
+  color: var(--fcl-text);
+
+  background: var(--fcl-card);
+
+  border: 1px solid var(--fcl-border);
+}
+
+.fcl-search-input {
+  color: var(--fcl-text);
+
+  background: var(--fcl-input);
+
+  border: 1px solid var(--fcl-border);
+
+  transition:
+    border-color .3s,
+    box-shadow .3s;
+}
+
+.fcl-search-input::placeholder {
+  color: var(--fcl-muted);
+}
+
+.fcl-search-input:focus {
+  border-color: #1877F2;
+
+  box-shadow:
+    0 0 0 3px rgba(24,119,242,.13);
+}
+
+.fcl-rankings-link {
+  color: #ffffff;
+
+  background:
+    linear-gradient(
+      135deg,
+      #1877F2,
+      #2563eb
+    );
+
+  box-shadow:
+    0 8px 25px rgba(24,119,242,.18);
+}
+
+.fcl-rankings-link:hover {
+  box-shadow:
+    0 12px 30px rgba(24,119,242,.3);
+}
+
+/* ===================== SUMMARY ===================== */
+
+.fcl-summary-card {
+  background: var(--fcl-card);
+
+  border: 1px solid var(--fcl-border);
+
+  box-shadow:
+    0 8px 30px rgba(0,0,0,.04);
+}
+
+.fcl-summary-card:hover {
+  border-color: rgba(24,119,242,.4);
+
+  box-shadow:
+    0 15px 35px rgba(24,119,242,.09);
+}
+
+.fcl-stat-icon {
+  background: var(--fcl-card-secondary);
+
+  border: 1px solid var(--fcl-border);
+}
+
+/* ===================== MOBILE CATEGORIES ===================== */
+
+.fcl-mobile-categories {
+  background: var(--fcl-card);
+
+  border: 1px solid var(--fcl-border);
+
+  box-shadow:
+    0 10px 35px rgba(0,0,0,.05);
+}
+
+.fcl-history-button {
+  color: #f59e0b;
+
+  background: rgba(245,158,11,.09);
+
+  border: 1px solid rgba(245,158,11,.35);
+}
+
+.fcl-history-active {
+  color: #020617;
+
+  background:
+    linear-gradient(
+      120deg,
+      #f59e0b,
+      #fbbf24
+    );
+
+  border-color: #f59e0b;
+
+  box-shadow:
+    0 8px 24px rgba(245,158,11,.2);
+}
+
+.fcl-mobile-category {
+  color: var(--fcl-secondary-text);
+
+  background: var(--fcl-card-secondary);
+
+  border: 1px solid var(--fcl-border);
+}
+
+.fcl-mobile-category:hover {
+  border-color: rgba(24,119,242,.45);
+}
+
+.fcl-mobile-category-active {
+  color: #ffffff !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      #1877F2,
+      #2563eb
+    ) !important;
+
+  border-color: #1877F2;
+
+  box-shadow:
+    0 8px 22px rgba(24,119,242,.22);
+}
+
+/* ===================== SIDEBAR ===================== */
+
+.fcl-sidebar {
+  background: var(--fcl-card);
+
+  border: 1px solid var(--fcl-border);
+
+  box-shadow:
+    0 10px 35px rgba(0,0,0,.04);
+
+  scrollbar-width: thin;
+}
+
+.fcl-sidebar-item {
+  color: var(--fcl-muted);
+}
+
+.fcl-sidebar-item:hover {
+  color: var(--fcl-text);
+  background: var(--fcl-hover);
+}
+
+.fcl-sidebar-active {
+  color: #ffffff !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      #1877F2,
+      #2563eb
+    ) !important;
+
+  box-shadow:
+    0 5px 18px rgba(24,119,242,.18);
+}
+
+/* ===================== SEARCH NOTICE ===================== */
+
+.fcl-search-notice {
+  color: var(--fcl-secondary-text);
+
+  background: rgba(24,119,242,.07);
+
+  border: 1px solid rgba(24,119,242,.2);
+}
+
+/* ===================== SECTION ===================== */
+
+.fcl-section-heading h2 {
+  color: var(--fcl-text);
+}
+
+.fcl-heading-icon {
+  border: 1px solid;
+}
+
+/* ===================== CHIPS ===================== */
+
+.fcl-chip-scroll {
+  scrollbar-width: none;
+}
+
+.fcl-chip-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.fcl-count-chip {
+  color: var(--fcl-secondary-text);
+
+  background: var(--fcl-card);
+
+  border: 1px solid var(--fcl-border);
+
+  transition:
+    background .2s,
+    color .2s,
+    border-color .2s;
+}
+
+.fcl-count-chip:hover {
+  color: #1877F2;
+
+  border-color: rgba(24,119,242,.4);
+}
+
+.fcl-count-active {
+  color: #ffffff !important;
+
+  background: #1877F2 !important;
+
+  border-color: #1877F2 !important;
+
+  box-shadow:
+    0 5px 15px rgba(24,119,242,.18);
+}
+
+/* ===================== AVATAR ===================== */
+
+.fcl-avatar {
+  background: var(--fcl-card-secondary);
+
+  border: 2px solid var(--fcl-border);
+
+  transition:
+    border-color .3s,
+    transform .3s;
+}
+
+.group:hover .fcl-avatar {
+  border-color: #1877F2;
+
+  transform: scale(1.05);
+}
+
+/* ===================== PODIUM ===================== */
+
+.fcl-podium {
+  border: 2px solid;
+
+  box-shadow:
+    0 12px 35px rgba(0,0,0,.08);
+}
+
+.fcl-podium:hover {
+  box-shadow:
+    0 18px 45px rgba(24,119,242,.12);
+}
+
+.fcl-podium-first {
+  animation:
+    fclRecordGlow 4s ease-in-out infinite;
+}
+
+.fcl-podium-value {
+  background: rgba(0,0,0,.13);
+
+  border: 1px solid var(--fcl-border);
+}
+
+.fcl-records[data-fcl-theme="light"] .fcl-podium-value {
+  background: rgba(255,255,255,.65);
+}
+
+.fcl-records[data-fcl-theme="light"] .fcl-podium:nth-child(2) .fcl-podium-value p:first-child {
+  color: #b45309 !important;
+}
+
+.fcl-records[data-fcl-theme="light"] .fcl-podium:nth-child(1) .fcl-podium-value p:first-child {
+  color: #475569 !important;
+}
+
+/* ===================== RANKINGS ===================== */
+
+.fcl-ranking-list {
+  background: var(--fcl-card);
+
+  border: 1px solid var(--fcl-border);
+
+  box-shadow:
+    0 12px 35px rgba(0,0,0,.05);
+}
+
+.fcl-list-header {
+  color: var(--fcl-muted);
+
+  background: var(--fcl-card-secondary);
+
+  border-color: var(--fcl-border);
+}
+
+.fcl-ranking-row {
+  border-bottom: 1px solid var(--fcl-border);
+}
+
+.fcl-ranking-row:last-child {
+  border-bottom: none;
+}
+
+.fcl-ranking-row:hover {
+  background: var(--fcl-hover);
+}
+
+.fcl-player-name {
+  color: var(--fcl-text);
+
+  transition: color .2s;
+}
+
+.fcl-ranking-row:hover .fcl-player-name {
+  color: #1877F2;
+}
+
+.fcl-rank-badge {
+  color: var(--fcl-muted);
+
+  background: var(--fcl-card-secondary);
+
+  border: 1px solid var(--fcl-border);
+}
+
+/* ===================== RECORD HOLDERS ===================== */
+
+.fcl-holder-card {
+  background: var(--fcl-card);
+
+  border: 1px solid var(--fcl-border);
+
+  box-shadow:
+    0 8px 30px rgba(0,0,0,.04);
+}
+
+.fcl-holder-card:hover {
+  box-shadow:
+    0 15px 35px rgba(24,119,242,.1);
+}
+
+.fcl-holder-featured {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(245,158,11,.07),
+      var(--fcl-card) 65%
+    );
+}
+
+.fcl-holder-divider {
+  border-color: var(--fcl-border);
+}
+
+/* ===================== CLUBS ===================== */
+
+.fcl-tier-card {
+  background: var(--fcl-card);
+
+  border: 1px solid;
+
+  box-shadow:
+    0 10px 35px rgba(0,0,0,.04);
+}
+
+.fcl-tier-list {
+  scrollbar-width: thin;
+}
+
+.fcl-tier-player:hover {
+  background: var(--fcl-hover);
+}
+
+/* ===================== TOURNAMENT ===================== */
+
+.fcl-tour-summary {
+  background:
+    linear-gradient(
+      120deg,
+      rgba(245,158,11,.07),
+      var(--fcl-card),
+      rgba(24,119,242,.05)
+    );
+
+  border: 1px solid rgba(245,158,11,.25);
+
+  box-shadow:
+    0 10px 35px rgba(0,0,0,.04);
+}
+
+.fcl-tour-stat + .fcl-tour-stat {
+  border-left: 1px solid var(--fcl-border);
+}
+
+.fcl-tour-index-toggle {
+  color: #f59e0b;
+
+  border-color: var(--fcl-border);
+}
+
+.fcl-tour-index {
+  border-color: var(--fcl-border);
+
+  scrollbar-width: thin;
+}
+
+.fcl-letter-badge {
+  color: #f59e0b;
+
+  background: rgba(245,158,11,.12);
+}
+
+.fcl-index-chip {
+  color: var(--fcl-secondary-text);
+
+  background: var(--fcl-card-secondary);
+
+  border: 1px solid var(--fcl-border);
+}
+
+.fcl-index-chip:hover {
+  color: #1877F2;
+
+  border-color: rgba(24,119,242,.45);
+}
+
+.fcl-select {
+  color: #f59e0b;
+
+  background: var(--fcl-card);
+
+  border: 1px solid var(--fcl-border);
+}
+
+.fcl-select:focus {
+  border-color: #1877F2;
+}
+
+.fcl-letter-filter {
+  color: var(--fcl-secondary-text);
+
+  background: var(--fcl-card);
+
+  border: 1px solid var(--fcl-border);
+}
+
+.fcl-letter-active {
+  color: #ffffff;
+
+  background: #1877F2;
+
+  border-color: #1877F2;
+}
+
+.fcl-tour-card,
+.fcl-tour-sidebar,
+.fcl-tour-desktop-detail {
+  background: var(--fcl-card);
+
+  border: 1px solid var(--fcl-border);
+
+  box-shadow:
+    0 8px 30px rgba(0,0,0,.04);
+}
+
+.fcl-tour-sidebar {
+  scrollbar-width: thin;
+}
+
+.fcl-tour-letter {
+  color: #020617;
+
+  background:
+    linear-gradient(
+      135deg,
+      #fde68a,
+      #f59e0b,
+      #d97706
+    );
+}
+
+.fcl-tour-expanded,
+.fcl-tour-detail-heading {
+  border-color: var(--fcl-border);
+}
+
+.fcl-tour-list-item {
+  border: 1px solid transparent;
+}
+
+.fcl-tour-list-item:hover {
+  background: var(--fcl-hover);
+}
+
+.fcl-tour-list-active {
+  background: rgba(24,119,242,.09);
+
+  border-color: rgba(24,119,242,.4);
+}
+
+.fcl-detail-chip {
+  color: var(--fcl-secondary-text);
+
+  background: var(--fcl-card-secondary);
+
+  border: 1px solid var(--fcl-border);
+}
+
+.fcl-tour-segment {
+  background: var(--fcl-card-secondary);
+
+  border: 1px solid var(--fcl-border);
+}
+
+.fcl-tour-segment-active {
+  background: rgba(245,158,11,.06);
+
+  border-width: 2px;
+}
+
+.fcl-squad-panel {
+  background: var(--fcl-card-secondary);
+
+  border: 1px solid var(--fcl-border);
+}
+
+.fcl-squad-chip {
+  color: var(--fcl-secondary-text);
+
+  background: var(--fcl-card);
+
+  border: 1px solid var(--fcl-border);
+}
+
+.fcl-squad-chip:enabled:hover {
+  color: #1877F2;
+
+  border-color: rgba(24,119,242,.4);
+}
+
+.fcl-award-cell {
+  background: var(--fcl-card-secondary);
+
+  border: 1px solid var(--fcl-border);
+}
+
+/* ===================== LOAD MORE ===================== */
+
+.fcl-load-more {
+  color: #1877F2;
+
+  background: rgba(24,119,242,.08);
+
+  border: 1px solid rgba(24,119,242,.3);
+
+  transition:
+    background .3s,
+    color .3s;
+}
+
+.fcl-load-more:hover {
+  color: #ffffff;
+
+  background: #1877F2;
+}
+
+/* ===================== EMPTY ===================== */
+
+.fcl-empty {
+  background: var(--fcl-card);
+
+  border: 1px dashed var(--fcl-border);
+}
+
+/* ===================== SKELETON ===================== */
+
+.fcl-skeleton {
+  background:
+    linear-gradient(
+      90deg,
+      var(--fcl-card-secondary) 20%,
+      var(--fcl-border) 50%,
+      var(--fcl-card-secondary) 80%
+    );
+
+  background-size: 200% 100%;
+
+  animation:
+    fclRecordSkeleton 1.6s linear infinite;
+}
+
+/* ===================== BOTTOM NAV ===================== */
+
+.fcl-bottom-nav {
+  background: var(--fcl-nav);
+
+  border: 1px solid var(--fcl-border);
+
+  box-shadow:
+    0 12px 40px rgba(0,0,0,.2);
+}
+
+.fcl-bottom-item {
+  color: var(--fcl-muted);
+
+  transition: color .2s;
+}
+
+.fcl-bottom-item:hover {
+  color: #1877F2;
+}
+
+.fcl-bottom-active {
+  color: #1877F2;
+
+  background: rgba(24,119,242,.1);
+}
+
+/* ===================== RESPONSIVE ===================== */
+
+@media (max-width: 639px) {
+  .fcl-podium-grid {
+    gap: 7px;
+  }
+
+  .fcl-podium {
+    border-radius: 18px;
+  }
+
+  .fcl-podium-first {
+    padding-top: 34px;
+    padding-bottom: 23px;
+  }
+
+  .fcl-podium-value {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .fcl-mobile-category {
+    min-height: 68px;
+  }
+
+  .fcl-summary-card {
+    min-height: 100px;
+  }
+}
+
+@media (max-width: 370px) {
+  .fcl-podium {
+    padding-left: 3px;
+    padding-right: 3px;
+  }
+
+  .fcl-podium-value p:first-child {
+    font-size: 17px;
+  }
+
+  .fcl-mobile-category {
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .fcl-bottom-nav {
+    left: 6px;
+    right: 6px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+/* ===================== REDUCED MOTION ===================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .fcl-content-enter,
+  .fcl-summary-card,
+  .fcl-crown,
+  .fcl-podium-first,
+  .fcl-skeleton {
+    animation: none !important;
+  }
+
+  .fcl-records *,
+  .fcl-records *::before,
+  .fcl-records *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+`;

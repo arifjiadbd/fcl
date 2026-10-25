@@ -4,6 +4,59 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 /* ------------------------------------------------------------------ */
+/*  Theme detection — works with class ("dark"/"light"), data-theme,   */
+/*  localStorage("theme") or OS preference. Does NOT depend on the     */
+/*  Tailwind `dark:` variant, so it follows your navbar toggle exactly */
+/* ------------------------------------------------------------------ */
+function useIsDark() {
+  const [isDark, setIsDark] = useState(true);
+
+  useEffect(() => {
+    const read = () => {
+      const h = document.documentElement;
+      const b = document.body;
+      const dt = (
+        h.getAttribute("data-theme") ||
+        h.getAttribute("data-mode") ||
+        b.getAttribute("data-theme") ||
+        ""
+      ).toLowerCase();
+      if (dt === "dark" || dt === "light") return dt === "dark";
+
+      const cls = `${h.className} ${b.className}`.toLowerCase();
+      if (/\blight\b/.test(cls)) return false;
+      if (/\bdark\b/.test(cls)) return true;
+
+      const scheme = h.style.colorScheme;
+      if (scheme === "light" || scheme === "dark") return scheme === "dark";
+
+      try {
+        const saved = localStorage.getItem("theme");
+        if (saved === "light" || saved === "dark") return saved === "dark";
+      } catch {}
+
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    };
+
+    const update = () => setIsDark(read());
+    update();
+
+    const obs = new MutationObserver(update);
+    const opts = { attributes: true, attributeFilter: ["class", "data-theme", "data-mode", "style"] };
+    obs.observe(document.documentElement, opts);
+    obs.observe(document.body, opts);
+    window.addEventListener("storage", update);
+
+    return () => {
+      obs.disconnect();
+      window.removeEventListener("storage", update);
+    };
+  }, []);
+
+  return isDark;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Preloader Component (5s FCL Logo Animation)                       */
 /* ------------------------------------------------------------------ */
 function Preloader({ onFinish }: { onFinish: () => void }) {
@@ -150,17 +203,20 @@ function GatewayCard({
           setHover(false);
           setTilt({ x: 0, y: 0 });
         }}
-        style={{
-          borderColor: hover ? color : `${color}66`,
-          boxShadow: hover ? `0 0 50px ${color}33, 0 30px 60px -20px ${color}40` : "none",
-          transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateY(${
-            hover ? -8 : 0
-          }px) scale(${hover ? 1.015 : 1})`,
-          transition: hover
-            ? "transform 80ms linear, box-shadow 300ms ease, border-color 300ms ease"
-            : "transform 500ms cubic-bezier(.2,.8,.2,1), box-shadow 400ms ease, border-color 400ms ease",
-        }}
-        className={`group relative flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[2.5rem] border-2 bg-gradient-to-b p-8 ${
+        style={
+          {
+            "--c": color,
+            borderColor: hover ? color : `${color}66`,
+            ...(hover ? { boxShadow: `0 0 50px ${color}33, 0 30px 60px -20px ${color}40` } : {}),
+            transform: `perspective(1000px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateY(${
+              hover ? -8 : 0
+            }px) scale(${hover ? 1.015 : 1})`,
+            transition: hover
+              ? "transform 80ms linear, box-shadow 300ms ease, border-color 300ms ease"
+              : "transform 500ms cubic-bezier(.2,.8,.2,1), box-shadow 400ms ease, border-color 400ms ease",
+          } as React.CSSProperties
+        }
+        className={`fcl-card group relative flex min-h-[300px] flex-col justify-between overflow-hidden rounded-[2.5rem] border-2 p-8 ${
           comingSoon ? "cursor-pointer" : ""
         }`}
       >
@@ -172,15 +228,13 @@ function GatewayCard({
           }}
         />
         {/* shimmer sweep */}
-        <div
-          className="pointer-events-none absolute inset-y-0 left-[-60%] w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[220%]"
-        />
+        <div className="fcl-shimmer pointer-events-none absolute inset-y-0 left-[-60%] w-1/2 -skew-x-12 transition-transform duration-700 ease-out group-hover:translate-x-[220%]" />
 
         <div className="relative">
           <div className="flex items-center justify-between">
             <span
-              className="rounded-xl border px-3.5 py-1.5 text-xs font-black uppercase"
-              style={{ borderColor: `${color}80`, backgroundColor: `${color}22`, color }}
+              className="fcl-ink rounded-xl border px-3.5 py-1.5 text-xs font-black uppercase"
+              style={{ borderColor: `${color}80`, backgroundColor: `${color}22` }}
             >
               {badgeIcon} {badgeText}
             </span>
@@ -188,26 +242,18 @@ function GatewayCard({
               {cornerIcon}
             </span>
           </div>
-          <h4
-            className="mt-8 text-2xl font-black text-white transition sm:text-3xl"
-            style={{ color: hover ? color : undefined }}
-          >
+          <h4 className={`mt-8 text-2xl font-black transition sm:text-3xl ${hover ? "fcl-ink" : "fcl-head"}`}>
             {title}
           </h4>
-          <p className="mt-3 text-sm leading-relaxed text-[#94a3b8]">{description}</p>
+          <p className="fcl-body mt-3 text-sm leading-relaxed">{description}</p>
         </div>
 
         <div
           className="relative mt-8 flex items-center justify-between border-t pt-4"
           style={{ borderColor: `${color}33` }}
         >
-          <span className="text-xs font-bold" style={{ color }}>
-            {footerText}
-          </span>
-          <span
-            className="transform text-lg font-black transition-transform duration-300 group-hover:translate-x-2"
-            style={{ color }}
-          >
+          <span className="fcl-ink text-xs font-bold">{footerText}</span>
+          <span className="fcl-ink transform text-lg font-black transition-transform duration-300 group-hover:translate-x-2">
             {comingSoon ? "⚡" : "→"}
           </span>
         </div>
@@ -221,6 +267,7 @@ function GatewayCard({
 /* ------------------------------------------------------------------ */
 export default function Home() {
   const [loading, setLoading] = useState(true);
+  const isDark = useIsDark();
 
   useEffect(() => {
     const hasVisited = sessionStorage.getItem("fcl_visited");
@@ -349,14 +396,126 @@ export default function Home() {
         "Witness jaw-dropping individual masterclasses, match-winning hat-tricks, and explosive 50+ knocks.",
       footerText: "Explore Masterclasses",
     },
+    {
+      href: "/gallery",
+      color: "#3b82f6",
+      badgeText: "MEDIA HUB",
+      badgeIcon: "🖼️",
+      cornerIcon: "📸",
+      title: "Player Photo Gallery",
+      description: "Browse official player photos, filter by name, and download high-resolution portrait files instantly.",
+      footerText: "Explore Gallery",
+    },
   ];
 
   return (
     <>
       {loading && <Preloader onFinish={handlePreloadFinish} />}
 
-      <main className={`min-h-screen bg-[#020617] text-white selection:bg-[#1877F2]/30 selection:text-white font-sans pb-20 sm:pb-0 ${loading ? "hidden" : "block"}`}>
+      <main
+        className={`fcl-root ${isDark ? "fcl-dark" : "fcl-light"} min-h-screen selection:bg-[#1877F2]/30 font-sans pb-20 sm:pb-0 ${
+          loading ? "hidden" : "block"
+        }`}
+      >
         <style jsx global>{`
+          /* ============ THEME TOKENS ============ */
+          .fcl-root {
+            /* LIGHT (default) */
+            --bg: #ffffff;
+            --bg-alt: #f1f5f9;
+            --head: #0f172a;
+            --text: #475569;
+            --muted: #64748b;
+            --line: #e2e8f0;
+            --eyebrow: #0369a1;
+            --blue1: #1d4ed8;
+            --blue2: #1d4ed8;
+            --amber: #b45309;
+            --rose: #e11d48;
+            --frame-bg: #ffffff;
+            --frame-line: #e2e8f0;
+            --frame-shadow: 0 30px 80px rgba(15, 23, 42, 0.14);
+            --card-a: #ffffff;
+            --card-b: #f8fafc;
+            --card-shadow: 0 6px 24px rgba(15, 23, 42, 0.07);
+            --mcard: #ffffff;
+            --pill-bg: rgba(255, 255, 255, 0.96);
+            --pill-line: #e2e8f0;
+            --pill-sub: #64748b;
+            --shimmer: rgba(15, 23, 42, 0.06);
+            --grid-line: rgba(100, 116, 139, 0.12);
+            background: var(--bg);
+            color: var(--head);
+            transition: background 0.3s ease, color 0.3s ease;
+          }
+          .fcl-root.fcl-dark {
+            --bg: #020617;
+            --bg-alt: #02050b;
+            --head: #ffffff;
+            --text: #94a3b8;
+            --muted: #94a3b8;
+            --line: #172033;
+            --eyebrow: #38bdf8;
+            --blue1: #93c5fd;
+            --blue2: #60a5fa;
+            --amber: #f59e0b;
+            --rose: #fb7185;
+            --frame-bg: #080d17;
+            --frame-line: rgba(255, 255, 255, 0.08);
+            --frame-shadow: 0 40px 120px rgba(0, 0, 0, 0.7);
+            --card-a: #0f172a;
+            --card-b: #0b1220;
+            --card-shadow: none;
+            --mcard: #081020;
+            --pill-bg: rgba(11, 18, 32, 0.9);
+            --pill-line: rgba(255, 255, 255, 0.1);
+            --pill-sub: #94a3b8;
+            --shimmer: rgba(255, 255, 255, 0.1);
+            --grid-line: rgba(148, 163, 184, 0.06);
+          }
+
+          /* ============ THEMED UTILITIES ============ */
+          .fcl-head { color: var(--head); }
+          .fcl-body { color: var(--text); }
+          .fcl-muted { color: var(--muted); }
+          .fcl-eyebrow { color: var(--eyebrow); }
+          .fcl-blue1 { color: var(--blue1); }
+          .fcl-blue2 { color: var(--blue2); }
+          .fcl-amber { color: var(--amber); }
+          .fcl-rose { color: var(--rose); }
+          .fcl-pill-sub { color: var(--pill-sub); }
+          .fcl-hero { background: var(--bg-alt); border-color: var(--line); }
+          .fcl-section { background: var(--bg); }
+          .fcl-frame {
+            background: var(--frame-bg);
+            border: 1px solid var(--frame-line);
+            box-shadow: var(--frame-shadow);
+          }
+          .fcl-pill {
+            background: var(--pill-bg);
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+          }
+          .fcl-dark .fcl-pill { box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
+          .fcl-pill-line { border-color: var(--pill-line); }
+          .fcl-card {
+            background: linear-gradient(to bottom, var(--card-a), var(--card-b));
+            box-shadow: var(--card-shadow);
+          }
+          .fcl-mcard {
+            background: var(--mcard);
+            box-shadow: var(--card-shadow);
+          }
+          .fcl-shimmer {
+            background: linear-gradient(90deg, transparent, var(--shimmer), transparent);
+          }
+          .fcl-bn { color: var(--blue2); }
+          .fcl-bn:hover { color: #ffffff; }
+
+          /* accent text: darker on white, original colour on dark */
+          .fcl-ink { color: color-mix(in srgb, var(--c) 58%, #0f172a); }
+          .fcl-dark .fcl-ink { color: var(--c); }
+
+          /* ============ ANIMATIONS ============ */
           @keyframes float-a {
             0%, 100% { transform: translate(0, 0) scale(1); }
             50% { transform: translate(24px, -32px) scale(1.05); }
@@ -396,8 +555,8 @@ export default function Home() {
           .fcl-chip-delay { animation-delay: 1.4s; }
           .fcl-grid-bg {
             background-image:
-              linear-gradient(to right, rgba(148,163,184,0.06) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(148,163,184,0.06) 1px, transparent 1px);
+              linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+              linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
             background-size: 56px 56px;
             -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 90%);
             mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 90%);
@@ -406,9 +565,17 @@ export default function Home() {
             background: linear-gradient(90deg, #60a5fa, #22d3ee, #f59e0b, #8b5cf6, #60a5fa);
             background-size: 300% auto;
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             animation: fcl-color-shift 4s ease infinite, fcl-zoom-pulse 2.5s ease-in-out infinite;
             display: inline-block;
+          }
+          /* light mode: deeper colours so "FCL." pops on white */
+          .fcl-light .fcl-zoom-text {
+            background: linear-gradient(90deg, #1d4ed8, #0891b2, #d97706, #7c3aed, #1d4ed8);
+            background-size: 300% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
           }
           .fcl-mobile-glow { animation: mobile-glow 5s ease-in-out infinite; }
           @media (min-width: 640px) {
@@ -417,12 +584,11 @@ export default function Home() {
         `}</style>
 
         {/* ================================================================
-            DESKTOP HERO — unchanged visual structure
+            DESKTOP HERO
             ================================================================ */}
-        <section className="relative hidden min-h-[calc(100vh-76px)] overflow-hidden border-b border-[#172033] bg-[#02050b] sm:block">
-          <div className="absolute inset-0 bg-[#02050b]" />
+        <section className="fcl-hero relative hidden min-h-[calc(100vh-76px)] overflow-hidden border-b sm:block">
           <div className="absolute inset-0 fcl-grid-bg" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_45%,rgba(37,99,235,0.16),transparent_34%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_45%,rgba(37,99,235,0.12),transparent_34%)]" />
           <div className="fcl-orb-a absolute right-[-15%] top-[-20%] h-[650px] w-[650px] rounded-full bg-[#7c3aed]/10 blur-[130px]" />
           <div className="fcl-orb-b absolute left-[-20%] bottom-[-20%] h-[500px] w-[500px] rounded-full bg-[#1877F2]/10 blur-[130px]" />
 
@@ -431,58 +597,58 @@ export default function Home() {
               <div ref={hero.ref} style={{ opacity: hero.visible ? 1 : 0, transform: hero.visible ? "translateY(0)" : "translateY(24px)" }} className="relative z-30 text-center transition-all duration-700 ease-out lg:text-left">
                 <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-4 py-2 backdrop-blur-xl">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e] shadow-[0_0_14px_rgba(34,197,94,0.8)]" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#93c5fd]">FCL • DIGITAL GATEWAY HUB</span>
+                  <span className="fcl-blue1 text-[10px] font-bold uppercase tracking-[0.3em]">FCL • DIGITAL GATEWAY HUB</span>
                 </div>
-                <h2 className="text-5xl font-black leading-[0.93] tracking-[-0.05em] text-white sm:text-6xl md:text-7xl lg:text-[76px]">
+                <h2 className="fcl-head text-5xl font-black leading-[0.93] tracking-[-0.05em] sm:text-6xl md:text-7xl lg:text-[76px]">
                   <span className="block">THE GAME LIVES</span>
-                  <span className="fcl-gradient-text block bg-gradient-to-r from-[#60a5fa] via-[#1877F2] to-[#8b5cf6] bg-clip-text text-transparent">BEYOND THE FIELD.</span>
-                  <span className="mt-4 block text-[0.42em] font-bold leading-tight tracking-[-0.02em] text-[#f59e0b]">One Game. One Community. <span className="fcl-zoom-text text-[1.45em] font-black tracking-[-0.04em]">FCL.</span></span>
+                  <span className="fcl-gradient-text block bg-gradient-to-r from-blue-600 via-[#1877F2] to-purple-600 bg-clip-text text-transparent">BEYOND THE FIELD.</span>
+                  <span className="fcl-amber mt-4 block text-[0.42em] font-bold leading-tight tracking-[-0.02em]">One Game. One Community. <span className="fcl-zoom-text text-[1.45em] font-black tracking-[-0.04em]">FCL.</span></span>
                 </h2>
-                <p className="mx-auto mt-6 max-w-[540px] text-sm leading-7 text-[#94a3b8] md:text-base lg:mx-0">Welcome to the official portal of Facebook Cricket League. Explore rankings, historical record cabinets, memories, and high-voltage match summaries through our dedicated gateways below.</p>
+                <p className="fcl-body mx-auto mt-6 max-w-[540px] text-sm leading-7 md:text-base lg:mx-0">Welcome to the official portal of Facebook Cricket League. Explore rankings, historical record cabinets, memories, and high-voltage match summaries through our dedicated gateways below.</p>
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row lg:justify-start">
-                  <a href="#gateways" className="group relative overflow-hidden rounded-xl bg-[#1877F2] px-7 py-3.5 text-center text-sm font-bold text-white shadow-[0_12px_40px_rgba(24,119,242,0.25)] transition hover:bg-[#0d6fe8] hover:shadow-[0_18px_55px_rgba(24,119,242,0.4)]"><span className="relative z-10">Explore Portals ↓</span><span className="absolute inset-y-0 left-[-60%] w-1/2 -skew-x-12 bg-white/20 transition-transform duration-700 group-hover:translate-x-[280%]" /></a>
-                  <Link href="/bn" className="rounded-xl border border-[#1877F2]/40 bg-[#1877F2]/15 px-7 py-3.5 text-center text-sm font-bold text-[#60a5fa] transition hover:bg-[#1877F2] hover:text-white">💙 বাংলা ভার্সন</Link>
+                  <a href="#gateways" className="group relative overflow-hidden rounded-xl bg-[#1877F2] px-7 py-3.5 text-center text-sm font-bold text-white shadow-[0_12px_40px_rgba(24,119,242,0.25)] transition hover:bg-[#0d6fe8]"><span className="relative z-10">Explore Portals ↓</span><span className="absolute inset-y-0 left-[-60%] w-1/2 -skew-x-12 bg-white/20 transition-transform duration-700 group-hover:translate-x-[280%]" /></a>
+                  <Link href="/bn" className="fcl-bn rounded-xl border border-blue-500/40 bg-blue-500/10 px-7 py-3.5 text-center text-sm font-bold transition hover:bg-[#1877F2]">💙 বাংলা ভার্সন</Link>
                 </div>
               </div>
 
               <div ref={heroArt.ref} style={{ opacity: heroArt.visible ? 1 : 0, transform: heroArt.visible ? "translateY(0) scale(1)" : "translateY(32px) scale(0.97)" }} className="relative h-[420px] sm:h-[480px] lg:h-[550px] w-full transition-all duration-700 ease-out">
-                <div className="absolute inset-0 overflow-hidden rounded-[2.5rem] sm:rounded-[3rem] border border-white/[0.08] bg-[#080d17] shadow-[0_40px_120px_rgba(0,0,0,0.7)] flex items-center justify-center p-4"><img src="/fcl-room.png" alt="FCL Room" className="h-full w-full object-contain object-center" /></div>
-                <div className="fcl-chip absolute -left-2 sm:-left-6 top-6 sm:top-10 flex items-center gap-2.5 rounded-2xl border border-white/10 bg-[#0b1220]/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-2xl"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.8)]" /><div><span className="text-[10px] sm:text-xs font-bold text-white block">FCL LIVE</span><span className="text-[9px] sm:text-[10px] text-[#93c5fd]">Team Phoenix · 14/2</span></div></div>
-                <div className="fcl-chip fcl-chip-delay absolute -right-2 sm:-right-4 top-24 sm:top-36 flex items-center gap-2 rounded-2xl border border-rose-500/40 bg-[#0b1220]/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-2xl"><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500 text-white font-black text-xs shadow-[0_0_10px_rgba(244,63,94,0.6)]">6</div><div><span className="text-[10px] sm:text-xs font-black text-rose-400 block tracking-wider">OUT</span><span className="text-[9px] sm:text-[10px] text-[#94a3b8]">Ball 1</span></div></div>
-                <div className="fcl-chip absolute -left-2 sm:-left-6 bottom-16 sm:bottom-20 flex items-center gap-2 rounded-2xl border border-blue-500/40 bg-[#0b1220]/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-2xl"><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1877F2] text-white font-black text-xs shadow-[0_0_10px_rgba(24,119,242,0.6)]">4</div><div><span className="text-[10px] sm:text-xs font-bold text-[#60a5fa] block">+4 RUN</span><span className="text-[9px] sm:text-[10px] text-[#94a3b8]">Ball 2</span></div></div>
-                <div className="fcl-chip fcl-chip-delay absolute -right-2 sm:-right-4 bottom-4 sm:bottom-8 flex flex-col gap-0.5 rounded-2xl border border-[#f59e0b]/30 bg-[#0b1220]/90 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl shadow-2xl"><div className="flex items-center gap-1.5"><span className="text-xs sm:text-sm">🎯</span><span className="text-[11px] sm:text-xs font-bold text-[#fbbf24]">Need 56 off 24</span></div><span className="text-[10px] sm:text-[11px] font-semibold text-[#94a3b8]">Target 70</span></div>
+                <div className="fcl-frame absolute inset-0 overflow-hidden rounded-[2.5rem] sm:rounded-[3rem] flex items-center justify-center p-4"><img src="/fcl-room.png" alt="FCL Room" className="h-full w-full object-contain object-center" /></div>
+                <div className="fcl-chip fcl-pill fcl-pill-line absolute -left-2 sm:-left-6 top-6 sm:top-10 flex items-center gap-2.5 rounded-2xl border px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl"><span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#22c55e]" /><div><span className="fcl-head text-[10px] sm:text-xs font-bold block">FCL LIVE</span><span className="fcl-blue1 text-[9px] sm:text-[10px]">Team Phoenix · 14/2</span></div></div>
+                <div className="fcl-chip fcl-chip-delay fcl-pill absolute -right-2 sm:-right-4 top-24 sm:top-36 flex items-center gap-2 rounded-2xl border border-rose-500/40 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl"><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500 text-white font-black text-xs">6</div><div><span className="fcl-rose text-[10px] sm:text-xs font-black block tracking-wider">OUT</span><span className="fcl-pill-sub text-[9px] sm:text-[10px]">Ball 1</span></div></div>
+                <div className="fcl-chip fcl-pill absolute -left-2 sm:-left-6 bottom-16 sm:bottom-20 flex items-center gap-2 rounded-2xl border border-blue-500/40 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl"><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1877F2] text-white font-black text-xs">4</div><div><span className="fcl-blue2 text-[10px] sm:text-xs font-bold block">+4 RUN</span><span className="fcl-pill-sub text-[9px] sm:text-[10px]">Ball 2</span></div></div>
+                <div className="fcl-chip fcl-chip-delay fcl-pill absolute -right-2 sm:-right-4 bottom-4 sm:bottom-8 flex flex-col gap-0.5 rounded-2xl border border-amber-500/40 px-3.5 sm:px-4 py-2 sm:py-2.5 backdrop-blur-xl"><div className="flex items-center gap-1.5"><span className="text-xs sm:text-sm">🎯</span><span className="fcl-amber text-[11px] sm:text-xs font-bold">Need 56 off 24</span></div><span className="fcl-pill-sub text-[10px] sm:text-[11px] font-semibold">Target 70</span></div>
               </div>
             </div>
           </div>
         </section>
 
         {/* ================================================================
-            MOBILE HOME APP — only below 640px
+            MOBILE HOME APP
             ================================================================ */}
-        <section className="relative overflow-hidden border-b border-[#172033] bg-[#02050b] px-4 pb-7 pt-5 sm:hidden">
-          <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-[#1877F2]/15 blur-[90px] fcl-mobile-glow" />
-          <div className="pointer-events-none absolute -left-28 bottom-0 h-64 w-64 rounded-full bg-[#7c3aed]/10 blur-[90px]" />
+        <section className="fcl-hero relative overflow-hidden border-b px-4 pb-7 pt-5 sm:hidden">
+          <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-blue-500/10 blur-[90px]" />
+          <div className="pointer-events-none absolute -left-28 bottom-0 h-64 w-64 rounded-full bg-purple-500/10 blur-[90px]" />
           <div className="mt-5 px-1">
-            <span className="text-[9px] font-black uppercase tracking-[0.28em] text-[#38bdf8]">FCL Digital Platform</span>
-            <h2 className="mt-2 text-[31px] font-black leading-[.98] tracking-[-0.045em] text-white">THE GAME LIVES<br /><span className="bg-gradient-to-r from-[#60a5fa] via-[#1877F2] to-[#a78bfa] bg-clip-text text-transparent">BEYOND THE FIELD.</span></h2>
-            <p className="mt-3 max-w-[340px] text-[11px] leading-5 text-[#94a3b8]">Explore the official FCL archive, players, rankings, records, memories and the online game.</p>
+            <span className="fcl-eyebrow text-[9px] font-black uppercase tracking-[0.28em]">FCL Digital Platform</span>
+            <h2 className="fcl-head mt-2 text-[31px] font-black leading-[.98] tracking-[-0.045em]">THE GAME LIVES<br /><span className="bg-gradient-to-r from-blue-600 via-[#1877F2] to-purple-600 bg-clip-text text-transparent">BEYOND THE FIELD.</span></h2>
+            <p className="fcl-body mt-3 max-w-[340px] text-[11px] leading-5">Explore the official FCL archive, players, rankings, records, memories and the online game.</p>
           </div>
 
-          <div className="mt-5 overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#080d17] shadow-[0_20px_60px_rgba(0,0,0,.55)]">
+          <div className="fcl-frame mt-5 overflow-hidden rounded-[22px]">
             <img src="/fcl-room.png" alt="FCL Online" className="h-[185px] w-full object-cover object-center" />
           </div>
         </section>
 
         {/* ================================================================
-            DESKTOP PORTALS — original grid preserved
+            DESKTOP PORTALS
             ================================================================ */}
-        <section id="gateways" className="relative hidden overflow-hidden bg-[#020617] px-6 py-28 sm:block">
-          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-[#1877F2]/10 blur-[150px]" />
+        <section id="gateways" className="fcl-section relative hidden overflow-hidden px-6 py-28 sm:block">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-blue-500/10 blur-[150px]" />
           <div className="mx-auto max-w-7xl relative z-10">
             <div ref={sectionHead.ref} style={{ opacity: sectionHead.visible ? 1 : 0, transform: sectionHead.visible ? "translateY(0)" : "translateY(24px)" }} className="text-center max-w-3xl mx-auto mb-16 transition-all duration-700 ease-out">
-              <span className="text-xs font-bold uppercase tracking-[0.35em] text-[#38bdf8]">FCL Navigation Portals</span>
-              <h3 className="mt-3 text-4xl sm:text-5xl font-black tracking-tight text-white">Choose Your Destination</h3>
-              <p className="mt-3 text-sm sm:text-base text-[#94a3b8]">Click any gateway below to enter the dedicated section instantly.</p>
+              <span className="fcl-eyebrow text-xs font-bold uppercase tracking-[0.35em]">FCL Navigation Portals</span>
+              <h3 className="fcl-head mt-3 text-4xl sm:text-5xl font-black tracking-tight">Choose Your Destination</h3>
+              <p className="fcl-body mt-3 text-sm sm:text-base">Click any gateway below to enter the dedicated section instantly.</p>
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {cards.map((card, i) => <GatewayCard key={card.title} {...card} delay={i * 90} />)}
@@ -491,15 +657,15 @@ export default function Home() {
         </section>
 
         {/* ================================================================
-            MOBILE PORTALS — compact app cards
+            MOBILE PORTALS
             ================================================================ */}
-        <section id="mobile-gateways" className="relative overflow-hidden bg-[#020617] px-4 pb-8 pt-6 sm:hidden">
+        <section id="mobile-gateways" className="fcl-section relative overflow-hidden px-4 pb-8 pt-6 sm:hidden">
           <div className="mb-4 flex items-end justify-between px-1">
             <div>
-              <span className="text-[8px] font-black uppercase tracking-[0.28em] text-[#38bdf8]">FCL Navigation</span>
-              <h3 className="mt-1 text-[24px] font-black tracking-tight text-white">Choose Your Destination</h3>
+              <span className="fcl-eyebrow text-[8px] font-black uppercase tracking-[0.28em]">FCL Navigation</span>
+              <h3 className="fcl-head mt-1 text-[24px] font-black tracking-tight">Choose Your Destination</h3>
             </div>
-            <span className="text-[9px] font-semibold text-[#64748b]">10 Portals</span>
+            <span className="fcl-muted text-[9px] font-semibold">10 Portals</span>
           </div>
 
           <div className="space-y-3">
@@ -507,19 +673,22 @@ export default function Home() {
               const colors = ["#f59e0b", "#1877F2", "#ec4899", "#22c55e", "#f472b6", "#38bdf8", "#c084fc", "#1877F2", "#a855f7", "#22d3ee"];
               const color = colors[i];
               const content = (
-                <div className="relative flex min-h-[112px] items-center gap-3.5 overflow-hidden rounded-[21px] border bg-[#081020] p-3.5 shadow-[0_12px_35px_rgba(0,0,0,.2)]" style={{ borderColor: `${color}66` }}>
+                <div
+                  className="fcl-mcard relative flex min-h-[112px] items-center gap-3.5 overflow-hidden rounded-[21px] border p-3.5"
+                  style={{ "--c": color, borderColor: `${color}66` } as React.CSSProperties}
+                >
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[17px] border" style={{ borderColor: `${color}55`, backgroundColor: `${color}15` }}>
                     <span className="text-[26px]">{card.badgeIcon}</span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="rounded-md border px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide" style={{ borderColor: `${color}55`, backgroundColor: `${color}12`, color }}>{card.badgeText}</span>
-                      {card.comingSoon && <span className="rounded-md bg-[#a855f7]/10 px-1.5 py-0.5 text-[7px] font-black text-[#c084fc]">SOON</span>}
+                      <span className="fcl-ink rounded-md border px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide" style={{ borderColor: `${color}55`, backgroundColor: `${color}12` }}>{card.badgeText}</span>
+                      {card.comingSoon && <span className="rounded-md bg-purple-500/10 px-1.5 py-0.5 text-[7px] font-black text-purple-600">SOON</span>}
                     </div>
-                    <h4 className="mt-1.5 truncate text-[16px] font-black text-white">{card.title}</h4>
-                    <p className="mt-1 line-clamp-2 text-[9px] leading-4 text-[#94a3b8]">{card.description}</p>
+                    <h4 className="fcl-head mt-1.5 truncate text-[16px] font-black">{card.title}</h4>
+                    <p className="fcl-body mt-1 line-clamp-2 text-[9px] leading-4">{card.description}</p>
                   </div>
-                  <span className="shrink-0 text-lg font-black" style={{ color }}>{card.comingSoon ? "⚡" : "→"}</span>
+                  <span className="fcl-ink shrink-0 text-lg font-black">{card.comingSoon ? "⚡" : "→"}</span>
                 </div>
               );
               return card.comingSoon ? <div key={card.title}>{content}</div> : <Link key={card.title} href={card.href as string}>{content}</Link>;
