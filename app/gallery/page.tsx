@@ -162,7 +162,8 @@ interface PhotoCardProps {
   index: number;
   onDownload: (
     photoPath: string,
-    playerName: string
+    playerName: string,
+    mode: "normal" | "hd"
   ) => Promise<void>;
   downloading: string | null;
 }
@@ -179,7 +180,8 @@ function PhotoCard({
 
   const [imageError, setImageError] = useState(false);
 
-  const isDownloading = downloading === `${player.name}-${index}`;
+  const isDownloadingNormal = downloading === `normal-${player.name}-${index}`;
+  const isDownloadingHd = downloading === `hd-${player.name}-${index}`;
 
   return (
     <article
@@ -203,7 +205,7 @@ function PhotoCard({
 
         <img
           src={imageError ? FALLBACK_PHOTO : photoPath}
-          alt={`${player.name} - FCL Player`}
+          alt={`${player.name} FCL Player`}
           loading="lazy"
           decoding="async"
           onLoad={() => setImageLoaded(true)}
@@ -268,28 +270,32 @@ function PhotoCard({
           </p>
         </div>
 
-        {/* Download Button */}
+        {/* Download Buttons: Normal & HD */}
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            disabled={isDownloadingNormal || isDownloadingHd}
+            onClick={() =>
+              onDownload(photoPath, `${player.name}-${index}`, "normal")
+            }
+            className="gallery-download relative flex items-center justify-center gap-1 rounded-xl border px-1.5 py-2 text-[10px] font-black transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-60"
+          >
+            <span>{isDownloadingNormal ? "⏳" : "📥"}</span>
+            <span>{isDownloadingNormal ? "..." : "Normal"}</span>
+          </button>
 
-        <button
-          type="button"
-          disabled={isDownloading}
-          onClick={() =>
-            onDownload(photoPath, `${player.name}-${index}`)
-          }
-          className="gallery-download group/btn relative mt-4 flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl border px-2 py-2.5 text-[10px] font-black transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:cursor-wait disabled:opacity-70 sm:text-xs"
-        >
-          <span className="relative z-10 text-sm transition-transform duration-300 group-hover/btn:-translate-y-0.5">
-            {isDownloading ? "⏳" : "📥"}
-          </span>
-
-          <span className="relative z-10">
-            {isDownloading
-              ? "Downloading..."
-              : "HD ডাউনলোড"}
-          </span>
-
-          <span className="gallery-download-shine pointer-events-none absolute inset-y-0 left-[-70%] w-1/2 -skew-x-12 transition-transform duration-700 group-hover/btn:translate-x-[350%]" />
-        </button>
+          <button
+            type="button"
+            disabled={isDownloadingNormal || isDownloadingHd}
+            onClick={() =>
+              onDownload(photoPath, `${player.name}-${index}`, "hd")
+            }
+            className="gallery-download-hd relative flex items-center justify-center gap-1 rounded-xl border px-1.5 py-2 text-[10px] font-black text-white transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-60 bg-blue-600 hover:bg-blue-700 border-blue-500"
+          >
+            <span>{isDownloadingHd ? "⏳" : "🌟"}</span>
+            <span>{isDownloadingHd ? "..." : "HD"}</span>
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -307,6 +313,8 @@ export default function PhotoGalleryPage() {
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
+
+  const [sortBy, setSortBy] = useState<"default" | "az" | "za">("default");
 
   const [downloading, setDownloading] = useState<string | null>(
     null
@@ -379,15 +387,13 @@ export default function PhotoGalleryPage() {
   }, []);
 
   /* ================================================================
-     SEARCH FILTER
+     SEARCH & SORT FILTER
   ================================================================ */
 
   const filteredPlayers = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    if (!query) return players;
-
-    return players.filter((player) => {
+    let result = players.filter((player) => {
       const name = player.name?.toLowerCase() || "";
 
       const nickname =
@@ -396,20 +402,30 @@ export default function PhotoGalleryPage() {
       const role = player.role?.toLowerCase() || "";
 
       return (
+        !query ||
         name.includes(query) ||
         nickname.includes(query) ||
         role.includes(query)
       );
     });
-  }, [players, search]);
+
+    // Sorting logic (Role removed, only A-Z, Z-A and default)
+    if (sortBy === "az") {
+      result.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === "za") {
+      result.sort((a, b) => b.name.localeCompare(a.name));
+    }
+
+    return result;
+  }, [players, search, sortBy]);
 
   /* ================================================================
-     DOWNLOAD IMAGE
+     DOWNLOAD IMAGE (NORMAL & AUTO HD UPSCALE)
   ================================================================ */
 
   const handleDownload = useCallback(
-    async (photoPath: string, playerName: string) => {
-      setDownloading(playerName);
+    async (photoPath: string, playerName: string, mode: "normal" | "hd") => {
+      setDownloading(`${mode}-${playerName}`);
 
       let objectUrl: string | null = null;
 
@@ -422,18 +438,48 @@ export default function PhotoGalleryPage() {
 
         const blob = await response.blob();
 
-        objectUrl = window.URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
-
         const safeName = playerName
           .toLowerCase()
           .replace(/[^a-z0-9]/g, "-")
           .replace(/-+/g, "-");
 
-        link.href = objectUrl;
+        const link = document.createElement("a");
 
-        link.download = `FCL-Player-${safeName}.png`;
+        if (mode === "normal") {
+          objectUrl = window.URL.createObjectURL(blob);
+          link.href = objectUrl;
+          link.download = `FCL-Player-${safeName}.png`;
+        } else {
+          const img = document.createElement("img");
+          const imageUrl = window.URL.createObjectURL(blob);
+
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = imageUrl;
+          });
+
+          const scale = 3;
+          const canvas = document.createElement("canvas");
+          canvas.width = (img.naturalWidth || 400) * scale;
+          canvas.height = (img.naturalHeight || 400) * scale;
+
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Canvas context failed");
+
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          const hdBlob = await new Promise<Blob>((resolve) => {
+            canvas.toBlob((b) => resolve(b as Blob), "image/png", 1.0);
+          });
+
+          objectUrl = window.URL.createObjectURL(hdBlob);
+          link.href = objectUrl;
+          link.download = `FCL-Player-HD-${safeName}.png`;
+          window.URL.revokeObjectURL(imageUrl);
+        }
 
         document.body.appendChild(link);
 
@@ -695,10 +741,10 @@ export default function PhotoGalleryPage() {
         }
 
         /* ============================================================
-           SEARCH
+           SEARCH & SELECT
         ============================================================ */
 
-        .gallery-search {
+        .gallery-search, .gallery-select {
           background: var(--gallery-input);
 
           color: var(--gallery-heading);
@@ -719,12 +765,13 @@ export default function PhotoGalleryPage() {
           opacity: 0.75;
         }
 
-        .gallery-search:focus {
+        .gallery-search:focus, .gallery-select:focus {
           border-color: #1877F2;
 
           box-shadow:
             0 0 0 4px rgba(24, 119, 242, 0.10),
             0 8px 30px rgba(24, 119, 242, 0.08);
+          outline: none;
         }
 
         /* ============================================================
@@ -934,10 +981,10 @@ export default function PhotoGalleryPage() {
               </h1>
 
               <p className="gallery-text mt-4 max-w-2xl text-xs leading-6 sm:text-sm sm:leading-7">
-                ফেসবুক ক্রিকেট লীগের সকল তারকার অফিশিয়াল
-                ফটো গ্যালারি। আপনার পছন্দের প্লেয়ারকে খুঁজুন,
+                ফেসবুক ক্রিকেট লীগের সকল তারকার অফিশিয়াল
+                ফটো গ্যালারি। আপনার পছন্দের প্লেয়ারকে খুঁজুন,
                 ছবি দেখুন এবং এক ক্লিকেই ডাউনলোড করুন
-                হাই-কোয়ালিটি প্লেয়ার ফটো।
+                হাই-কোয়ালিটি প্লেয়ার ফটো।
               </p>
 
               {/* Feature Badges */}
@@ -1001,46 +1048,69 @@ export default function PhotoGalleryPage() {
             </h2>
 
             <p className="gallery-muted mt-1.5 text-[11px] sm:text-xs">
-              আপনার প্রিয় ক্রিকেট তারকার ছবি খুঁজে নিন।
+              আপনার প্রিয় ক্রিকেট তারকার ছবি খুঁজে নিন।
             </p>
           </div>
 
-          {/* Search */}
+          {/* Search, Sort Controls */}
 
-          <div className="w-full lg:max-w-[390px]">
-            <label
-              htmlFor="gallery-search"
-              className="gallery-muted mb-2 block text-[10px] font-bold uppercase tracking-wider"
-            >
-              Search Players
-            </label>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {/* Sort Dropdown (Role removed) */}
+            <div className="w-full sm:w-48">
+              <label
+                htmlFor="gallery-sort"
+                className="gallery-muted mb-2 block text-[10px] font-bold uppercase tracking-wider"
+              >
+                Sort By
+              </label>
+              <select
+                id="gallery-sort"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="gallery-select w-full rounded-2xl border py-3.5 px-3 text-xs font-bold outline-none sm:text-sm cursor-pointer"
+              >
+                <option value="default">Default Order</option>
+                <option value="az">Name (A → Z)</option>
+                <option value="za">Name (Z → A)</option>
+              </select>
+            </div>
 
-            <div className="relative">
-              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base">
-                🔍
-              </span>
+            {/* Search */}
+            <div className="w-full sm:w-[280px]">
+              <label
+                htmlFor="gallery-search"
+                className="gallery-muted mb-2 block text-[10px] font-bold uppercase tracking-wider"
+              >
+                Search Players
+              </label>
 
-              <input
-                id="gallery-search"
-                type="search"
-                value={search}
-                onChange={(event) =>
-                  setSearch(event.target.value)
-                }
-                placeholder="নাম, নিকনেম বা রোল দিয়ে খুঁজুন..."
-                className="gallery-search w-full rounded-2xl border py-3.5 pl-11 pr-11 text-xs font-medium outline-none sm:text-sm"
-              />
+              <div className="relative">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base">
+                  🔍
+                </span>
 
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  aria-label="Clear search"
-                  className="gallery-muted absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-xs transition hover:bg-blue-500/10 hover:text-[#1877F2]"
-                >
-                  ✕
-                </button>
-              )}
+                <input
+                  id="gallery-search"
+                  type="search"
+                  value={search}
+                  onChange={(event) =>
+                    setSearch(event.target.value)
+                  }
+                  placeholder="নাম বা নিকনেম..."
+                  className="gallery-search w-full rounded-2xl border py-3.5 pl-11 pr-11 text-xs font-medium outline-none sm:text-sm"
+                />
+
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    aria-label="Clear search"
+                    className="gallery-muted absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-xs transition hover:bg-blue-500/10 hover:text-[#1877F2]"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1120,7 +1190,7 @@ export default function PhotoGalleryPage() {
             </h3>
 
             <p className="gallery-muted mt-3 max-w-md text-xs leading-6 sm:text-sm">
-              দুঃখিত, এই মুহূর্তে প্লেয়ারদের ছবি লোড করা
+              দুঃখিত, এই মুহূর্তে প্লেয়ারদের ছবি লোড করা
               যাচ্ছে না। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা
               করুন।
             </p>
@@ -1151,8 +1221,8 @@ export default function PhotoGalleryPage() {
 
             <p className="gallery-muted mt-3 max-w-md text-xs leading-6 sm:text-sm">
               {search
-                ? `"${search}" নামে কোনো প্লেয়ারের ছবি পাওয়া যায়নি। অন্য কোনো নাম দিয়ে খুঁজে দেখুন।`
-                : "এই মুহূর্তে গ্যালারিতে কোনো প্লেয়ারের ছবি পাওয়া যায়নি।"}
+                ? `"${search}" নামে কোনো প্লেয়ারের ছবি পাওয়া যায়নি। অন্য কোনো নাম দিয়ে খুঁজে দেখুন।`
+                : "এই মুহূর্তে গ্যালারিতে কোনো প্লেয়ারের ছবি পাওয়া যায়নি।"}
             </p>
 
             {search && (
