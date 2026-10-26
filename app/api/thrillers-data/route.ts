@@ -26,6 +26,8 @@ export async function GET() {
       extraordinaryData = rawData
         .filter((row) => row["Player Name"] || row["Performance Title"])
         .map((row) => ({
+          part: String(row["Part"] ?? row["part"] ?? "").trim(),
+          matchYear: String(row["Match Year"] ?? row["matchYear"] ?? "").trim(),
           playerName: String(row["Player Name"] || "").trim(),
           performanceTitle: String(row["Performance Title"] || "").trim(),
           tournamentMatch: String(row["Tournament & Match"] || "").trim(),
