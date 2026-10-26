@@ -5,7 +5,7 @@ export default function SuperAdminMemories() {
   const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzZNDIubu-4Z7Cwc2s_giPUMa4-XEcw-ejMEdwHjbEXnCLqdyHsKOLoRKk2zX09b5hgdg/exec";
 
   const [formData, setFormData] = useState({
-    category: '',
+    category: 'স্মৃতিচারণ (Memories / Nostalgia)', // ডিফল্ট একটি সিলেক্ট করা থাকবে
     title: '',
     author: '',
     date: '',
@@ -15,6 +15,15 @@ export default function SuperAdminMemories() {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+
+  // ক্যাটেগরিগুলোর তালিকা (আপনার গুগল শিটের existing ক্যাটেগরি অনুযায়ী)
+  const categoriesList = [
+    "স্মৃতিচারণ (Memories / Nostalgia)",
+    "গান (Song)",
+    "কবিতা (Poem)",
+    "গল্প (Story)",
+    "কৌতুক (Humor)"
+  ];
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -36,7 +45,14 @@ export default function SuperAdminMemories() {
       });
 
       setMessage('সফলভাবে মেমোরিজ সেভ হয়েছে!');
-      setFormData({ category: '', title: '', author: '', date: '', fbPostUrl: '', content: '' });
+      setFormData({ 
+        category: 'স্মৃতিচারণ (Memories / Nostalgia)', 
+        title: '', 
+        author: '', 
+        date: '', 
+        fbPostUrl: '', 
+        content: '' 
+      });
     } catch (error) {
       console.error('Error:', error);
       setMessage('দুঃখিত, ডাটা পাঠানো যায়নি। আবার চেষ্টা করুন।');
@@ -57,8 +73,18 @@ export default function SuperAdminMemories() {
       
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
         <div>
-          <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#444' }}>Category (যেমন: স্মৃতিচারণ, গান, কবিতা):</label>
-          <input type="text" name="category" value={formData.category} onChange={handleChange} required style={{ width: '100%', padding: '10px 12px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '15px' }} />
+          <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', color: '#444' }}>Category (বিভাগ নির্বাচন করুন):</label>
+          <select 
+            name="category" 
+            value={formData.category} 
+            onChange={handleChange} 
+            required 
+            style={{ width: '100%', padding: '10px 12px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '15px' }}
+          >
+            {categoriesList.map((cat, idx) => (
+              <option key={idx} value={cat}>{cat}</option>
+            ))}
+          </select>
         </div>
 
         <div>
