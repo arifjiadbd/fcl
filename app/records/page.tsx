@@ -1546,7 +1546,7 @@ function SectionHeading({
   color?: string;
 }) {
   return (
-    <div className="fcl-section-heading mb-5">
+    <div className="fcl-section-heading mb-5 w-full">
       <div className="flex items-center gap-3">
         <span
           className="fcl-heading-icon flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl"
@@ -1560,7 +1560,7 @@ function SectionHeading({
         </span>
 
         <div className="min-w-0">
-          <h2 className="text-lg font-black tracking-tight sm:text-2xl">
+          <h2 className="text-lg font-black tracking-tight sm:text-2xl break-words">
             {title}
           </h2>
 
@@ -1581,7 +1581,7 @@ function EmptyState({
   text?: string;
 }) {
   return (
-    <div className="fcl-empty rounded-3xl px-5 py-12 text-center">
+    <div className="fcl-empty rounded-3xl px-5 py-12 text-center w-full">
       <div className="text-4xl">
         🔎
       </div>
@@ -1605,14 +1605,14 @@ function CountChips({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="fcl-chip-scroll flex gap-1.5 overflow-x-auto pb-1">
+    <div className="fcl-chip-scroll flex gap-1.5 overflow-x-auto pb-1 w-full">
       {COUNT_CHIPS.map((chip) => (
         <button
           key={chip}
           type="button"
           onClick={() => onChange(chip)}
           aria-pressed={selected === chip}
-          className={`fcl-count-chip shrink-0 rounded-full px-3.5 py-2 text-[11px] font-black transition-all sm:px-4 sm:text-xs ${
+          className={`fcl-count-chip shrink-0 rounded-full px-3.5 py-2 text-[11px] font-black transition-all sm:px-4 sm:text-xs whitespace-nowrap ${
             selected === chip
               ? "fcl-count-active"
               : ""
@@ -1678,7 +1678,7 @@ function PremiumPodium({
   if (!top.length) return null;
 
   return (
-    <div className="fcl-podium-grid mb-5 grid grid-cols-3 items-end gap-2 sm:mb-7 sm:gap-4 xl:gap-5">
+    <div className="fcl-podium-grid mb-5 grid grid-cols-3 items-end gap-2 sm:mb-7 sm:gap-4 xl:gap-5 w-full">
       {order.map((index) => {
         const row = top[index];
 
@@ -1906,7 +1906,7 @@ function RankingView({
   }
 
   return (
-    <div className="fcl-content-enter min-w-0">
+    <div className="fcl-content-enter min-w-0 w-full">
       <div className="mb-5 flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
         <SectionHeading
           icon={tabInfo?.icon || "🏆"}
@@ -1934,7 +1934,7 @@ function RankingView({
           )}
 
           {list.length > 0 && (
-            <div className="fcl-ranking-list overflow-hidden rounded-2xl sm:rounded-3xl">
+            <div className="fcl-ranking-list overflow-hidden rounded-2xl sm:rounded-3xl w-full">
               <div className="fcl-list-header hidden grid-cols-[40px_46px_minmax(0,1fr)_minmax(0,1fr)_110px] gap-4 border-b px-5 py-3 text-[10px] font-black uppercase tracking-wider sm:grid">
                 <span>Rank</span>
                 <span>Photo</span>
@@ -2042,7 +2042,7 @@ function RecordHoldersView({
   }, [holders, query]);
 
   return (
-    <div className="fcl-content-enter">
+    <div className="fcl-content-enter w-full">
       <SectionHeading
         icon="🌟"
         title="Hall of Fame"
@@ -2053,7 +2053,7 @@ function RecordHoldersView({
       {filtered.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 w-full">
           {filtered.map(
             (holder, index) => {
               const color =
@@ -2198,7 +2198,7 @@ function EliteClubsView({
     : visibleTiers;
 
   return (
-    <div className="fcl-content-enter">
+    <div className="fcl-content-enter w-full">
       <SectionHeading
         icon="💎"
         title="Elite Milestone Clubs"
@@ -2206,7 +2206,7 @@ function EliteClubsView({
         color={PURPLE}
       />
 
-      <div className="fcl-chip-scroll mb-6 flex gap-2 overflow-x-auto pb-1">
+      <div className="fcl-chip-scroll mb-6 flex gap-2 overflow-x-auto pb-1 w-full">
         {CLUB_CHIPS.map((item) => (
           <button
             key={item}
@@ -2217,7 +2217,7 @@ function EliteClubsView({
             aria-pressed={
               chip === item
             }
-            className={`fcl-count-chip shrink-0 rounded-full px-4 py-2 text-xs font-black ${
+            className={`fcl-count-chip shrink-0 rounded-full px-4 py-2 text-xs font-black whitespace-nowrap ${
               chip === item
                 ? "fcl-count-active"
                 : ""
@@ -2231,11 +2231,11 @@ function EliteClubsView({
       {available.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2 w-full">
           {available.map((tier) => (
             <div
               key={tier.key}
-              className="fcl-tier-card overflow-hidden rounded-3xl"
+              className="fcl-tier-card overflow-hidden rounded-3xl w-full"
               style={{
                 borderColor: `${tier.color}45`,
               }}
@@ -2247,9 +2247,9 @@ function EliteClubsView({
                 }}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <h3
-                      className="text-base font-black sm:text-lg"
+                      className="text-base font-black sm:text-lg break-words"
                       style={{
                         color:
                           tier.color,
@@ -2265,7 +2265,7 @@ function EliteClubsView({
                   </div>
 
                   <span
-                    className="rounded-full border px-3 py-1 text-xs font-black"
+                    className="rounded-full border px-3 py-1 text-xs font-black shrink-0"
                     style={{
                       borderColor: `${tier.color}45`,
                       color:
@@ -2395,7 +2395,7 @@ function SquadChips({
     );
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1.5 w-full">
       {names.map((name) => {
         const player =
           playersByName.get(
@@ -2444,7 +2444,7 @@ function SquadChips({
                 );
               }
             }}
-            className="fcl-squad-chip rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all enabled:hover:-translate-y-0.5 disabled:cursor-default"
+            className="fcl-squad-chip rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all enabled:hover:-translate-y-0.5 disabled:cursor-default whitespace-nowrap"
           >
             {name}
 
@@ -2472,7 +2472,7 @@ function AwardCell({
   color: string;
 }) {
   return (
-    <div className="fcl-award-cell min-w-0 rounded-xl p-3">
+    <div className="fcl-award-cell min-w-0 rounded-xl p-3 w-full">
       <p className="text-[10px] font-bold text-[var(--fcl-muted)]">
         {icon} {label}
       </p>
@@ -2522,7 +2522,7 @@ function TournamentDetails({
       : tour.ruTeam;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full overflow-x-hidden">
       <div className="fcl-tour-detail-heading border-b pb-4">
         <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#1877F2]">
           FCL Tournament Archive
@@ -2534,18 +2534,18 @@ function TournamentDetails({
 
         <div className="mt-3 flex flex-wrap gap-2">
           {tour.time && (
-            <span className="fcl-detail-chip rounded-full px-3 py-1.5 text-xs font-bold">
+            <span className="fcl-detail-chip rounded-full px-3 py-1.5 text-xs font-bold whitespace-nowrap">
               📅 {tour.time}
             </span>
           )}
 
-          <span className="fcl-detail-chip rounded-full px-3 py-1.5 text-xs font-bold">
+          <span className="fcl-detail-chip rounded-full px-3 py-1.5 text-xs font-bold whitespace-nowrap">
             👥 {tour.playerCount} Players
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 w-full">
         {[
           {
             id: "champ" as const,
@@ -2588,7 +2588,7 @@ function TournamentDetails({
             }}
           >
             <p
-              className="text-xs font-black sm:text-sm"
+              className="text-xs font-black sm:text-sm break-words"
               style={{
                 color: item.color,
               }}
@@ -2609,20 +2609,20 @@ function TournamentDetails({
         ))}
       </div>
 
-      <div className="fcl-squad-panel rounded-2xl p-4">
+      <div className="fcl-squad-panel rounded-2xl p-4 w-full overflow-x-hidden">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h4 className="text-sm font-black text-[var(--fcl-text)]">
+          <h4 className="text-sm font-black text-[var(--fcl-text)] min-w-0">
             {segment === "champ"
               ? "🏆 Champion Squad"
               : "🥈 Runner-Up Squad"}
           </h4>
 
-          <span className="text-[10px] font-bold text-[var(--fcl-muted)]">
+          <span className="text-[10px] font-bold text-[var(--fcl-muted)] shrink-0">
             {squad.length} Players
           </span>
         </div>
 
-        <p className="mb-3 text-xs font-bold text-[#1877F2]">
+        <p className="mb-3 text-xs font-bold text-[#1877F2] break-words">
           {team || "Team Information Unavailable"}
         </p>
 
@@ -2636,7 +2636,7 @@ function TournamentDetails({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 w-full">
         <AwardCell
           icon="🏏"
           label="Top Scorer"
@@ -2699,10 +2699,8 @@ function TournamentHistoryView({
       null
     );
 
-  const [mobileOpenId, setMobileOpenId] =
-    useState<number | null>(
-      null
-    );
+  const [openAccordionIds, setOpenAccordionIds] =
+    useState<Set<number>>(new Set());
 
   const [indexOpen, setIndexOpen] =
     useState(false);
@@ -2744,6 +2742,16 @@ function TournamentHistoryView({
 
   const grouped = state.grouped;
 
+  const toggleAccordion = (tourId: number) => {
+    const newSet = new Set(openAccordionIds);
+    if (newSet.has(tourId)) {
+      newSet.delete(tourId);
+    } else {
+      newSet.add(tourId);
+    }
+    setOpenAccordionIds(newSet);
+  };
+
   const jumpTo = (
     tour: Tour
   ) => {
@@ -2752,7 +2760,7 @@ function TournamentHistoryView({
     state.setLetter("All");
 
     setSelectedId(tour.id);
-    setMobileOpenId(tour.id);
+    setOpenAccordionIds(new Set([tour.id]));
     setVisible(Infinity);
     setIndexOpen(false);
 
@@ -2769,7 +2777,7 @@ function TournamentHistoryView({
   };
 
   return (
-    <div className="fcl-content-enter">
+    <div className="fcl-content-enter w-full overflow-x-hidden">
       <SectionHeading
         icon="🏆"
         title="Tournament History Archive"
@@ -2781,7 +2789,7 @@ function TournamentHistoryView({
 
       {/* TOURNAMENT SUMMARY */}
 
-      <div className="fcl-tour-summary mb-5 overflow-hidden rounded-3xl">
+      <div className="fcl-tour-summary mb-5 w-full overflow-hidden rounded-3xl">
         <div className="grid grid-cols-3">
           {[
             {
@@ -2844,15 +2852,15 @@ function TournamentHistoryView({
             )
           }
           aria-expanded={indexOpen}
-          className="fcl-tour-index-toggle flex w-full items-center justify-between gap-3 border-t px-4 py-3 text-left text-xs font-black"
+          className="fcl-tour-index-toggle w-full flex items-center justify-between gap-3 border-t px-4 py-3 text-left text-xs font-black"
         >
-          <span>
+          <span className="truncate">
             📚 All Tournaments
             (A–Z)
           </span>
 
           <span
-            className={`transition-transform ${
+            className={`shrink-0 transition-transform ${
               indexOpen
                 ? "rotate-180"
                 : ""
@@ -2887,7 +2895,7 @@ function TournamentHistoryView({
                               tour
                             )
                           }
-                          className="fcl-index-chip rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all"
+                          className="fcl-index-chip rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all whitespace-nowrap"
                         >
                           {
                             tour.name
@@ -2905,7 +2913,7 @@ function TournamentHistoryView({
 
       {/* SORTING */}
 
-      <div className="mb-4 space-y-3">
+      <div className="mb-4 space-y-3 w-full overflow-x-hidden">
         <select
           value={state.sort}
           onChange={(event) =>
@@ -2928,7 +2936,7 @@ function TournamentHistoryView({
           )}
         </select>
 
-        <div className="fcl-chip-scroll flex gap-1.5 overflow-x-auto pb-1">
+        <div className="fcl-chip-scroll flex gap-1.5 overflow-x-auto pb-1 w-full">
           {[
             "All",
             ...state.letters,
@@ -2941,7 +2949,7 @@ function TournamentHistoryView({
                   letter
                 )
               }
-              className={`fcl-letter-filter shrink-0 rounded-lg px-3 py-2 text-[11px] font-black ${
+              className={`fcl-letter-filter shrink-0 rounded-lg px-3 py-2 text-[11px] font-black whitespace-nowrap ${
                 state.letter ===
                 letter
                   ? "fcl-letter-active"
@@ -2970,19 +2978,20 @@ function TournamentHistoryView({
         <>
           {/* MOBILE TOURNAMENT ACCORDION */}
 
-          <div className="space-y-3 lg:hidden">
+          <div className="space-y-3 lg:hidden w-full overflow-x-hidden">
             {state.list
               .slice(0, visible)
               .map((tour) => {
                 const open =
-                  mobileOpenId ===
-                  tour.id;
+                  openAccordionIds.has(
+                    tour.id
+                  );
 
                 return (
                   <div
                     key={tour.id}
                     id={`fcl-tour-${tour.id}`}
-                    className="fcl-tour-card scroll-mt-28 overflow-hidden rounded-2xl"
+                    className="fcl-tour-card scroll-mt-28 overflow-hidden rounded-2xl w-full"
                     style={{
                       borderColor:
                         open
@@ -2993,10 +3002,8 @@ function TournamentHistoryView({
                     <button
                       type="button"
                       onClick={() =>
-                        setMobileOpenId(
-                          open
-                            ? null
-                            : tour.id
+                        toggleAccordion(
+                          tour.id
                         )
                       }
                       aria-expanded={
@@ -3039,7 +3046,7 @@ function TournamentHistoryView({
                       </span>
 
                       <span
-                        className={`text-[var(--fcl-muted)] transition-transform ${
+                        className={`shrink-0 text-[var(--fcl-muted)] transition-transform ${
                           open
                             ? "rotate-180"
                             : ""
@@ -3050,7 +3057,7 @@ function TournamentHistoryView({
                     </button>
 
                     {open && (
-                      <div className="fcl-tour-expanded border-t p-3">
+                      <div className="fcl-tour-expanded border-t p-3 w-full overflow-x-hidden">
                         <TournamentDetails
                           tour={tour}
                           playersByName={
@@ -3088,8 +3095,8 @@ function TournamentHistoryView({
 
           {/* DESKTOP TOURNAMENT LAYOUT */}
 
-          <div className="hidden grid-cols-[310px_minmax(0,1fr)] items-start gap-5 lg:grid xl:grid-cols-[350px_minmax(0,1fr)]">
-            <div className="fcl-tour-sidebar max-h-[650px] space-y-2 overflow-y-auto rounded-3xl p-3">
+          <div className="hidden grid-cols-[310px_minmax(0,1fr)] items-start gap-5 lg:grid xl:grid-cols-[350px_minmax(0,1fr)] w-full">
+            <div className="fcl-tour-sidebar max-h-[650px] space-y-2 overflow-y-auto rounded-3xl p-3 w-full">
               {state.list.map(
                 (tour) => {
                   const active =
@@ -3149,7 +3156,7 @@ function TournamentHistoryView({
               )}
             </div>
 
-            <div className="fcl-tour-desktop-detail sticky top-6 min-w-0 rounded-3xl p-5 xl:p-7">
+            <div className="fcl-tour-desktop-detail sticky top-6 min-w-0 rounded-3xl p-5 xl:p-7 w-full overflow-x-hidden">
               {selected && (
                 <TournamentDetails
                   tour={selected}
@@ -3173,7 +3180,7 @@ function TournamentHistoryView({
 
 function RecordsSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full">
       <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {[0, 1, 2].map(
           (index) => (
@@ -3421,7 +3428,7 @@ export default function RecordsPage() {
 
     if (error) {
       return (
-        <div className="fcl-empty rounded-3xl px-5 py-14 text-center">
+        <div className="fcl-empty rounded-3xl px-5 py-14 text-center w-full">
           <p className="text-4xl">
             ⚠️
           </p>
@@ -3547,7 +3554,7 @@ export default function RecordsPage() {
           ? "dark"
           : "light"
       }
-      className="fcl-records relative min-h-screen overflow-x-hidden pb-28 selection:bg-[#1877F2]/25 lg:pb-20"
+      className="fcl-records relative min-h-screen overflow-x-hidden pb-28 selection:bg-[#1877F2]/25 lg:pb-20 w-full"
     >
       <style>
         {RECORDS_STYLES}
@@ -3567,7 +3574,7 @@ export default function RecordsPage() {
 
       {/* MOBILE HEADER */}
 
-      <header className="fcl-mobile-header sticky top-0 z-40 border-b px-3 py-3 backdrop-blur-xl lg:hidden">
+      <header className="fcl-mobile-header sticky top-0 z-40 border-b px-3 py-3 backdrop-blur-xl lg:hidden w-full overflow-x-hidden">
         <div className="flex items-center gap-2.5">
           <Link
             href="/"
@@ -3591,7 +3598,7 @@ export default function RecordsPage() {
 
           <Link
             href="/rankings"
-            className="fcl-rankings-link shrink-0 rounded-xl px-3 py-2 text-[11px] font-black"
+            className="fcl-rankings-link shrink-0 rounded-xl px-3 py-2 text-[11px] font-black whitespace-nowrap"
           >
             Rankings ↗
           </Link>
@@ -3647,7 +3654,7 @@ export default function RecordsPage() {
         )}
       </header>
 
-      <div className="relative z-10 mx-auto max-w-[1450px] px-3 pt-5 sm:px-6 lg:px-8 lg:pt-9">
+      <div className="relative z-10 mx-auto max-w-[1450px] px-3 pt-5 sm:px-6 lg:px-8 lg:pt-9 w-full">
         {/* DESKTOP HEADER */}
 
         <header className="fcl-page-header mb-8 hidden items-end justify-between gap-6 lg:flex">
@@ -3723,7 +3730,7 @@ export default function RecordsPage() {
 
         {/* SUMMARY DASHBOARD */}
 
-        <section className="fcl-summary-grid mb-6 grid grid-cols-2 gap-2.5 sm:gap-4 lg:mb-9 lg:grid-cols-4">
+        <section className="fcl-summary-grid mb-6 grid grid-cols-2 gap-2.5 sm:gap-4 lg:mb-9 lg:grid-cols-4 w-full">
           {[
             {
               icon: "👥",
@@ -3752,10 +3759,10 @@ export default function RecordsPage() {
           ].map((stat) => (
             <div
               key={stat.label}
-              className="fcl-summary-card group relative overflow-hidden rounded-2xl p-4 transition-all duration-300 hover:-translate-y-1 sm:rounded-3xl sm:p-5"
+              className="fcl-summary-card group relative overflow-hidden rounded-2xl p-4 transition-all duration-300 hover:-translate-y-1 sm:rounded-3xl sm:p-5 w-full"
             >
               <div className="relative z-10 flex items-start justify-between">
-                <div>
+                <div className="min-w-0">
                   <p className="text-[9px] font-black uppercase tracking-wider text-[var(--fcl-muted)] sm:text-xs">
                     {stat.label}
                   </p>
@@ -3775,7 +3782,7 @@ export default function RecordsPage() {
                   </p>
                 </div>
 
-                <span className="fcl-stat-icon flex h-9 w-9 items-center justify-center rounded-xl text-lg sm:h-11 sm:w-11 sm:text-xl">
+                <span className="fcl-stat-icon flex h-9 w-9 items-center justify-center rounded-xl text-lg sm:h-11 sm:w-11 sm:text-xl shrink-0">
                   {stat.icon}
                 </span>
               </div>
@@ -3793,7 +3800,7 @@ export default function RecordsPage() {
 
         {/* MOBILE CATEGORY SELECTOR */}
 
-        <section className="fcl-mobile-categories mb-6 rounded-3xl p-3 lg:hidden">
+        <section className="fcl-mobile-categories mb-6 rounded-3xl p-3 lg:hidden w-full overflow-x-hidden">
           <button
             type="button"
             onClick={() =>
@@ -3891,9 +3898,9 @@ export default function RecordsPage() {
 
         {/* DESKTOP SIDEBAR + CONTENT */}
 
-        <div className="grid gap-8 lg:grid-cols-[255px_minmax(0,1fr)] xl:grid-cols-[275px_minmax(0,1fr)]">
-          <aside className="hidden self-start lg:block">
-            <nav className="fcl-sidebar sticky top-6 max-h-[calc(100vh-3rem)] space-y-5 overflow-y-auto rounded-3xl p-4">
+        <div className="grid gap-8 lg:grid-cols-[255px_minmax(0,1fr)] xl:grid-cols-[275px_minmax(0,1fr)] w-full">
+          <aside className="hidden self-start lg:block w-full">
+            <nav className="fcl-sidebar sticky top-6 max-h-[calc(100vh-3rem)] space-y-5 overflow-y-auto rounded-3xl p-4 w-full">
               <div className="px-3 pt-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#1877F2]">
                   EXPLORE RECORDS
@@ -3952,7 +3959,7 @@ export default function RecordsPage() {
                                   : ""
                               }`}
                             >
-                              <span className="text-lg">
+                              <span className="text-lg shrink-0">
                                 {
                                   item.icon
                                 }
@@ -3974,7 +3981,7 @@ export default function RecordsPage() {
             </nav>
           </aside>
 
-          <main className="min-w-0">
+          <main className="min-w-0 w-full overflow-x-hidden">
             {query.trim() && (
               <div className="fcl-search-notice mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3">
                 <p className="min-w-0 break-words text-xs font-semibold">
@@ -3989,7 +3996,7 @@ export default function RecordsPage() {
                   onClick={() =>
                     setQuery("")
                   }
-                  className="text-xs font-black text-[#1877F2]"
+                  className="text-xs font-black text-[#1877F2] shrink-0"
                 >
                   ✕ Clear
                 </button>
@@ -4005,12 +4012,12 @@ export default function RecordsPage() {
 
       <nav
         aria-label="Mobile navigation"
-        className="fcl-bottom-nav fixed bottom-3 left-3 right-3 z-40 rounded-3xl px-4 py-2.5 shadow-2xl backdrop-blur-xl lg:hidden"
+        className="fcl-bottom-nav fixed bottom-3 left-3 right-3 z-40 rounded-3xl px-4 py-2.5 shadow-2xl backdrop-blur-xl lg:hidden w-auto"
       >
         <div className="flex items-center justify-between gap-2">
           <Link
             href="/"
-            className="fcl-bottom-item flex flex-col items-center gap-1 text-[10px] font-bold"
+            className="fcl-bottom-item flex flex-col items-center gap-1 text-[10px] font-bold whitespace-nowrap"
           >
             <span className="text-lg">
               🏠
@@ -4025,7 +4032,7 @@ export default function RecordsPage() {
                 "teammates_record"
               )
             }
-            className={`fcl-bottom-item flex flex-col items-center gap-1 rounded-2xl px-3 py-1 text-[10px] font-bold ${
+            className={`fcl-bottom-item flex flex-col items-center gap-1 rounded-2xl px-3 py-1 text-[10px] font-bold whitespace-nowrap ${
               tab ===
               "teammates_record"
                 ? "fcl-bottom-active"
@@ -4045,7 +4052,7 @@ export default function RecordsPage() {
                 "tournaments_history"
               )
             }
-            className={`fcl-bottom-item flex flex-col items-center gap-1 rounded-2xl px-3 py-1 text-[10px] font-bold ${
+            className={`fcl-bottom-item flex flex-col items-center gap-1 rounded-2xl px-3 py-1 text-[10px] font-bold whitespace-nowrap ${
               tab ===
               "tournaments_history"
                 ? "fcl-bottom-active"
@@ -4060,7 +4067,7 @@ export default function RecordsPage() {
 
           <Link
             href="/rankings"
-            className="fcl-bottom-item flex flex-col items-center gap-1 text-[10px] font-bold"
+            className="fcl-bottom-item flex flex-col items-center gap-1 text-[10px] font-bold whitespace-nowrap"
           >
             <span className="text-lg">
               🚀
@@ -4075,7 +4082,7 @@ export default function RecordsPage() {
                 "clubs"
               )
             }
-            className={`fcl-bottom-item flex flex-col items-center gap-1 rounded-2xl px-3 py-1 text-[10px] font-bold ${
+            className={`fcl-bottom-item flex flex-col items-center gap-1 rounded-2xl px-3 py-1 text-[10px] font-bold whitespace-nowrap ${
               tab ===
               "clubs"
                 ? "fcl-bottom-active"
