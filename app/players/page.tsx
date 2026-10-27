@@ -534,7 +534,7 @@ function PremiumPlayerCard({
       : 0;
 
   const handleMouseMove = (
-    event: MouseEvent<HTMLButtonElement>
+    event: React.PointerEvent<HTMLButtonElement>
   ) => {
     if (event.pointerType === "touch") return;
 
@@ -1007,9 +1007,9 @@ function CriteriaContent() {
   return (
     <div>
       <p className="fcl-muted mb-4 text-xs leading-6">
-        FCL-এর প্রতিটি প্লেয়ারের ব্যাটিং এভারেজ এবং
-        প্রতি ম্যাচে উইকেটের গড় অনুযায়ী স্বয়ংক্রিয়ভাবে
-        Role নির্ধারণ করা হয়।
+        FCL-এর প্রতিটি প্লেয়ারের ব্যাটিং এভারেজ এবং
+        প্রতি ম্যাচে উইকেটের গড় অনুযায়ী স্বয়ংক্রিয়ভাবে
+        Role নির্ধারণ করা হয়।
       </p>
 
       <div className="space-y-2">
@@ -1425,7 +1425,7 @@ export default function PlayersPage() {
           </h3>
 
           <p className="fcl-muted mt-2 text-xs">
-            প্লেয়ারদের তথ্য লোড করা যাচ্ছে না।
+            প্লেয়ারদের তথ্য লোড করা যাচ্ছে না।
           </p>
 
           <button
@@ -1449,7 +1449,7 @@ export default function PlayersPage() {
           </h3>
 
           <p className="fcl-muted mt-2 text-xs">
-            আপনার সার্চ অনুযায়ী কোনো প্লেয়ার পাওয়া যায়নি।
+            আপনার সার্চ অনুযায়ী কোনো প্লেয়ার পাওয়া যায়নি।
           </p>
 
           <button
@@ -1581,7 +1581,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           HERO BACKGROUND
+            HERO BACKGROUND
         ====================================================== */
 
         .fcl-hero {
@@ -1620,7 +1620,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           GRADIENT TITLE
+            GRADIENT TITLE
         ====================================================== */
 
         .fcl-gradient-text {
@@ -1653,7 +1653,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           FLOATING BLUR SHAPES
+            FLOATING BLUR SHAPES
         ====================================================== */
 
         .fcl-orb {
@@ -1676,7 +1676,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           HERO BADGE
+            HERO BADGE
         ====================================================== */
 
         .fcl-hero-badge {
@@ -1686,7 +1686,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           COMPACT STAT STRIP
+            COMPACT STAT STRIP
         ====================================================== */
 
         .fcl-stat-strip {
@@ -1708,7 +1708,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           COMPARE CTA
+            COMPARE CTA
         ====================================================== */
 
         .fcl-compare {
@@ -1752,7 +1752,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           FILTER TOOLBAR
+            FILTER TOOLBAR
         ====================================================== */
 
         .fcl-toolbar {
@@ -1784,7 +1784,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           BUTTONS
+            BUTTONS
         ====================================================== */
 
         .fcl-primary {
@@ -1831,7 +1831,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           ROLE CHIPS
+            ROLE CHIPS
         ====================================================== */
 
         .fcl-role-chip {
@@ -1880,7 +1880,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           PLAYER AVATAR
+            PLAYER AVATAR
         ====================================================== */
 
         .fcl-avatar {
@@ -1889,7 +1889,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           PREMIUM DESKTOP CARD
+            PREMIUM DESKTOP CARD
         ====================================================== */
 
         .fcl-premium-card {
@@ -1994,7 +1994,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           MOBILE APP CARD
+            MOBILE APP CARD
         ====================================================== */
 
         .fcl-mobile-card {
@@ -2036,7 +2036,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           RANK BADGE
+            RANK BADGE
         ====================================================== */
 
         .fcl-rank {
@@ -2045,7 +2045,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           DESKTOP TABLE
+            DESKTOP TABLE
         ====================================================== */
 
         .fcl-table {
@@ -2072,7 +2072,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           MODAL
+            MODAL
         ====================================================== */
 
         .fcl-sheet {
@@ -2099,7 +2099,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           LOADING / EMPTY
+            LOADING / EMPTY
         ====================================================== */
 
         .fcl-skeleton,
@@ -2109,7 +2109,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           SCROLLBAR
+            SCROLLBAR
         ====================================================== */
 
         .fcl-no-scrollbar {
@@ -2122,7 +2122,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           MOBILE OPTIMIZATION
+            MOBILE OPTIMIZATION
         ====================================================== */
 
         @media (max-width: 639px) {
@@ -2137,7 +2137,7 @@ export default function PlayersPage() {
         }
 
         /* ======================================================
-           REDUCED MOTION
+            REDUCED MOTION
         ====================================================== */
 
         @media (prefers-reduced-motion: reduce) {
@@ -2206,8 +2206,8 @@ export default function PlayersPage() {
 
               <p className="fcl-text mt-2.5 max-w-[680px] text-[11px] leading-5 sm:text-xs">
                 FCL-এর সকল ক্রিকেটার, পারফরম্যান্স,
-                রেটিং ও অফিসিয়াল Player Card —
-                সবকিছু এক জায়গায়।
+                রেটিং ও অফিসিয়াল Player Card —
+                সবকিছু এক জায়গায়।
               </p>
             </div>
 
@@ -2233,7 +2233,7 @@ export default function PlayersPage() {
                 </h2>
 
                 <p className="fcl-muted mt-0.5 text-[10px]">
-                  ২–৪ জন প্লেয়ারের পারফরম্যান্স তুলনা
+                  ২–৪ জন প্লেয়ারের পারফরম্যান্স তুলনা
                 </p>
               </div>
 
