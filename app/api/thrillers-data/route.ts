@@ -1,31 +1,27 @@
 import { NextResponse } from "next/server";
-import path from "path";
-import fs from "fs";
-import * as XLSX from "xlsx";
+
+// আপনার গুগল শিটের ওয়েব অ্যাপ ইউআরএল
+const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzdogXgY3vIhLkn7aBHFXyXzj0UL-s6NmT4GE11Q4fRn3NVA5djiqMzh29E5xxAfnJg/exec";
 
 export async function GET() {
   try {
-    const filePath = path.join(process.cwd(), "public", "fcl-thrillers.xlsx");
+    const response = await fetch(GOOGLE_SHEET_WEB_APP_URL, {
+      cache: "no-store", // লাইভ ডেটা পাওয়ার জন্য ক্যাশ বন্ধ রাখা হলো
+    });
 
-    if (!fs.existsSync(filePath)) {
-      return NextResponse.json({ error: "fcl-thrillers.xlsx file not found" }, { status: 404 });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch from Google Sheets: ${response.statusText}`);
     }
 
-    const fileBuffer = fs.readFileSync(filePath);
-    const workbook = XLSX.read(fileBuffer, { type: "buffer" });
+    const data = await response.json();
 
-    // ১. Extraordinary Performance শিট
+    // ১. Extraordinary Performance শিট ডেটা প্রসেসিং
     let extraordinaryData: any[] = [];
-    const extraSheetName = workbook.SheetNames.find(
-      (name) => name.toLowerCase().includes("extraordinary") || name.toLowerCase().includes("performance")
-    ) || workbook.SheetNames[0];
-    
-    if (extraSheetName) {
-      const sheet = workbook.Sheets[extraSheetName];
-      const rawData: any[] = XLSX.utils.sheet_to_json(sheet);
-      extraordinaryData = rawData
-        .filter((row) => row["Player Name"] || row["Performance Title"])
-        .map((row) => ({
+    if (data.extraordinary && Array.isArray(data.extraordinary)) {
+      extraordinaryData = data.extraordinary
+        .filter((row: any) => row["Player Name"] || row["Performance Title"])
+        .map((row: any) => ({
+          rowIndex: row.rowIndex, // এডিট ও ডিলিটের জন্য রো ইনডেক্স
           part: String(row["Part"] ?? row["part"] ?? "").trim(),
           matchYear: String(row["Match Year"] ?? row["matchYear"] ?? "").trim(),
           playerName: String(row["Player Name"] || "").trim(),
@@ -37,18 +33,13 @@ export async function GET() {
         }));
     }
 
-    // ২. High Voltage Matches শিট
+    // ২. High Voltage Matches শিট ডেটা প্রসেসিং
     let highVoltageData: any[] = [];
-    const highSheetName = workbook.SheetNames.find(
-      (name) => name.toLowerCase().includes("high voltage") || name.toLowerCase().includes("matches")
-    ) || workbook.SheetNames[1];
-
-    if (highSheetName && workbook.SheetNames.includes(highSheetName)) {
-      const sheet = workbook.Sheets[highSheetName];
-      const rawData: any[] = XLSX.utils.sheet_to_json(sheet);
-      highVoltageData = rawData
-        .filter((row) => row["Match Title"] || row["Tournament"])
-        .map((row) => ({
+    if (data.highVoltage && Array.isArray(data.highVoltage)) {
+      highVoltageData = data.highVoltage
+        .filter((row: any) => row["Match Title"] || row["Tournament"])
+        .map((row: any) => ({
+          rowIndex: row.rowIndex, // এডিট ও ডিলিটের জন্য রো ইনডেক্স
           matchTitle: String(row["Match Title"] || "").trim(),
           tournament: String(row["Tournament"] || "").trim(),
           date: String(row["Date"] || "").trim(),
@@ -58,9 +49,12 @@ export async function GET() {
         }));
     }
 
-    return NextResponse.json({ extraordinary: extraordinaryData, highVoltage: highVoltageData }, { status: 200 });
+    return NextResponse.json(
+      { extraordinary: extraordinaryData, highVoltage: highVoltageData },
+      { status: 200 }
+    );
   } catch (error: any) {
-    console.error("Error reading fcl-thrillers.xlsx:", error);
-    return NextResponse.json({ error: "Failed to parse excel file" }, { status: 500 });
+    console.error("Error fetching from Google Sheets Web App:", error);
+    return NextResponse.json({ error: "Failed to fetch live Google Sheets data" }, { status: 500 });
   }
 }

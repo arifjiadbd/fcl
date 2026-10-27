@@ -75,29 +75,29 @@ export default function Navbar() {
 
   return (
     <header ref={dropdownRef} className="fixed top-0 left-0 right-0 z-[9999] w-full border-b border-slate-200 dark:border-white/10 bg-white dark:bg-[#020617] backdrop-blur-xl transition-colors duration-300 shadow-sm">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:px-6">
         
         {/* লোগো */}
-        <Link href={isBanglaPage ? "/bn" : "/"} className="flex items-center gap-2.5 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600/20 border border-blue-500/40 p-1.5 shadow">
+        <Link href={isBanglaPage ? "/bn" : "/"} className="flex items-center gap-2 group">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600/20 border border-blue-500/40 p-1 shadow">
             <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain" />
           </div>
           <div>
             <span 
-              className="text-sm font-black tracking-wide group-hover:text-sky-500 transition"
+              className="text-xs sm:text-sm font-black tracking-wide group-hover:text-sky-500 transition leading-none block"
               style={{ color: mounted && theme === 'dark' ? '#ffffff' : '#0f172a' }}
             >
               Facebook <span className="text-sky-500 dark:text-sky-400">Cricket League</span>
             </span>
-            <span className="block text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Official Digital Platform</span>
+            <span className="block text-[8px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Official Digital Platform</span>
           </div>
         </Link>
 
         {/* 💻 পিসি ভিউ নেভিগেশন (ক্যাটেগরি ও সাব-মেনু) */}
-        <nav className="hidden lg:flex items-center gap-1.5">
+        <nav className="hidden lg:flex items-center gap-1">
           <Link
             href={isBanglaPage ? "/bn" : "/"}
-            className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
+            className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
               pathname === "/" || pathname === "/bn"
                 ? "bg-blue-600 text-white shadow"
                 : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
@@ -112,7 +112,7 @@ export default function Navbar() {
               <div key={cat.name} className="relative">
                 <button
                   onClick={() => setActiveDropdown(isOpen ? null : cat.name)}
-                  className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition ${
+                  className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
                     isOpen
                       ? "bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white"
                       : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
@@ -120,20 +120,20 @@ export default function Navbar() {
                 >
                   <span>{cat.icon}</span>
                   <span>{cat.name}</span>
-                  <span className={`text-[10px] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}>▼</span>
+                  <span className={`text-[9px] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}>▼</span>
                 </button>
 
                 {/* সাব-মেনু ড্রপডাউন */}
                 {isOpen && (
-                  <div className="absolute left-0 mt-2 w-60 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0b1220]/95 p-2 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 z-50">
-                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800/80 mb-1">
+                  <div className="absolute left-0 mt-1.5 w-60 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0b1220]/95 p-2 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 z-50">
+                    <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800/80 mb-1">
                       {cat.name} Options
                     </div>
                     {cat.items.map((item) => (
                       <Link
                         key={item.href}
                         href={item.href}
-                        className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition ${
+                        className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition ${
                           pathname === item.href
                             ? "bg-blue-600 text-white shadow"
                             : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
@@ -152,7 +152,7 @@ export default function Navbar() {
           {/* সুপার অ্যাডমিন শর্টকাট লিংক */}
           <Link
             href="/superadmin"
-            className={`rounded-xl px-3 py-2 text-xs font-bold transition flex items-center gap-1 ${
+            className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition flex items-center gap-1 ${
               pathname === "/superadmin"
                 ? "bg-amber-600 text-white shadow"
                 : "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
@@ -164,13 +164,13 @@ export default function Navbar() {
         </nav>
 
         {/* ডানপাশে থিম টগল, ভাষা পরিবর্তন ও মোবাইল মেনু */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* চাঁদ ও সূর্য টগল বাটন */}
           {mounted && (
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               aria-label="Toggle Theme"
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-[#0b1220] text-amber-500 dark:text-amber-400 shadow transition hover:scale-105"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-[#0b1220] text-amber-500 dark:text-amber-400 shadow transition hover:scale-105 text-sm"
               title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {theme === "dark" ? "☀️" : "🌙"}
@@ -179,7 +179,7 @@ export default function Navbar() {
 
           <Link
             href={isBanglaPage ? "/" : "/bn"}
-            className="rounded-xl border border-blue-500/40 bg-blue-500/15 px-3 py-2 text-xs font-bold text-blue-700 dark:text-sky-300 transition hover:bg-blue-600 hover:text-white flex items-center gap-1.5"
+            className="rounded-lg border border-blue-500/40 bg-blue-500/15 px-2.5 py-1.5 text-xs font-bold text-blue-700 dark:text-sky-300 transition hover:bg-blue-600 hover:text-white flex items-center gap-1"
           >
             <span>{isBanglaPage ? "🇬🇧" : "💙"}</span>
             <span>{isBanglaPage ? "English" : "বাংলা"}</span>
@@ -187,7 +187,7 @@ export default function Navbar() {
 
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-[#0b1220] text-slate-700 dark:text-slate-300 lg:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-[#0b1220] text-slate-700 dark:text-slate-300 lg:hidden text-sm"
             aria-label="Toggle Menu"
           >
             {mobileMenuOpen ? "✕" : "☰"}
@@ -197,10 +197,10 @@ export default function Navbar() {
 
       {/* 📱 ফোন ভিউ বা মোবাইল ড্রপডাউন মেনু */}
       {mobileMenuOpen && (
-        <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#080d17]/95 px-4 py-5 backdrop-blur-2xl lg:hidden max-h-[80vh] overflow-y-auto space-y-5 animate-in slide-in-from-top duration-200 shadow-xl">
+        <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#080d17]/95 px-4 py-4 backdrop-blur-2xl lg:hidden max-h-[80vh] overflow-y-auto space-y-4 animate-in slide-in-from-top duration-200 shadow-xl">
           <Link
             href={isBanglaPage ? "/bn" : "/"}
-            className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-black ${
               pathname === "/" || pathname === "/bn"
                 ? "bg-blue-600 text-white shadow"
                 : "bg-slate-100 dark:bg-white/5 text-slate-800 dark:text-slate-200"
@@ -211,17 +211,17 @@ export default function Navbar() {
           </Link>
 
           {categories.map((cat) => (
-            <div key={cat.name} className="space-y-2">
-              <div className="flex items-center gap-2 px-1 text-xs font-black uppercase tracking-wider text-sky-500 dark:text-sky-400">
+            <div key={cat.name} className="space-y-1.5">
+              <div className="flex items-center gap-2 px-1 text-[11px] font-black uppercase tracking-wider text-sky-500 dark:text-sky-400">
                 <span>{cat.icon}</span>
                 <span>{cat.name}</span>
               </div>
-              <div className="grid grid-cols-1 gap-1.5 pl-2">
+              <div className="grid grid-cols-1 gap-1 pl-2">
                 {cat.items.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+                    className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold transition ${
                       pathname === item.href
                         ? "bg-blue-600 text-white shadow"
                         : "bg-slate-100 dark:bg-[#0b1220] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800/80"
@@ -238,7 +238,7 @@ export default function Navbar() {
           {/* মোবাইল মেনুতে সুপার অ্যাডমিন লিংক */}
           <Link
             href="/superadmin"
-            className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-black ${
               pathname === "/superadmin"
                 ? "bg-amber-600 text-white shadow"
                 : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"

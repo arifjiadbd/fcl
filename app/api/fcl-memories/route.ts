@@ -9,14 +9,17 @@ export async function GET() {
       cache: "no-store",
     });
 
-    if (!response.ok) {
-      throw new Error(`Google Script returned status ${response.status}`);
+    const text = await response.text();
+
+    // যদি রেসপন্স খালি বা HTML হয়
+    if (!text || text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html")) {
+      return NextResponse.json({ memories: [] }, { status: 200 });
     }
 
-    const data = await response.json();
+    const data = JSON.parse(text);
     
-    // এখানে item এবং index-এর টাইপ স্পষ্ট করে বলে দেওয়া হলো
     const formattedData = (data.memories || []).map((item: any, index: number) => ({
+      rowIndex: item.rowIndex || index + 2,
       id: index + 1,
       category: String(item.category || "অন্যান্য").trim(),
       title: String(item.title || "শিরোনামহীন স্মৃতি").trim(),
@@ -29,6 +32,6 @@ export async function GET() {
     return NextResponse.json({ memories: formattedData }, { status: 200 });
   } catch (error: any) {
     console.error("Error fetching from Google Sheet:", error);
-    return NextResponse.json({ memories: [], error: error.message }, { status: 500 });
+    return NextResponse.json({ memories: [] }, { status: 200 });
   }
 }
