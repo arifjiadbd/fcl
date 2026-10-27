@@ -33,6 +33,8 @@ export default function Navbar() {
     setActiveDropdown(null);
   }, [pathname]);
 
+  const isBanglaPage = pathname === "/bn";
+
   const categories = [
     {
       name: "Players & Stats",
@@ -71,10 +73,8 @@ export default function Navbar() {
     },
   ];
 
-  const isBanglaPage = pathname === "/bn";
-
   return (
-    <header ref={dropdownRef} className="sticky top-0 z-50 border-b border-slate-200 dark:border-white/10 bg-white/95 dark:bg-[#020617]/95 backdrop-blur-xl transition-colors duration-300">
+    <header ref={dropdownRef} className="fixed top-0 left-0 right-0 z-[9999] w-full border-b border-slate-200 dark:border-white/10 bg-white dark:bg-[#020617] backdrop-blur-xl transition-colors duration-300 shadow-sm">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         
         {/* লোগো */}
@@ -83,8 +83,11 @@ export default function Navbar() {
             <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain" />
           </div>
           <div>
-            <span className="text-sm font-black tracking-wide text-slate-900 dark:text-white group-hover:text-sky-400 transition">
-              Facebook <span className="text-sky-400">Cricket League</span>
+            <span 
+              className="text-sm font-black tracking-wide group-hover:text-sky-500 transition"
+              style={{ color: mounted && theme === 'dark' ? '#ffffff' : '#0f172a' }}
+            >
+              Facebook <span className="text-sky-500 dark:text-sky-400">Cricket League</span>
             </span>
             <span className="block text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Official Digital Platform</span>
           </div>
@@ -194,7 +197,7 @@ export default function Navbar() {
 
       {/* 📱 ফোন ভিউ বা মোবাইল ড্রপডাউন মেনু */}
       {mobileMenuOpen && (
-        <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#080d17]/95 px-4 py-5 backdrop-blur-2xl lg:hidden max-h-[80vh] overflow-y-auto space-y-5 animate-in slide-in-from-top duration-200">
+        <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#080d17]/95 px-4 py-5 backdrop-blur-2xl lg:hidden max-h-[80vh] overflow-y-auto space-y-5 animate-in slide-in-from-top duration-200 shadow-xl">
           <Link
             href={isBanglaPage ? "/bn" : "/"}
             className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${
