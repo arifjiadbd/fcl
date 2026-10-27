@@ -13,10 +13,10 @@ export default function Navbar() {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
 
-  // হাইড্রেশন মিসম্যাচ এড়ানোর জন্য
+  // হাইড্রেশন মিসম্যাচ এড়ানোর জন্য
   useEffect(() => setMounted(true), []);
 
-  // বাইরে ক্লিক করলে ড্রপডাউন বন্ধ হয়ে যাবে
+  // বাইরে ক্লিক করলে ড্রপডাউন বন্ধ হয়ে যাবে
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -74,7 +74,7 @@ export default function Navbar() {
   const isBanglaPage = pathname === "/bn";
 
   return (
-    <header ref={dropdownRef} className="sticky top-0 z-50 border-b border-slate-200 dark:border-white/10 bg-white/90 dark:bg-[#020617]/90 backdrop-blur-xl transition-colors duration-300">
+    <header ref={dropdownRef} className="sticky top-0 z-50 border-b border-slate-200 dark:border-white/10 bg-white/95 dark:bg-[#020617]/95 backdrop-blur-xl transition-colors duration-300">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         
         {/* লোগো */}
@@ -91,10 +91,10 @@ export default function Navbar() {
         </Link>
 
         {/* 💻 পিসি ভিউ নেভিগেশন (ক্যাটেগরি ও সাব-মেনু) */}
-        <nav className="hidden lg:flex items-center gap-2">
+        <nav className="hidden lg:flex items-center gap-1.5">
           <Link
             href={isBanglaPage ? "/bn" : "/"}
-            className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+            className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
               pathname === "/" || pathname === "/bn"
                 ? "bg-blue-600 text-white shadow"
                 : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
@@ -109,7 +109,7 @@ export default function Navbar() {
               <div key={cat.name} className="relative">
                 <button
                   onClick={() => setActiveDropdown(isOpen ? null : cat.name)}
-                  className={`flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition ${
                     isOpen
                       ? "bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white"
                       : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
@@ -145,10 +145,23 @@ export default function Navbar() {
               </div>
             );
           })}
+
+          {/* সুপার অ্যাডমিন শর্টকাট লিংক */}
+          <Link
+            href="/superadmin"
+            className={`rounded-xl px-3 py-2 text-xs font-bold transition flex items-center gap-1 ${
+              pathname === "/superadmin"
+                ? "bg-amber-600 text-white shadow"
+                : "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+            }`}
+          >
+            <span>🔐</span>
+            <span>Admin</span>
+          </Link>
         </nav>
 
         {/* ডানপাশে থিম টগল, ভাষা পরিবর্তন ও মোবাইল মেনু */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {/* চাঁদ ও সূর্য টগল বাটন */}
           {mounted && (
             <button
@@ -163,7 +176,7 @@ export default function Navbar() {
 
           <Link
             href={isBanglaPage ? "/" : "/bn"}
-            className="rounded-xl border border-blue-500/40 bg-blue-500/15 px-3.5 py-2 text-xs font-bold text-blue-700 dark:text-sky-300 transition hover:bg-blue-600 hover:text-white flex items-center gap-1.5"
+            className="rounded-xl border border-blue-500/40 bg-blue-500/15 px-3 py-2 text-xs font-bold text-blue-700 dark:text-sky-300 transition hover:bg-blue-600 hover:text-white flex items-center gap-1.5"
           >
             <span>{isBanglaPage ? "🇬🇧" : "💙"}</span>
             <span>{isBanglaPage ? "English" : "বাংলা"}</span>
@@ -218,6 +231,19 @@ export default function Navbar() {
               </div>
             </div>
           ))}
+
+          {/* মোবাইল মেনুতে সুপার অ্যাডমিন লিংক */}
+          <Link
+            href="/superadmin"
+            className={`flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${
+              pathname === "/superadmin"
+                ? "bg-amber-600 text-white shadow"
+                : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+            }`}
+          >
+            <span>🔐</span>
+            <span>Super Admin Panel</span>
+          </Link>
         </div>
       )}
     </header>
