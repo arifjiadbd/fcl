@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 export default function SuperAdminMemories() {
   // সিকিউরিটি পিন (আপনার পছন্দমতো পরিবর্তন করতে পারেন, যেমন: "123456")
-  const ADMIN_PIN = "123456";
+  const ADMIN_PIN = "423597";
   const [enteredPin, setEnteredPin] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinError, setPinError] = useState(false);
