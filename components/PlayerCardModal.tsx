@@ -979,8 +979,8 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             </div>
           </div>
 
-          {/* ================= BODY (pb-24 যোগ করা হয়েছে যাতে নিচের বাটনগুলো নেভবারের নিচে ঢাকা না পড়ে) ================= */}
-          <div className={`flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 pb-24 sm:pb-5 ${T.body}`}>
+          {/* ================= BODY (pt-4 এবং pb-24 যোগ করা হয়েছে যাতে ওপর-নিচে কোনো কন্টেন্ট ঢাকা না পড়ে) ================= */}
+          <div className={`flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 pt-4 pb-24 sm:pb-6 ${T.body}`}>
             {cardModalTab === "card" && (
               <div ref={cardRef} className={`mx-auto w-full max-w-2xl space-y-4 rounded-2xl border p-5 sm:p-6 shadow-xl ${T.card}`}>
                 <div className={`flex items-center justify-between border-b pb-3 ${T.divider}`}>
@@ -1361,7 +1361,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             )}
           </div>
 
-          {/* ================= FOOTER (fixed/sticky যাতে মোবাইলে নেভবারের ওপরে ক্লিয়ার থাকে) ================= */}
+          {/* ================= FOOTER ================= */}
           <div className={`sticky bottom-0 z-30 shrink-0 flex gap-2 border-t p-3 bg-opacity-95 backdrop-blur-md ${T.footer}`}>
             {cardModalTab === "card" ? (
               <button onClick={handleDownloadCard} disabled={downloading} className="flex-1 rounded-xl bg-[#1877F2] py-2.5 text-xs font-bold text-white shadow hover:bg-[#166fe5] disabled:opacity-60">
