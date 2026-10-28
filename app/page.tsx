@@ -57,7 +57,7 @@ function useIsDark() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Preloader Component (5s FCL Logo Animation)                       */
+/*  Preloader Component (5s FCL Logo Animation)                         */
 /* ------------------------------------------------------------------ */
 function Preloader({ onFinish }: { onFinish: () => void }) {
   const [fadeOut, setFadeOut] = useState(false);
@@ -623,19 +623,54 @@ export default function Home() {
         </section>
 
         {/* ================================================================
-            MOBILE HOME APP
+            MOBILE HOME APP (পিসির মতো ছবির পাশে অ্যানিমেটেড চিপস সহ)
             ================================================================ */}
-        <section className="fcl-hero relative overflow-hidden border-b px-4 pb-7 pt-5 sm:hidden">
+        <section className="fcl-hero relative overflow-hidden border-b px-4 pb-8 pt-8 sm:hidden mt-2">
           <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-blue-500/10 blur-[90px]" />
           <div className="pointer-events-none absolute -left-28 bottom-0 h-64 w-64 rounded-full bg-purple-500/10 blur-[90px]" />
-          <div className="mt-5 px-1">
+          <div className="mt-2 px-1">
             <span className="fcl-eyebrow text-[9px] font-black uppercase tracking-[0.28em]">FCL Digital Platform</span>
-            <h2 className="fcl-head mt-2 text-[31px] font-black leading-[.98] tracking-[-0.045em]">THE GAME LIVES<br /><span className="bg-gradient-to-r from-blue-600 via-[#1877F2] to-purple-600 bg-clip-text text-transparent">BEYOND THE FIELD.</span></h2>
+            <h2 className="fcl-head mt-2.5 text-[31px] font-black leading-[.98] tracking-[-0.045em]">THE GAME LIVES<br /><span className="bg-gradient-to-r from-blue-600 via-[#1877F2] to-purple-600 bg-clip-text text-transparent">BEYOND THE FIELD.</span></h2>
             <p className="fcl-body mt-3 max-w-[340px] text-[11px] leading-5">Explore the official FCL archive, players, rankings, records, memories and the online game.</p>
           </div>
 
-          <div className="fcl-frame mt-5 overflow-hidden rounded-[22px]">
-            <img src="/fcl-room.png" alt="FCL Online" className="h-[185px] w-full object-cover object-center" />
+          <div className="relative mt-5">
+            <div className="fcl-frame overflow-hidden rounded-[22px]">
+              <img src="/fcl-room.png" alt="FCL Online" className="h-[210px] w-full object-cover object-center" />
+            </div>
+            
+            {/* মোবাইল ভিউতে ডেস্কটপের মতো অ্যানিমেটেড চিপস ও ব্যাজ */}
+            <div className="fcl-chip fcl-pill fcl-pill-line absolute -left-1 top-4 flex items-center gap-2 rounded-xl border px-2.5 py-1.5 backdrop-blur-xl shadow-lg scale-90">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e]" />
+              <div>
+                <span className="fcl-head text-[9px] font-bold block leading-none">FCL LIVE</span>
+                <span className="fcl-blue1 text-[8px] leading-tight">Phoenix · 14/2</span>
+              </div>
+            </div>
+
+            <div className="fcl-chip fcl-chip-delay fcl-pill absolute -right-1 top-12 flex items-center gap-1.5 rounded-xl border border-rose-500/40 px-2.5 py-1.5 backdrop-blur-xl shadow-lg scale-90">
+              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-rose-500 text-white font-black text-[10px]">6</div>
+              <div>
+                <span className="fcl-rose text-[9px] font-black block leading-none">OUT</span>
+                <span className="fcl-pill-sub text-[8px] leading-tight">Ball 1</span>
+              </div>
+            </div>
+
+            <div className="fcl-chip fcl-pill absolute -left-1 bottom-12 flex items-center gap-1.5 rounded-xl border border-blue-500/40 px-2.5 py-1.5 backdrop-blur-xl shadow-lg scale-90">
+              <div className="flex h-5 w-5 items-center justify-center rounded-md bg-[#1877F2] text-white font-black text-[10px]">4</div>
+              <div>
+                <span className="fcl-blue2 text-[9px] font-bold block leading-none">+4 RUN</span>
+                <span className="fcl-pill-sub text-[8px] leading-tight">Ball 2</span>
+              </div>
+            </div>
+
+            <div className="fcl-chip fcl-chip-delay fcl-pill absolute -right-1 bottom-4 flex flex-col gap-0.5 rounded-xl border border-amber-500/40 px-2.5 py-1.5 backdrop-blur-xl shadow-lg scale-90">
+              <div className="flex items-center gap-1">
+                <span className="text-xs">🎯</span>
+                <span className="fcl-amber text-[9px] font-bold leading-none">Need 56 off 24</span>
+              </div>
+              <span className="fcl-pill-sub text-[8px] font-semibold leading-tight">Target 70</span>
+            </div>
           </div>
         </section>
 
