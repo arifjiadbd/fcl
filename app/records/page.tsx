@@ -3559,51 +3559,56 @@ export default function RecordsPage() {
 
       {/* MOBILE HEADER */}
 
-      <header className="fcl-mobile-header sticky top-0 z-40 mt-16 sm:mt-18 lg:mt-0 border-b px-3 py-3 backdrop-blur-xl lg:hidden">
-        <div className="flex items-center gap-2.5">
-          <Link
-            href="/"
-            aria-label="Home"
-            className="fcl-back-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl"
-          >
-            ‹
-          </Link>
+      {/* MOBILE HEADER */}
+      <header className="fcl-mobile-header sticky top-0 z-40 mt-16 sm:mt-18 lg:mt-0 border-b px-4 py-4 backdrop-blur-xl lg:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              href="/"
+              aria-label="Home"
+              className="fcl-back-button flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl"
+            >
+              ‹
+            </Link>
 
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-black tracking-tight text-[var(--fcl-text)]">
-              FCL Record Corner
-            </h1>
-
-            <p className="mt-0.5 truncate text-[10px] text-[var(--fcl-muted)]">
-              {tabInfo?.icon}{" "}
-              {tabInfo?.label ||
-                "Hall of Fame"}
-            </p>
+            <div className="min-w-0">
+              <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-[#1877F2]/25 bg-[#1877F2]/10 px-2.5 py-0.5">
+                <span className="text-[10px]">🏏</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.15em] text-[#1877F2]">
+                  FCL OFFICIAL ARCHIVE
+                </span>
+              </div>
+              <h1 className="text-xl font-black tracking-tight text-[var(--fcl-text)] truncate">
+                FCL <span className="fcl-gradient-text">Record Corner.</span>
+              </h1>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--fcl-muted)] truncate">
+                রান, উইকেট, ট্রফি এবং টুর্নামেন্টের সোনালী ইতিহাস।
+              </p>
+            </div>
           </div>
 
-          <Link
-            href="/rankings"
-            className="fcl-rankings-link shrink-0 rounded-xl px-3 py-2 text-[11px] font-black"
-          >
-            Rankings ↗
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/rankings"
+              className="fcl-rankings-link rounded-xl px-3 py-2 text-[11px] font-black"
+            >
+              Rankings ↗
+            </Link>
 
-          <button
-            type="button"
-            onClick={() =>
-              setMobileSearchOpen(
-                (previous) =>
-                  !previous
-              )
-            }
-            aria-label="Toggle search"
-            aria-expanded={
-              mobileSearchOpen
-            }
-            className="fcl-search-toggle flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-          >
-            🔍
-          </button>
+            <button
+              type="button"
+              onClick={() =>
+                setMobileSearchOpen(
+                  (previous) => !previous
+                )
+              }
+              aria-label="Toggle search"
+              aria-expanded={mobileSearchOpen}
+              className="fcl-search-toggle flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+            >
+              🔍
+            </button>
+          </div>
         </div>
 
         {mobileSearchOpen && (
@@ -3611,12 +3616,8 @@ export default function RecordsPage() {
             <input
               type="search"
               value={query}
-              onChange={(
-                event
-              ) =>
-                setQuery(
-                  event.target.value
-                )
+              onChange={(event) =>
+                setQuery(event.target.value)
               }
               placeholder="প্লেয়ার, টিম বা টুর্নামেন্ট..."
               className="fcl-search-input w-full rounded-xl py-3 pl-4 pr-10 text-xs outline-none"
@@ -3625,9 +3626,7 @@ export default function RecordsPage() {
             {query && (
               <button
                 type="button"
-                onClick={() =>
-                  setQuery("")
-                }
+                onClick={() => setQuery("")}
                 aria-label="Clear search"
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--fcl-muted)]"
               >
@@ -3637,7 +3636,6 @@ export default function RecordsPage() {
           </div>
         )}
       </header>
-
       {/* মূল কন্টেইনার যাতে overflow-x সমস্যা না করে এবং স্ক্রিন অনুযায়ী ফিক্সড থাকে */}
       <div className="relative z-10 mx-auto max-w-[1450px] w-full box-border px-3 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pt-12">
         {/* DESKTOP HEADER */}
