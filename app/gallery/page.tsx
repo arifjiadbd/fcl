@@ -409,7 +409,6 @@ export default function PhotoGalleryPage() {
       );
     });
 
-    // Sorting logic (Role removed, only A-Z, Z-A and default)
     if (sortBy === "az") {
       result.sort((a, b) => a.name.localeCompare(b.name));
     } else if (sortBy === "za") {
@@ -525,10 +524,6 @@ export default function PhotoGalleryPage() {
 
       <style jsx global>{`
 
-        /* ============================================================
-           FCL OFFICIAL COLOR TOKENS
-        ============================================================ */
-
         .gallery-root {
           --gallery-bg: #ffffff;
           --gallery-bg-alt: #f1f5f9;
@@ -595,10 +590,6 @@ export default function PhotoGalleryPage() {
             0 25px 60px rgba(24, 119, 242, 0.18);
         }
 
-        /* ============================================================
-           THEME UTILITIES
-        ============================================================ */
-
         .gallery-heading {
           color: var(--gallery-heading);
         }
@@ -619,14 +610,16 @@ export default function PhotoGalleryPage() {
           color: var(--gallery-amber);
         }
 
-        /* ============================================================
-           HERO
-        ============================================================ */
-
         .gallery-hero {
           background: var(--gallery-bg-alt);
-
           border-color: var(--gallery-border);
+          padding-top: 2rem; /* মোবাইলে হেডারের নিচে নিরাপদ স্পেস */
+        }
+
+        @media (min-width: 640px) {
+          .gallery-hero {
+            padding-top: 3rem;
+          }
         }
 
         .gallery-grid {
@@ -665,10 +658,6 @@ export default function PhotoGalleryPage() {
               transparent 1px
             );
         }
-
-        /* ============================================================
-           GRADIENT TEXT
-        ============================================================ */
 
         .gallery-gradient-text {
           background:
@@ -717,10 +706,6 @@ export default function PhotoGalleryPage() {
           }
         }
 
-        /* ============================================================
-           FLOATING ORBS
-        ============================================================ */
-
         @keyframes galleryFloat {
           0%, 100% {
             transform: translate(0, 0) scale(1);
@@ -740,24 +725,12 @@ export default function PhotoGalleryPage() {
           animation-delay: -5s;
         }
 
-        /* ============================================================
-           SEARCH & SELECT
-        ============================================================ */
-
         .gallery-search, .gallery-select {
           background: var(--gallery-input);
-
           color: var(--gallery-heading);
-
           border-color: var(--gallery-border);
-
-          box-shadow:
-            0 4px 20px rgba(15, 23, 42, 0.04);
-
-          transition:
-            border-color 0.3s ease,
-            box-shadow 0.3s ease,
-            background 0.3s ease;
+          box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+          transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
         }
 
         .gallery-search::placeholder {
@@ -767,28 +740,17 @@ export default function PhotoGalleryPage() {
 
         .gallery-search:focus, .gallery-select:focus {
           border-color: #1877F2;
-
           box-shadow:
             0 0 0 4px rgba(24, 119, 242, 0.10),
             0 8px 30px rgba(24, 119, 242, 0.08);
           outline: none;
         }
 
-        /* ============================================================
-           STATS PILL
-        ============================================================ */
-
         .gallery-stat {
           background: var(--gallery-card);
-
           border-color: var(--gallery-border);
-
           box-shadow: var(--gallery-shadow);
         }
-
-        /* ============================================================
-           PHOTO CARDS
-        ============================================================ */
 
         .gallery-card {
           background:
@@ -799,18 +761,13 @@ export default function PhotoGalleryPage() {
             );
 
           border-color: var(--gallery-border);
-
           box-shadow: var(--gallery-shadow);
-
-          animation:
-            galleryCardEnter 0.6s ease-out both;
-
+          animation: galleryCardEnter 0.6s ease-out both;
           animation-delay: var(--card-delay);
         }
 
         .gallery-card:hover {
           border-color: rgba(24, 119, 242, 0.55);
-
           box-shadow: var(--gallery-hover-shadow);
         }
 
@@ -819,7 +776,6 @@ export default function PhotoGalleryPage() {
             opacity: 0;
             transform: translateY(20px);
           }
-
           to {
             opacity: 1;
             transform: translateY(0);
@@ -838,11 +794,8 @@ export default function PhotoGalleryPage() {
               var(--gallery-image-bg) 18%,
               var(--gallery-card-alt) 33%
             );
-
           background-size: 200% 100%;
-
-          animation:
-            galleryShimmer 1.5s linear infinite;
+          animation: galleryShimmer 1.5s linear infinite;
         }
 
         @keyframes galleryShimmer {
@@ -851,54 +804,27 @@ export default function PhotoGalleryPage() {
           }
         }
 
-        /* ============================================================
-           DOWNLOAD BUTTON
-        ============================================================ */
-
         .gallery-download {
           background: rgba(24, 119, 242, 0.09);
-
           border-color: rgba(24, 119, 242, 0.22);
-
           color: #1d4ed8;
         }
 
         .gallery-dark .gallery-download {
           background: rgba(24, 119, 242, 0.13);
-
           border-color: rgba(96, 165, 250, 0.25);
-
           color: #93c5fd;
         }
 
         .gallery-download:hover {
           background: #1877F2;
-
           border-color: #1877F2;
-
           color: #ffffff;
-
-          box-shadow:
-            0 10px 25px rgba(24, 119, 242, 0.25);
+          box-shadow: 0 10px 25px rgba(24, 119, 242, 0.25);
         }
-
-        .gallery-download-shine {
-          background:
-            linear-gradient(
-              90deg,
-              transparent,
-              rgba(255, 255, 255, 0.3),
-              transparent
-            );
-        }
-
-        /* ============================================================
-           SKELETON
-        ============================================================ */
 
         .gallery-skeleton {
           background: var(--gallery-card);
-
           border-color: var(--gallery-border);
         }
 
@@ -910,21 +836,11 @@ export default function PhotoGalleryPage() {
           background: var(--gallery-border);
         }
 
-        /* ============================================================
-           EMPTY STATE
-        ============================================================ */
-
         .gallery-empty {
           background: var(--gallery-card);
-
           border-color: var(--gallery-border);
-
           box-shadow: var(--gallery-shadow);
         }
-
-        /* ============================================================
-           REDUCED MOTION
-        ============================================================ */
 
         @media (prefers-reduced-motion: reduce) {
           .gallery-root *,
@@ -943,32 +859,18 @@ export default function PhotoGalleryPage() {
       ============================================================ */}
 
       <section className="gallery-hero relative overflow-hidden border-b">
-        {/* Grid Background */}
-
         <div className="gallery-grid pointer-events-none absolute inset-0" />
-
-        {/* Glow Orbs */}
-
         <div className="gallery-orb pointer-events-none absolute -right-28 -top-28 h-80 w-80 rounded-full bg-[#1877F2]/15 blur-[100px]" />
-
         <div className="gallery-orb gallery-orb-delay pointer-events-none absolute -bottom-36 -left-24 h-72 w-72 rounded-full bg-purple-500/10 blur-[110px]" />
-
-        {/* Radial Glow */}
-
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(24,119,242,0.08),transparent_65%)]" />
 
         <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-8 sm:px-6 sm:pb-12 sm:pt-12 lg:pb-14 lg:pt-14">
-          {/* Eyebrow */}
-
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#1877F2]/25 bg-[#1877F2]/10 px-3.5 py-2 backdrop-blur-xl">
             <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.8)]" />
-
             <span className="gallery-blue text-[9px] font-black uppercase tracking-[0.22em] sm:text-[10px]">
               FCL OFFICIAL MEDIA HUB
             </span>
           </div>
-
-          {/* Heading */}
 
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
@@ -987,24 +889,18 @@ export default function PhotoGalleryPage() {
                 হাই-কোয়ালিটি প্লেয়ার ফটো।
               </p>
 
-              {/* Feature Badges */}
-
               <div className="mt-5 flex flex-wrap items-center gap-2">
                 <span className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-[9px] font-bold text-blue-600 sm:text-[10px]">
                   📸 Official Photos
                 </span>
-
                 <span className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-[9px] font-bold text-emerald-600 sm:text-[10px]">
                   ✓ HD Quality
                 </span>
-
                 <span className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[9px] font-bold text-amber-600 sm:text-[10px]">
                   ⚡ Instant Download
                 </span>
               </div>
             </div>
-
-            {/* Back Button */}
 
             <div className="flex shrink-0">
               <Link
@@ -1014,7 +910,6 @@ export default function PhotoGalleryPage() {
                 <span className="text-lg transition-transform duration-300 group-hover:-translate-x-1">
                   ←
                 </span>
-
                 Back to Home
               </Link>
             </div>
@@ -1027,17 +922,10 @@ export default function PhotoGalleryPage() {
       ============================================================ */}
 
       <main className="relative mx-auto max-w-7xl px-4 pb-12 pt-7 sm:px-6 sm:pt-10">
-        {/* ============================================================
-            SEARCH & STATS
-        ============================================================ */}
-
         <div className="mb-7 flex flex-col gap-5 sm:mb-9 lg:flex-row lg:items-end lg:justify-between">
-          {/* Section Title */}
-
           <div>
             <div className="mb-2 flex items-center gap-2">
               <span className="h-1.5 w-6 rounded-full bg-[#1877F2]" />
-
               <span className="gallery-blue text-[9px] font-black uppercase tracking-[0.25em]">
                 FCL PHOTO COLLECTION
               </span>
@@ -1052,10 +940,7 @@ export default function PhotoGalleryPage() {
             </p>
           </div>
 
-          {/* Search, Sort Controls */}
-
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {/* Sort Dropdown (Role removed) */}
             <div className="w-full sm:w-48">
               <label
                 htmlFor="gallery-sort"
@@ -1075,7 +960,6 @@ export default function PhotoGalleryPage() {
               </select>
             </div>
 
-            {/* Search */}
             <div className="w-full sm:w-[280px]">
               <label
                 htmlFor="gallery-search"
@@ -1115,36 +999,24 @@ export default function PhotoGalleryPage() {
           </div>
         </div>
 
-        {/* ============================================================
-            RESULTS BAR
-        ============================================================ */}
-
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            {/* Total Players */}
-
             <div className="gallery-stat inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5">
               <span className="text-sm">📸</span>
-
               <span className="gallery-heading text-[11px] font-bold">
                 Total Photos:
               </span>
-
               <span className="gallery-blue text-xs font-black">
                 {loading ? "..." : players.length}
               </span>
             </div>
 
-            {/* Search Results */}
-
             {search.trim() && !loading && (
               <div className="gallery-stat inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5">
                 <span className="text-sm">🔎</span>
-
                 <span className="gallery-muted text-[11px] font-bold">
                   Results:
                 </span>
-
                 <span className="gallery-blue text-xs font-black">
                   {filteredPlayers.length}
                 </span>
@@ -1152,34 +1024,19 @@ export default function PhotoGalleryPage() {
             )}
           </div>
 
-          {/* Official Badge */}
-
           <div className="hidden items-center gap-2 sm:flex">
             <span className="h-2 w-2 rounded-full bg-[#22c55e]" />
-
             <span className="gallery-muted text-[10px] font-bold uppercase tracking-wider">
               FCL Official Collection
             </span>
           </div>
         </div>
 
-        {/* ============================================================
-            DIVIDER
-        ============================================================ */}
-
         <div className="mb-7 h-px w-full bg-gradient-to-r from-[#1877F2]/40 via-[#1877F2]/10 to-transparent" />
-
-        {/* ============================================================
-            LOADING
-        ============================================================ */}
 
         {loading ? (
           <GallerySkeleton />
         ) : error ? (
-          /* ============================================================
-             ERROR STATE
-          ============================================================ */
-
           <div className="gallery-empty flex flex-col items-center justify-center rounded-[28px] border px-5 py-16 text-center sm:py-20">
             <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-3xl border border-rose-500/20 bg-rose-500/10 text-4xl">
               ⚠️
@@ -1204,10 +1061,6 @@ export default function PhotoGalleryPage() {
             </button>
           </div>
         ) : filteredPlayers.length === 0 ? (
-          /* ============================================================
-             EMPTY STATE
-          ============================================================ */
-
           <div className="gallery-empty flex flex-col items-center justify-center rounded-[28px] border px-5 py-16 text-center sm:py-20">
             <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-3xl border border-blue-500/20 bg-blue-500/10 text-4xl">
               🔍
@@ -1236,10 +1089,6 @@ export default function PhotoGalleryPage() {
             )}
           </div>
         ) : (
-          /* ============================================================
-             PLAYER PHOTO GRID
-          ============================================================ */
-
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 xl:gap-6">
             {filteredPlayers.map((player, index) => (
               <PhotoCard
@@ -1253,19 +1102,13 @@ export default function PhotoGalleryPage() {
           </div>
         )}
 
-        {/* ============================================================
-            BOTTOM COLLECTION INFO
-        ============================================================ */}
-
         {!loading &&
           !error &&
           filteredPlayers.length > 0 && (
             <div className="mt-12 flex flex-col items-center justify-center gap-3 text-center">
               <div className="flex items-center gap-3">
                 <div className="h-px w-12 bg-gradient-to-r from-transparent to-[#1877F2]/40" />
-
                 <span className="text-lg">🏏</span>
-
                 <div className="h-px w-12 bg-gradient-to-l from-transparent to-[#1877F2]/40" />
               </div>
 

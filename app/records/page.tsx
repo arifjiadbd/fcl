@@ -51,6 +51,7 @@ interface Player {
   wkAvg?: string;
   photo?: string;
   photoUrl?: string;
+  birthday?: string;
 }
 
 interface TournamentRecord {
@@ -2704,12 +2705,15 @@ function TournamentHistoryView({
       null
     );
 
-  // ডিফল্টভাবে খোলা রাখার জন্য true করে দেওয়া হয়েছে, যাতে একবার খুললে খোলা থাকে
   const [indexOpen, setIndexOpen] =
     useState(true);
 
   const [visible, setVisible] =
     useState(10);
+
+  // একক টুর্নামেন্ট পপ-আপ ভিউয়ের জন্য স্টেট
+  const [activeTourPopup, setActiveTourPopup] =
+    useState<Tour | null>(null);
 
   const playersByName = useMemo(() => {
     const map = new Map<
@@ -2745,28 +2749,12 @@ function TournamentHistoryView({
 
   const grouped = state.grouped;
 
+  // A-Z লিস্ট থেকে ক্লিক করলে পপ-আপে দেখানোর জন্য সেট করা হলো
   const jumpTo = (
     tour: Tour
   ) => {
     clearQuery();
-
-    state.setLetter("All");
-
-    setSelectedId(tour.id);
-    setMobileOpenId(tour.id);
-    setVisible(Infinity);
-    // ট্যুরনামেন্টে ক্লিক করলে A-Z ড্রপডাউন বন্ধ না হয়ে খোলা থাকবে
-
-    setTimeout(() => {
-      document
-        .getElementById(
-          `fcl-tour-${tour.id}`
-        )
-        ?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-    }, 150);
+    setActiveTourPopup(tour);
   };
 
   return (
@@ -2779,8 +2767,6 @@ function TournamentHistoryView({
         }
         color={GOLD}
       />
-
-      {/* TOURNAMENT SUMMARY */}
 
       <div className="fcl-tour-summary mb-5 overflow-hidden rounded-3xl">
         <div className="grid grid-cols-3">
@@ -2904,7 +2890,26 @@ function TournamentHistoryView({
         )}
       </div>
 
-      {/* SORTING */}
+      {/* একক টুর্নামেন্ট পপ-আপ মডাল (পিসির মতো ড্রপডাউন বা ক্লিকের পর ফোকাস ভিউ) */}
+      {activeTourPopup && (
+        <div className="mb-6 rounded-3xl border-2 border-amber-500/50 bg-[var(--fcl-card)] p-4 shadow-xl transition-all sm:p-6">
+          <div className="mb-3 flex items-center justify-between border-b pb-2">
+            <span className="text-xs font-black uppercase text-amber-500">✨ Selected Tournament Details</span>
+            <button
+              type="button"
+              onClick={() => setActiveTourPopup(null)}
+              className="rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-bold text-white hover:bg-slate-700"
+            >
+              ✕ Close Popup
+            </button>
+          </div>
+          <TournamentDetails
+            tour={activeTourPopup}
+            playersByName={playersByName}
+            onSelect={onSelect}
+          />
+        </div>
+      )}
 
       <div className="mb-4 space-y-3">
         <select
@@ -2969,8 +2974,6 @@ function TournamentHistoryView({
         <EmptyState />
       ) : (
         <>
-          {/* MOBILE TOURNAMENT ACCORDION */}
-
           <div className="space-y-3 lg:hidden">
             {state.list
               .slice(0, visible)
@@ -3086,8 +3089,6 @@ function TournamentHistoryView({
               </button>
             )}
           </div>
-
-          {/* DESKTOP TOURNAMENT LAYOUT */}
 
           <div className="hidden grid-cols-[310px_minmax(0,1fr)] items-start gap-5 lg:grid xl:grid-cols-[350px_minmax(0,1fr)]">
             <div className="fcl-tour-sidebar max-h-[650px] space-y-2 overflow-y-auto rounded-3xl p-3">
@@ -3389,16 +3390,6 @@ export default function RecordsPage() {
         ? "All"
         : "Top 10"
     );
-
-    if (
-      typeof window !==
-      "undefined"
-    ) {
-      window.scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-    }
   };
 
   const onSelect =
@@ -3568,7 +3559,7 @@ export default function RecordsPage() {
 
       {/* MOBILE HEADER */}
 
-      <header className="fcl-mobile-header sticky top-0 z-40 border-b px-3 py-3 backdrop-blur-xl lg:hidden">
+      <header className="fcl-mobile-header sticky top-0 z-40 mt-16 sm:mt-18 lg:mt-0 border-b px-3 py-3 backdrop-blur-xl lg:hidden">
         <div className="flex items-center gap-2.5">
           <Link
             href="/"
@@ -3618,7 +3609,6 @@ export default function RecordsPage() {
         {mobileSearchOpen && (
           <div className="relative mt-3">
             <input
-              autoFocus
               type="search"
               value={query}
               onChange={(
@@ -3648,8 +3638,8 @@ export default function RecordsPage() {
         )}
       </header>
 
-      {/* মূল কন্টেইনার যাতে overflow-x সমস্যা না করে এবং স্ক্রিন অনুযায়ী ফিক্সড থাকে */}
-      <div className="relative z-10 mx-auto max-w-[1450px] w-full box-border px-3 pt-5 sm:px-6 lg:px-8 lg:pt-9 overflow-hidden">
+      {/* মূল কন্টেইনার যাতে overflow-x সমস্যা না করে এবং স্ক্রিন অনুযায়ী ফিক্সড থাকে */}
+      <div className="relative z-10 mx-auto max-w-[1450px] w-full box-border px-3 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pt-12">
         {/* DESKTOP HEADER */}
 
         <header className="fcl-page-header mb-8 hidden items-end justify-between gap-6 lg:flex">
@@ -4940,7 +4930,7 @@ const RECORDS_STYLES = `
 
 @media (max-width: 639px) {
   .fcl-podium-grid {
-    gap: 7px;
+    gap: 7px.
   }
 
   .fcl-podium {
