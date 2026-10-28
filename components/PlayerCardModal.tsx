@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, ReactNode, useMemo } from "react";
+import { useState, useRef, useEffect, ReactNode, useMemo } from "react";
 import { toPng } from "html-to-image";
 
 interface Player {
@@ -249,6 +249,10 @@ const LAYOUT_CFG = {
 const pickLayout = (n: number): BoardLayout => (n <= 12 ? "showcase" : n <= 36 ? "grid" : "dense");
 
 const PLACEHOLDER = "/FCL Cricket Avatar Placeholder.jpg";
+
+// মোবাইল স্ট্যাট কার্ডের ফিক্সড ডিজাইন সাইজ (4:5)
+const M_W = 440;
+const M_H = 550;
 
 function extractYear(val: any): string {
   if (val === undefined || val === null || val === "") return "";
@@ -623,10 +627,34 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
   const [tmSort, setTmSort] = useState<"shared" | "az">("shared");
   const [tmQuery, setTmQuery] = useState("");
   const [tmCols, setTmCols] = useState<0 | 2 | 3 | 4 | 5>(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mScale, setMScale] = useState(0.75);
 
   const cardRef = useRef<HTMLDivElement>(null);
+  const mobileCardRef = useRef<HTMLDivElement>(null);
+  const mWrapRef = useRef<HTMLDivElement>(null);
   const teammatesRef = useRef<HTMLDivElement>(null);
   const combinedRef = useRef<HTMLDivElement>(null);
+
+  // ফোন ভিউ ডিটেক্ট
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const upd = () => setIsMobile(mq.matches);
+    upd();
+    mq.addEventListener("change", upd);
+    return () => mq.removeEventListener("change", upd);
+  }, []);
+
+  // মোবাইল কার্ড স্ক্রিনের প্রস্থ অনুযায়ী স্কেল
+  useEffect(() => {
+    const el = mWrapRef.current;
+    if (!el) return;
+    const upd = () => setMScale(Math.min(1, el.clientWidth / M_W));
+    upd();
+    const ro = new ResizeObserver(upd);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isMobile, cardModalTab, selectedPlayer]);
 
   const teammateHistory = useMemo(() => {
     const empty = { list: [] as Teammate[], count: 0, tourCount: 0, span: "", bestList: [] as Teammate[] };
@@ -744,16 +772,30 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     : PLACEHOLDER;
 
   const handleDownloadCard = async () => {
-    if (!cardRef.current) return;
+    const target = isMobile ? mobileCardRef.current : cardRef.current;
+    if (!target) return;
     try {
       setDownloading(true);
-      const dataUrl = await toPng(cardRef.current, {
-        cacheBust: true,
-        pixelRatio: 3,
-        skipAutoScale: true,
-        backgroundColor: T.cardBg,
-        style: { width: "750px", maxWidth: "100%", margin: "0 auto" },
-      });
+      const dataUrl = await toPng(
+        target,
+        isMobile
+          ? {
+              cacheBust: true,
+              pixelRatio: 4,
+              skipAutoScale: true,
+              backgroundColor: T.cardBg,
+              width: M_W,
+              height: M_H,
+              style: { transform: "none", margin: "0" },
+            }
+          : {
+              cacheBust: true,
+              pixelRatio: 3,
+              skipAutoScale: true,
+              backgroundColor: T.cardBg,
+              style: { width: "750px", maxWidth: "100%", margin: "0 auto" },
+            }
+      );
       const link = document.createElement("a");
       const safeName = (selectedPlayer.nickName || selectedPlayer.name || "player").toLowerCase().replace(/[^a-z0-9]/g, "-");
       link.download = `fcl-stat-card-${safeName}-${cardTheme}.png`;
@@ -889,7 +931,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
   };
 
   const tabCls = (active: boolean, gradient = false) =>
-    `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+    `flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition ${
       active
         ? gradient
           ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow"
@@ -908,6 +950,14 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     </div>
   );
 
+  // মোবাইল কার্ডের কমপ্যাক্ট লাইন
+  const ML = ({ k, children }: { k: string; children: ReactNode }) => (
+    <div className={`flex items-center justify-between gap-1 border-b py-[3px] text-[10.5px] last:border-b-0 ${T.divider}`}>
+      <span className={`whitespace-nowrap font-semibold ${T.label}`}>{k}</span>
+      <strong className="whitespace-nowrap font-black">{children}</strong>
+    </div>
+  );
+
   const boardCommon = {
     total: teammateHistory.count,
     tourCount: teammateHistory.tourCount,
@@ -920,6 +970,159 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     sortLabel,
   };
 
+  const hasBirthday = !!selectedPlayer.birthday && selectedPlayer.birthday !== "—";
+
+  // ================= মোবাইল ৪:৫ প্রিমিয়াম কার্ড (440 × 550) =================
+  const mobileCard = (
+    <div
+      ref={mobileCardRef}
+      className={`flex flex-col gap-2 overflow-hidden rounded-2xl border p-3 shadow-xl ${T.card}`}
+      style={{ width: M_W, height: M_H, transform: `scale(${mScale})`, transformOrigin: "top left" }}
+    >
+      {/* Header */}
+      <div className={`flex items-center justify-between border-b pb-2 ${T.divider}`}>
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-[#1877F2]/15 p-1">
+            <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain" crossOrigin="anonymous" />
+          </div>
+          <div>
+            <h3 className={`text-[13px] font-black uppercase leading-tight tracking-wide ${T.title}`}>Player Statistics Card</h3>
+            <p className={`text-[9px] font-semibold ${T.label}`}>Facebook Cricket League (FCL)</p>
+          </div>
+        </div>
+        <span className={`rounded-md border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold ${T.amber}`}>OFFICIAL</span>
+      </div>
+
+      {/* Identity row */}
+      <div className="flex items-stretch gap-2" style={{ height: 100 }}>
+        <div className={`relative w-[92px] shrink-0 overflow-hidden rounded-xl border-2 ${T.surface} ${cardTheme === "dark" ? "!border-sky-400/40" : "!border-sky-300"}`}>
+          <img
+            src={imgError ? PLACEHOLDER : playerPhotoPath}
+            alt={selectedPlayer.name}
+            crossOrigin="anonymous"
+            onError={() => setImgError(true)}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        </div>
+
+        <div className={`flex min-w-0 flex-1 flex-col justify-center overflow-hidden rounded-xl border px-2.5 py-1.5 ${T.surface}`}>
+          <div className="flex items-start justify-between gap-1">
+            <h4 className={`line-clamp-2 text-[14px] font-black leading-tight ${T.text}`}>{selectedPlayer.name}</h4>
+            {hasBirthday && (
+              <span className="shrink-0 whitespace-nowrap rounded border border-pink-500/50 bg-pink-500/10 px-1 text-[8.5px] font-black text-pink-400">
+                🎂 {formatBirthdayDate(selectedPlayer.birthday)}
+              </span>
+            )}
+          </div>
+          {selectedPlayer.nickName && <p className={`text-[10.5px] font-bold leading-tight ${T.blue}`}>@{selectedPlayer.nickName}</p>}
+          {eliteClub && (
+            <div className="mt-1">
+              <span className={`inline-flex items-center rounded-full border px-2 py-[1px] text-[8.5px] font-black ${eliteClub.badge}`}>{eliteClub.name}</span>
+            </div>
+          )}
+          <div className={`mt-1 flex items-center justify-between border-t pt-1 ${T.divider}`}>
+            <span className={`text-[8.5px] font-bold uppercase ${T.label}`}>Role:</span>
+            <span className={`truncate text-[10.5px] font-extrabold ${T.amber}`}>{selectedPlayer.role}</span>
+          </div>
+        </div>
+
+        <div className={`flex w-[78px] shrink-0 flex-col justify-between overflow-hidden rounded-xl border-2 px-1 py-1.5 text-center leading-none ${T.finalBox}`}>
+          <div className="flex flex-col items-center gap-[3px]">
+            <span className={`block text-[9px] font-black uppercase leading-none ${T.finalLbl}`}>TOTAL FINAL</span>
+            <span className={`block text-[28px] font-black leading-none ${T.finalNum}`}>{selectedPlayer.totalFinal ?? 0}</span>
+            <span className={`block text-[8.5px] font-bold leading-none ${T.finalSub}`}>Finals Played</span>
+          </div>
+          <div className="flex items-center justify-center gap-1 border-t border-amber-400/30 pt-1 leading-none">
+            <span className={`text-[8px] font-bold uppercase leading-none ${T.finalRankLbl}`}>Pos</span>
+            <span className={`text-[11px] font-black leading-none ${T.finalRankVal}`}>#{getRankWithNR(selectedPlayer, "finals")}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Debut row */}
+      <div className="grid grid-cols-4 gap-1.5 text-center">
+        {[
+          { l: "Debut Date", v: formatFullMonthDate(selectedPlayer.debutYear) || "—", c: T.blue },
+          { l: "Debut Tour.", v: getDebutTournament(selectedPlayer), c: T.green },
+          { l: "Debut Team", v: selectedPlayer.debutTeam || "—", c: T.text },
+          { l: "Tournaments", v: String(selectedPlayer.totalTournament ?? 0), c: T.green },
+        ].map((d) => (
+          <div key={d.l} className={`flex flex-col justify-center rounded-lg border px-1 py-1 ${T.surface}`} style={{ minHeight: 40 }}>
+            <p className={`text-[8px] font-bold uppercase tracking-wide ${T.label}`}>{d.l}</p>
+            <p className={`line-clamp-2 break-words text-[10px] font-black leading-tight ${d.c}`}>{d.v}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Rankings hero */}
+      <div className={`rounded-xl border-2 p-2 ${T.heroBox}`}>
+        <div className={`flex items-center justify-between gap-2 border-b pb-1.5 ${T.heroHead}`}>
+          <p className={`flex items-center gap-1 text-[9.5px] font-black uppercase tracking-wider ${T.heroTitle}`}>
+            <span className="text-[12px]">👑</span> ALL-TIME RANKINGS
+          </p>
+          <div className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 shadow ${T.heroPill}`}>
+            <span className="text-[10px]">⭐</span>
+            <span className="text-[10px] font-black">Pos #{getRankWithNR(selectedPlayer, "points")} MVP</span>
+            <span className="h-3 w-px bg-white/50" />
+            <span className="text-[10px] font-extrabold">{calculateFclPoints(selectedPlayer).toLocaleString()} Pts</span>
+          </div>
+        </div>
+        <div className="mt-1.5 grid grid-cols-3 gap-1.5">
+          {[
+            { id: "runs", label: "RUNS", icon: "🏏", color: "text-[#0d9488] dark:text-[#2dd4bf]" },
+            { id: "wickets", label: "WICKETS", icon: "🎯", color: "text-[#c2410c] dark:text-[#fb923c]" },
+            { id: "champions", label: "TITLES", icon: "🏆", color: "text-[#1d4ed8] dark:text-[#60a5fa]" },
+            { id: "matches", label: "MATCHES", icon: "⚡", color: "text-[#b45309] dark:text-[#facc15]" },
+            { id: "sixes", label: "SIXES", icon: "💥", color: "text-[#7e22ce] dark:text-[#c084fc]" },
+            { id: "fours", label: "FOURS", icon: "🔷", color: "text-[#0369a1] dark:text-[#38bdf8]" },
+          ].map((box) => {
+            const r = getRankWithNR(selectedPlayer, box.id);
+            return (
+              <div key={box.id} className={`flex items-center justify-between rounded-lg border px-2 py-1 ${T.rankBox}`}>
+                <span className={`flex items-center gap-1 text-[9px] font-black ${box.color}`}>
+                  <span className="text-[11px]">{box.icon}</span>
+                  {box.label}
+                </span>
+                <span className={`text-[13px] font-black leading-none ${box.color}`}>{r === "N/R" ? "N/R" : `#${r}`}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className={`rounded-xl border px-2.5 py-1 ${T.surface}`}>
+          <ML k="Total Match:">{selectedPlayer.matches}</ML>
+          <ML k="Runs & Max:"><span className={T.green}>{selectedPlayer.runs} ({selectedPlayer.maxRuns || "—"})</span></ML>
+          <ML k="Wkts & Max:"><span className={T.amber}>{selectedPlayer.wickets} ({selectedPlayer.maxWickets || "—"})</span></ML>
+          <ML k="Inn / Not Out:">{selectedPlayer.innings ?? 0} / {selectedPlayer.notOut ?? 0}</ML>
+          <ML k="4s / 6s:"><span className={T.blue}>{selectedPlayer.fours ?? 0}</span> / <span className={T.purple}>{selectedPlayer.sixes ?? 0}</span></ML>
+          <ML k="Hat-Trick:"><span className={T.pink}>{selectedPlayer.hatTricks ?? 0}</span></ML>
+        </div>
+        <div className={`rounded-xl border px-2.5 py-1 ${T.surface}`}>
+          <ML k="Bat / Bowl Avg:">{selectedPlayer.runAvg || "0.00"} / {getSafeWkAvg(selectedPlayer)}</ML>
+          <ML k="Champ / R-Up:">🏆 <span className={T.amber}>{selectedPlayer.champion ?? 0}</span> / 🥈 <span className={T.silver}>{selectedPlayer.runnersUp ?? 0}</span></ML>
+          <ML k="MOT / CPOT:">⭐ <span className={T.purple}>{selectedPlayer.mot ?? 0}</span> / {selectedPlayer.cpot ?? 0}</ML>
+          <ML k="MOM / CPOM:">🎖️ <span className={T.blue}>{selectedPlayer.mom ?? 0}</span> / {selectedPlayer.cpom ?? 0}</ML>
+          <ML k="Teammates:"><span className={T.green}>{teammateHistory.count} Players</span></ML>
+          <ML k="Top Scorer / Wkt:"><span className={T.gold}>{selectedPlayer.highestRunScorer ?? 0} / {selectedPlayer.topWicketTaker ?? 0}</span></ML>
+        </div>
+      </div>
+
+      {/* Last played */}
+      <div className={`mt-auto flex items-center justify-between gap-2 rounded-xl border-2 px-2.5 py-1.5 ${T.lastBox}`}>
+        <div className="flex items-center gap-1.5">
+          <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+          <span className={`text-[9.5px] font-black uppercase tracking-wider ${T.lastLbl}`}>Last Played:</span>
+        </div>
+        <span className={`truncate rounded-md border px-2 py-0.5 text-[10.5px] font-black ${T.lastPill}`}>🏟️ {selectedPlayer.lastPlayed || "—"}</span>
+      </div>
+    </div>
+  );
+
+  const showDownloadFab = cardModalTab !== "rankings" && cardModalTab !== "history";
+
   return (
     <>
       <div
@@ -928,12 +1131,13 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
       >
         <div
           className={`relative flex h-[94vh] sm:h-auto sm:max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl sm:rounded-3xl border shadow-2xl transition-colors duration-200 ${T.modal}`}
+          style={isMobile ? { height: "94dvh" } : { maxHeight: "92dvh" }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* ================= HEADER ================= */}
-          <div className={`sticky top-0 z-30 shrink-0 border-b px-4 py-3 backdrop-blur-md ${T.header}`}>
+          <div className={`z-30 shrink-0 border-b px-3 py-2.5 sm:px-4 sm:py-3 backdrop-blur-md ${T.header}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className={`flex items-center gap-1 rounded-xl p-1 border ${T.segWrap}`}>
+              <div className={`order-2 flex w-full items-center gap-1 overflow-x-auto rounded-xl border p-1 sm:order-1 sm:w-auto ${T.segWrap}`}>
                 <button onClick={() => setCardModalTab("card")} className={tabCls(cardModalTab === "card")}>
                   <span>🎖️</span>
                   <span>Stat Card</span>
@@ -956,7 +1160,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="order-1 flex w-full items-center justify-between gap-2 sm:order-2 sm:w-auto sm:justify-end">
                 <div className={`flex items-center gap-1 rounded-xl p-1 border ${T.segWrap}`}>
                   <button
                     onClick={() => setCardTheme("dark")}
@@ -979,9 +1183,15 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             </div>
           </div>
 
-          {/* ================= BODY (pt-4 এবং pb-24 যোগ করা হয়েছে যাতে ওপর-নিচে কোনো কন্টেন্ট ঢাকা না পড়ে) ================= */}
-          <div className={`flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 pt-4 pb-24 sm:pb-6 ${T.body}`}>
-            {cardModalTab === "card" && (
+          {/* ================= BODY (নিচে pb-28: ফ্লোটিং বাটনের জন্য জায়গা) ================= */}
+          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 pt-3 sm:pt-4 pb-28 sm:pb-24 ${T.body}`}>
+            {cardModalTab === "card" && isMobile && (
+              <div ref={mWrapRef} className="mx-auto w-full" style={{ maxWidth: M_W, height: M_H * mScale }}>
+                {mobileCard}
+              </div>
+            )}
+
+            {cardModalTab === "card" && !isMobile && (
               <div ref={cardRef} className={`mx-auto w-full max-w-2xl space-y-4 rounded-2xl border p-5 sm:p-6 shadow-xl ${T.card}`}>
                 <div className={`flex items-center justify-between border-b pb-3 ${T.divider}`}>
                   <div className="flex items-center gap-3">
@@ -1012,7 +1222,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                   <div className={`col-span-2 flex flex-col justify-center rounded-xl border p-3.5 ${T.surface}`}>
                     <div className="flex items-center justify-between gap-2">
                       <Lbl>Player Name</Lbl>
-                      {selectedPlayer.birthday && selectedPlayer.birthday !== "—" && (
+                      {hasBirthday && (
                         <span className="rounded-md border border-pink-500/50 bg-pink-500/10 px-2 py-0.5 text-[10px] font-black text-pink-400">
                           🎂 {formatBirthdayDate(selectedPlayer.birthday)}
                         </span>
@@ -1275,7 +1485,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
                     <table className="w-full border-collapse text-[13px]">
                       <tbody>
                         {kv("Player Name", <span className={T.text}>{selectedPlayer.name}</span>, "Nickname", <span className={T.blue}>{selectedPlayer.nickName ? `@${selectedPlayer.nickName}` : "—"}</span>, T.keyBlue)}
-                        {kv("Role", <span className={T.amber}>{selectedPlayer.role || "—"}</span>, "Birthdate", <span className={T.pink}>{selectedPlayer.birthday && selectedPlayer.birthday !== "—" ? formatBirthdayDate(selectedPlayer.birthday) : "—"}</span>, T.keyBlue)}
+                        {kv("Role", <span className={T.amber}>{selectedPlayer.role || "—"}</span>, "Birthdate", <span className={T.pink}>{hasBirthday ? formatBirthdayDate(selectedPlayer.birthday) : "—"}</span>, T.keyBlue)}
                         {kv("Debut Date", <span className={T.blue}>{formatFullMonthDate(selectedPlayer.debutYear) || "—"}</span>, "Debut Tournament", <span className={T.green}>{getDebutTournament(selectedPlayer)}</span>, T.keyBlue)}
                         {kv("Debut Team", <span className={T.text}>{selectedPlayer.debutTeam || "—"}</span>, "Total Tournaments", <span className={T.green}>{selectedPlayer.totalTournament ?? 0}</span>, T.keyBlue)}
                         {kv("Total Finals", <span className={T.gold}>{selectedPlayer.totalFinal ?? 0}</span>, "Last Played", <span className={T.amber}>{selectedPlayer.lastPlayed || "—"}</span>, T.keyBlue)}
@@ -1361,28 +1571,45 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             )}
           </div>
 
-          {/* ================= FOOTER ================= */}
-          <div className={`sticky bottom-0 z-30 shrink-0 flex gap-2 border-t p-3 bg-opacity-95 backdrop-blur-md ${T.footer}`}>
-            {cardModalTab === "card" ? (
-              <button onClick={handleDownloadCard} disabled={downloading} className="flex-1 rounded-xl bg-[#1877F2] py-2.5 text-xs font-bold text-white shadow hover:bg-[#166fe5] disabled:opacity-60">
-                {downloading ? "প্রসেসিং হচ্ছে..." : "📥 ডাউনলোড কার্ড (PNG)"}
-              </button>
-            ) : cardModalTab === "teammates" ? (
-              <button onClick={handleDownloadTeammatesPNG} disabled={downloading || teammateHistory.count === 0} className="flex-1 rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 py-2.5 text-xs font-bold text-white shadow hover:opacity-90 disabled:opacity-60">
-                {downloading ? "ইমেজ তৈরি হচ্ছে..." : `📥 ডাউনলোড সতীর্থ তালিকা (PNG) • ${outLabel}`}
-              </button>
-            ) : cardModalTab === "combined" ? (
-              <button onClick={handleDownloadCombinedPNG} disabled={downloading} className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 py-2.5 text-xs font-bold text-white shadow hover:opacity-90 disabled:opacity-60">
-                {downloading ? "ইমেজ তৈরি হচ্ছে..." : "📥 ডাউনলোড ফুল প্রোফাইল (PNG)"}
-              </button>
+          {/* ================= ফ্লোটিং বাটন (ফুটার নেই) ================= */}
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-3 pt-3 sm:justify-end sm:px-5"
+            style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+          >
+            {showDownloadFab ? (
+              cardModalTab === "card" ? (
+                <button
+                  onClick={handleDownloadCard}
+                  disabled={downloading}
+                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1877F2] px-5 py-3 text-xs font-bold text-white shadow-[0_8px_24px_rgba(24,119,242,0.45)] ring-1 ring-white/20 transition hover:bg-[#166fe5] active:scale-95 disabled:opacity-60"
+                >
+                  {downloading ? "প্রসেসিং হচ্ছে..." : "📥 ডাউনলোড কার্ড (PNG)"}
+                </button>
+              ) : cardModalTab === "teammates" ? (
+                <button
+                  onClick={handleDownloadTeammatesPNG}
+                  disabled={downloading || teammateHistory.count === 0}
+                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 px-5 py-3 text-xs font-bold text-white shadow-[0_8px_24px_rgba(168,85,247,0.45)] ring-1 ring-white/20 transition hover:opacity-90 active:scale-95 disabled:opacity-60"
+                >
+                  {downloading ? "ইমেজ তৈরি হচ্ছে..." : `📥 ডাউনলোড সতীর্থ তালিকা • ${outLabel}`}
+                </button>
+              ) : (
+                <button
+                  onClick={handleDownloadCombinedPNG}
+                  disabled={downloading}
+                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-3 text-xs font-bold text-white shadow-[0_8px_24px_rgba(6,182,212,0.45)] ring-1 ring-white/20 transition hover:opacity-90 active:scale-95 disabled:opacity-60"
+                >
+                  {downloading ? "ইমেজ তৈরি হচ্ছে..." : "📥 ডাউনলোড ফুল প্রোফাইল (PNG)"}
+                </button>
+              )
             ) : (
-              <button onClick={() => setCardModalTab("card")} className="flex-1 rounded-xl bg-[#1877F2] py-2.5 text-xs font-bold text-white shadow hover:bg-[#166fe5]">
+              <button
+                onClick={() => setCardModalTab("card")}
+                className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1877F2] px-5 py-3 text-xs font-bold text-white shadow-[0_8px_24px_rgba(24,119,242,0.45)] ring-1 ring-white/20 transition hover:bg-[#166fe5] active:scale-95"
+              >
                 ← স্ট্যাট কার্ডে ফিরে যান
               </button>
             )}
-            <button onClick={onClose} className={`rounded-xl border px-4 py-2.5 text-xs font-bold transition ${T.closeBtn}`}>
-              বন্ধ করুন
-            </button>
           </div>
         </div>
       </div>
