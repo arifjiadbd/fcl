@@ -931,7 +931,7 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
   };
 
   const tabCls = (active: boolean, gradient = false) =>
-    `flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+    `flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] sm:text-xs font-bold transition ${
       active
         ? gradient
           ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow"
@@ -1127,17 +1127,19 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     <>
       <div
         onClick={onClose}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-2 sm:p-4 backdrop-blur-md animate-in fade-in duration-200"
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 p-2 pt-10 sm:items-center sm:p-4 backdrop-blur-md animate-in fade-in duration-200"
+        style={{ paddingTop: isMobile ? "max(44px, calc(env(safe-area-inset-top) + 16px))" : undefined }}
       >
         <div
-          className={`relative flex h-[94vh] sm:h-auto sm:max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl sm:rounded-3xl border shadow-2xl transition-colors duration-200 ${T.modal}`}
-          style={isMobile ? { height: "94dvh" } : { maxHeight: "92dvh" }}
+          className={`relative flex h-[86vh] sm:h-auto sm:max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl sm:rounded-3xl border shadow-2xl transition-colors duration-200 ${T.modal}`}
+          style={isMobile ? { height: "86dvh" } : { maxHeight: "92dvh" }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* ================= HEADER ================= */}
-          <div className={`z-30 shrink-0 border-b px-3 py-2.5 sm:px-4 sm:py-3 backdrop-blur-md ${T.header}`}>
+          {/* ================= HEADER (সবসময় উপরে ফিক্সড/স্টিকি থাকে, বডি স্ক্রল করলেও সরবে না) ================= */}
+          <div className={`sticky top-0 z-30 shrink-0 border-b px-3 py-2.5 sm:px-4 sm:py-3 backdrop-blur-md ${T.header}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className={`order-2 flex w-full items-center gap-1 overflow-x-auto rounded-xl border p-1 sm:order-1 sm:w-auto ${T.segWrap}`}>
+              {/* ট্যাব/টাইটেল — মোবাইলে আর হরাইজন্টাল স্ক্রোল নয়, দরকার হলে wrap হয়ে সব ট্যাব ক্লিয়ার দেখাবে */}
+              <div className={`order-2 flex w-full flex-wrap items-center justify-center gap-1.5 rounded-xl border p-1.5 sm:order-1 sm:w-auto sm:flex-nowrap sm:justify-start sm:gap-1 sm:overflow-x-auto ${T.segWrap}`}>
                 <button onClick={() => setCardModalTab("card")} className={tabCls(cardModalTab === "card")}>
                   <span>🎖️</span>
                   <span>Stat Card</span>
@@ -1183,8 +1185,8 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             </div>
           </div>
 
-          {/* ================= BODY (নিচে pb-28: ফ্লোটিং বাটনের জন্য জায়গা) ================= */}
-          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 pt-3 sm:pt-4 pb-28 sm:pb-24 ${T.body}`}>
+          {/* ================= BODY ================= */}
+          <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 pt-3 sm:pt-4 pb-20 sm:pb-24 ${T.body}`}>
             {cardModalTab === "card" && isMobile && (
               <div ref={mWrapRef} className="mx-auto w-full" style={{ maxWidth: M_W, height: M_H * mScale }}>
                 {mobileCard}
@@ -1571,43 +1573,51 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             )}
           </div>
 
-          {/* ================= ফ্লোটিং বাটন (ফুটার নেই) ================= */}
+          {/* ================= ফ্লোটিং ডাউনলোড বাটন — মোবাইলে ডান পাশে কর্নারে ফ্লোট করবে, ডেস্কটপে আগের মতো নিচে-ডানে বার আকারে ================= */}
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex justify-center px-3 pt-3 sm:justify-end sm:px-5"
-            style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))" }}
+            className="pointer-events-none absolute z-40 bottom-4 right-3 flex flex-col items-end gap-2 sm:inset-x-0 sm:bottom-0 sm:right-auto sm:flex-row sm:items-center sm:justify-end sm:px-5 sm:pt-3"
+            style={{ paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}
           >
             {showDownloadFab ? (
               cardModalTab === "card" ? (
                 <button
                   onClick={handleDownloadCard}
                   disabled={downloading}
-                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1877F2] px-5 py-3 text-xs font-bold text-white shadow-[0_8px_24px_rgba(24,119,242,0.45)] ring-1 ring-white/20 transition hover:bg-[#166fe5] active:scale-95 disabled:opacity-60"
+                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1877F2] px-4 py-3 sm:px-5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_24px_rgba(24,119,242,0.45)] ring-1 ring-white/20 transition hover:bg-[#166fe5] active:scale-95 disabled:opacity-60"
                 >
-                  {downloading ? "প্রসেসিং হচ্ছে..." : "📥 ডাউনলোড কার্ড (PNG)"}
+                  <span>📥</span>
+                  <span className="hidden sm:inline">{downloading ? "প্রসেসিং হচ্ছে..." : "ডাউনলোড কার্ড (PNG)"}</span>
+                  <span className="sm:hidden">{downloading ? "..." : "ডাউনলোড"}</span>
                 </button>
               ) : cardModalTab === "teammates" ? (
                 <button
                   onClick={handleDownloadTeammatesPNG}
                   disabled={downloading || teammateHistory.count === 0}
-                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 px-5 py-3 text-xs font-bold text-white shadow-[0_8px_24px_rgba(168,85,247,0.45)] ring-1 ring-white/20 transition hover:opacity-90 active:scale-95 disabled:opacity-60"
+                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 px-4 py-3 sm:px-5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_24px_rgba(168,85,247,0.45)] ring-1 ring-white/20 transition hover:opacity-90 active:scale-95 disabled:opacity-60"
                 >
-                  {downloading ? "ইমেজ তৈরি হচ্ছে..." : `📥 ডাউনলোড সতীর্থ তালিকা • ${outLabel}`}
+                  <span>📥</span>
+                  <span className="hidden sm:inline">{downloading ? "ইমেজ তৈরি হচ্ছে..." : `ডাউনলোড সতীর্থ তালিকা • ${outLabel}`}</span>
+                  <span className="sm:hidden">{downloading ? "..." : "ডাউনলোড"}</span>
                 </button>
               ) : (
                 <button
                   onClick={handleDownloadCombinedPNG}
                   disabled={downloading}
-                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-5 py-3 text-xs font-bold text-white shadow-[0_8px_24px_rgba(6,182,212,0.45)] ring-1 ring-white/20 transition hover:opacity-90 active:scale-95 disabled:opacity-60"
+                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 sm:px-5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_24px_rgba(6,182,212,0.45)] ring-1 ring-white/20 transition hover:opacity-90 active:scale-95 disabled:opacity-60"
                 >
-                  {downloading ? "ইমেজ তৈরি হচ্ছে..." : "📥 ডাউনলোড ফুল প্রোফাইল (PNG)"}
+                  <span>📥</span>
+                  <span className="hidden sm:inline">{downloading ? "ইমেজ তৈরি হচ্ছে..." : "ডাউনলোড ফুল প্রোফাইল (PNG)"}</span>
+                  <span className="sm:hidden">{downloading ? "..." : "ডাউনলোড"}</span>
                 </button>
               )
             ) : (
               <button
                 onClick={() => setCardModalTab("card")}
-                className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1877F2] px-5 py-3 text-xs font-bold text-white shadow-[0_8px_24px_rgba(24,119,242,0.45)] ring-1 ring-white/20 transition hover:bg-[#166fe5] active:scale-95"
+                className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1877F2] px-4 py-3 sm:px-5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_24px_rgba(24,119,242,0.45)] ring-1 ring-white/20 transition hover:bg-[#166fe5] active:scale-95"
               >
-                ← স্ট্যাট কার্ডে ফিরে যান
+                <span>←</span>
+                <span className="hidden sm:inline">স্ট্যাট কার্ডে ফিরে যান</span>
+                <span className="sm:hidden">ফিরে যান</span>
               </button>
             )}
           </div>
