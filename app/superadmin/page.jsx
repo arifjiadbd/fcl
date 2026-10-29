@@ -52,7 +52,7 @@ export default function SuperAdminHub() {
   const [mode, setMode] = useState('add');
   const [existingRecords, setExistingRecords] = useState([]);
   const [selectedRowIndex, setSelectedRowIndex] = useState(null);
-  const [searchQuery, setSearchQuery] = useState(''); // 🌟 সার্চ কুয়েরির জন্য স্টেট
+  const [searchQuery, setSearchQuery] = useState(''); // 🌟 সার্চ কুয়েরির জন্য স্টেট
 
   // ✅ সমস্ত শিটের স্ক্রিপ্ট ইউআরএল
   const MEMORIES_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx3Zz8Vbr3r8aTtlpxmslqiyDXpGciX_g5NUIvDjDHK2hpxAWfBXeULtEPU4ICXYMf9uw/exec";
@@ -159,10 +159,12 @@ export default function SuperAdminHub() {
     }
   }, [isAuthenticated, selectedForm, message]);
 
-  // 🌟 ফিল্টার করা রেকর্ডস (সার্চ বক্সে টাইপ করলে ফিল্টার হবে)
+  // 🌟 ফিল্টার করা রেকর্ডস (টাইটেল এবং অথর/প্লেয়ারের নাম দুটো দিয়েই সার্চ ও ফিল্টার হবে)
   const filteredRecords = existingRecords.filter((rec) => {
     const titleText = rec['title'] || rec['Performance Title'] || rec['Match Title'] || rec['Full Name'] || rec['name'] || rec['PLAYERS'] || '';
-    return titleText.toLowerCase().includes(searchQuery.toLowerCase());
+    const authorText = rec['author'] || rec['Player Name'] || rec['Tournament'] || '';
+    const combined = `${titleText} (${authorText})`.toLowerCase();
+    return combined.includes(searchQuery.toLowerCase());
   });
 
   const handleRecordSelect = (e) => {
@@ -491,6 +493,7 @@ export default function SuperAdminHub() {
             <span style={{ fontSize: '13px', fontWeight: 800, color: ringColor, marginTop: '4px' }}>
               {enteredPin.length}/6
             </span>
+
           </div>
         </div>
 
@@ -576,13 +579,13 @@ export default function SuperAdminHub() {
         </div>
       </div>
 
-      {/* 🌟 সার্চ বক্স এবং ড্রপডাউন সেকশন */}
+      {/* 🌟 সার্চ বক্স এবং ড্রপডাউন সেকশন (লেখক/প্লেয়ারের নাম সহ) */}
       <div style={{ marginBottom: '20px', background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <div>
-          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#334155' }}>নাম দিয়ে খুঁজুন (Search Record):</label>
+          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#334155' }}>নাম বা টাইটেল দিয়ে খুঁজুন (Search Record):</label>
           <input
             type="text"
-            placeholder="এখানে নাম লিখে খুঁজুন..."
+            placeholder="এখানে টাইটেল বা লেখকের নাম লিখে খুঁজুন..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', boxSizing: 'border-box' }}
@@ -594,10 +597,12 @@ export default function SuperAdminHub() {
           <select onChange={handleRecordSelect} value={selectedRowIndex !== null ? selectedRowIndex : "add"} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', fontWeight: '600' }}>
             <option value="add">➕ নতুন রেকর্ড যোগ করুন (Add New)</option>
             {filteredRecords.map((rec, i) => {
-              const displayName = rec['title'] || rec['Performance Title'] || rec['Match Title'] || rec['Full Name'] || rec['name'] || rec['PLAYERS'] || `Record #${i + 1}`;
+              const title = rec['title'] || rec['Performance Title'] || rec['Match Title'] || rec['Full Name'] || rec['name'] || rec['PLAYERS'] || `Record #${i + 1}`;
+              const author = rec['author'] || rec['Player Name'] || rec['Tournament'] || '';
+              const displayLabel = author ? `${title} — [লেখক/প্লেয়ার: ${author}]` : title;
               return (
                 <option key={i} value={rec.rowIndex}>
-                  {displayName}
+                  {displayLabel}
                 </option>
               );
             })}
