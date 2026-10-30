@@ -1584,9 +1584,16 @@ export default function PlayersPage() {
             HERO BACKGROUND
         ====================================================== */
 
-        .fcl-hero {
+                .fcl-hero {
           background: var(--fcl-bg-alt);
           border-color: var(--fcl-border);
+          padding-top: 2rem;
+        }
+
+        @media (min-width: 640px) {
+          .fcl-hero {
+            padding-top: 3rem;
+          }
         }
 
         .fcl-grid-bg {
@@ -1657,12 +1664,12 @@ export default function PlayersPage() {
         ====================================================== */
 
         .fcl-orb {
-          animation: fclFloat 12s ease-in-out infinite;
+          animation: fclFloat 10s ease-in-out infinite;
           will-change: transform;
         }
 
         .fcl-orb-delay {
-          animation-delay: -6s;
+          animation-delay: -5s;
         }
 
         @keyframes fclFloat {
@@ -1671,7 +1678,7 @@ export default function PlayersPage() {
           }
 
           50% {
-            transform: translate3d(18px,-15px,0) scale(1.06);
+            transform: translate3d(20px,-20px,0) scale(1.08);
           }
         }
 
@@ -2159,13 +2166,13 @@ export default function PlayersPage() {
       <section className="fcl-hero relative overflow-hidden border-b">
         <div className="fcl-grid-bg pointer-events-none absolute inset-0" />
 
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_25%,rgba(24,119,242,.12),transparent_48%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(24,119,242,0.08),transparent_65%)]" />
 
-        <div className="fcl-orb pointer-events-none absolute -right-28 -top-40 h-[370px] w-[370px] rounded-full bg-blue-500/15 blur-[100px]" />
+        <div className="fcl-orb pointer-events-none absolute -right-28 -top-28 h-80 w-80 rounded-full bg-[#1877F2]/15 blur-[100px]" />
 
-        <div className="fcl-orb fcl-orb-delay pointer-events-none absolute -bottom-40 -left-24 h-[300px] w-[300px] rounded-full bg-purple-500/10 blur-[100px]" />
+        <div className="fcl-orb fcl-orb-delay pointer-events-none absolute -bottom-36 -left-24 h-72 w-72 rounded-full bg-purple-500/10 blur-[110px]" />
 
-        <div className="relative mx-auto max-w-[1500px] px-3.5 pb-5 pt-4 sm:px-6 sm:pb-7 sm:pt-6 lg:px-8">
+        <div className="relative mx-auto max-w-[1500px] px-3.5 pb-8 pt-8 sm:px-6 sm:pb-12 sm:pt-12 lg:px-8 lg:pb-14 lg:pt-14">
           {/* Breadcrumb */}
 
           <div className="mb-3 flex items-center gap-2">
@@ -2187,7 +2194,7 @@ export default function PlayersPage() {
 
           {/* Hero Main */}
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between pb-6 sm:pb-8">
             <div className="min-w-0">
               <div className="fcl-hero-badge mb-2.5 inline-flex items-center gap-2 rounded-full border px-3 py-1.5">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_10px_#22c55e]" />
