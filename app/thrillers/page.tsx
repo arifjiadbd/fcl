@@ -19,7 +19,10 @@ function formatExcelDate(val: any): string {
     const utcDays = Math.floor(num - 25569);
     const dateInfo = new Date(utcDays * 86400 * 1000);
     const day = String(dateInfo.getUTCDate()).padStart(2, "0");
-    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const months = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
     return `${day} ${months[dateInfo.getUTCMonth()]} ${dateInfo.getUTCFullYear()}`;
   }
   return String(val).trim();
@@ -34,7 +37,10 @@ function renderHighlightedParts(text: string) {
     if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
       const clean = part.slice(2, -2).trim();
       return (
-        <span key={index} className="font-extrabold text-amber-600 dark:text-[#fbbf24] bg-amber-500/15 px-1.5 py-0.5 rounded inline-block my-0.5">
+        <span
+          key={index}
+          className="font-extrabold text-amber-600 dark:text-[#fbbf24] bg-amber-500/15 px-1.5 py-0.5 rounded inline-block my-0.5"
+        >
           {clean}
         </span>
       );
@@ -42,7 +48,10 @@ function renderHighlightedParts(text: string) {
     if (part.startsWith("*") && part.endsWith("*") && !part.startsWith("**") && !part.endsWith("**")) {
       const clean = part.slice(1, -1).trim();
       return (
-        <span key={index} className="font-extrabold text-amber-600 dark:text-[#fbbf24] bg-amber-500/15 px-1 py-0.5 rounded inline-block my-0.5">
+        <span
+          key={index}
+          className="font-extrabold text-amber-600 dark:text-[#fbbf24] bg-amber-500/15 px-1 py-0.5 rounded inline-block my-0.5"
+        >
           {clean}
         </span>
       );
@@ -105,28 +114,99 @@ export default function ThrillersPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#020617] dark:text-white selection:bg-[#1877F2]/30 selection:text-white pb-24 relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,rgba(168,85,247,0.14),transparent_65%)]" />
+      <style jsx global>{`
+        .thriller-hero {
+          background: var(--thriller-bg-alt);
+          border-color: var(--thriller-border);
+          padding-top: 2rem;
+        }
 
-      <main className="relative mx-auto max-w-5xl px-4 pt-10 sm:px-6 lg:px-8">
-        <header className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between border-b border-slate-200 dark:border-[#1e293b] pb-6">
-          <div>
-            <div className="flex items-center gap-2">
-              <Link href="/" className="text-xs font-semibold text-[#60a5fa] hover:underline">
-                ← Back to Home
-              </Link>
-              <span className="text-slate-500">•</span>
-              <span className="text-xs font-bold uppercase tracking-wider text-purple-500">FCL Thriller Zone</span>
+        @media (min-width: 640px) {
+          .thriller-hero {
+            padding-top: 3rem;
+          }
+        }
+
+        .thriller-grid-bg {
+          background-image:
+            linear-gradient(to right, rgba(100,116,139,0.08) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(100,116,139,0.08) 1px, transparent 1px);
+          background-size: 45px 45px;
+          -webkit-mask-image: radial-gradient(ellipse 75% 85% at 50% 30%, black 25%, transparent 95%);
+          mask-image: radial-gradient(ellipse 75% 85% at 50% 30%, black 25%, transparent 95%);
+        }
+
+        .dark .thriller-grid-bg {
+          background-image:
+            linear-gradient(to right, rgba(148,163,184,0.045) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(148,163,184,0.045) 1px, transparent 1px);
+        }
+
+        .thriller-orb {
+          animation: thrillerFloat 10s ease-in-out infinite;
+        }
+
+        .thriller-orb-delay {
+          animation-delay: -5s;
+        }
+
+        @keyframes thrillerFloat {
+          0%, 100% {
+            transform: translate3d(0,0,0) scale(1);
+          }
+          50% {
+            transform: translate3d(20px,-20px,0) scale(1.08);
+          }
+        }
+
+        :root {
+          --thriller-bg-alt: #f1f5f9;
+          --thriller-border: #e2e8f0;
+        }
+
+        .dark {
+          --thriller-bg-alt: #02050b;
+          --thriller-border: #172033;
+        }
+      `}</style>
+
+      <div className="thriller-grid-bg pointer-events-none absolute inset-0" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(24,119,242,0.08),transparent_65%)]" />
+      <div className="thriller-orb pointer-events-none absolute -right-28 -top-28 h-80 w-80 rounded-full bg-[#1877F2]/15 blur-[100px]" />
+      <div className="thriller-orb thriller-orb-delay pointer-events-none absolute -bottom-36 -left-24 h-72 w-72 rounded-full bg-purple-500/10 blur-[110px]" />
+
+      <main className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+        <header className="thriller-hero relative overflow-hidden border-b mb-8 md:mb-10">
+          <div className="relative mx-auto max-w-5xl px-3.5 pb-8 pt-8 sm:px-6 sm:pb-12 sm:pt-12 lg:px-8 lg:pb-14 lg:pt-14 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2">
+                <Link href="/" className="text-xs font-semibold text-[#60a5fa] hover:underline">
+                  ← Back to Home
+                </Link>
+                <span className="text-slate-500">•</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-500">
+                  FCL Thriller Zone
+                </span>
+              </div>
+              <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">
+                High Voltage Matches
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-[#94a3b8]">
+                যে ম্যাচগুলোতে ছিল চরম নাটকীয়তা, শেষ ওভারের রোমাঞ্চ আর বুক কাঁপুনি জয়!
+              </p>
             </div>
-            <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">High Voltage Matches</h1>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-[#94a3b8]">
-              যে ম্যাচগুলোতে ছিল চরম নাটকীয়তা, শেষ ওভারের রোমাঞ্চ আর বুক কাঁপুনি জয়!
-            </p>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl border border-slate-200 bg-white px-5 py-3 shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]">
-              <p className="text-2xl font-black leading-none text-purple-600 dark:text-purple-400">{matches.length}</p>
-              <p className="mt-1 text-[11px] text-slate-500 dark:text-[#94a3b8]">Total Thrillers</p>
+            <div className="flex shrink-0">
+              <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-[#1e293b] dark:bg-[#0b1220]">
+                <span className="text-2xl font-black leading-none text-[#1877F2]">
+                  {matches.length}
+                </span>
+                <div className="text-left">
+                  <p className="text-[11px] font-black text-slate-500 dark:text-[#94a3b8]">
+                    Total Thrillers
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </header>
@@ -134,13 +214,16 @@ export default function ThrillersPage() {
         {loading ? (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-36 animate-pulse rounded-3xl border border-slate-200 bg-white dark:border-[#1e293b] dark:bg-[#0b1220]" />
+              <div
+                key={i}
+                className="h-36 animate-pulse rounded-3xl border border-slate-200 bg-white dark:border-[#1e293b] dark:bg-[#0b1220]"
+              />
             ))}
           </div>
         ) : matches.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-8 text-center dark:border-[#1e293b] dark:bg-[#0b1220]">
             <span className="mb-3 text-4xl">⚡</span>
-            <p className="text-base font-semibold">কোনো হাই ভোল্টেজ ম্যাচ ডেটা পাওয়া যায়নি</p>
+            <p className="text-base font-semibold">কোনো হাই ভোল্টেজ ম্যাচ ডেটা পাওয়া যায়নি</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

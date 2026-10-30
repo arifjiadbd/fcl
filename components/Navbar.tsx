@@ -11,12 +11,10 @@ export default function Navbar() {
   const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
 
-  // হাইড্রেশন মিসম্যাচ এড়ানোর জন্য
   useEffect(() => setMounted(true), []);
 
-  // বাইরে ক্লিক করলে ড্রপডাউন বন্ধ হয়ে যাবে
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -27,13 +25,47 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // পেজ পরিবর্তন হলে মোবাইল মেনু বন্ধ হবে
   useEffect(() => {
     setMobileMenuOpen(false);
     setActiveDropdown(null);
   }, [pathname]);
 
   const isBanglaPage = pathname === "/bn";
+  const isDark = mounted && resolvedTheme === "dark";
+
+  // থিম অনুযায়ী কালার (dark: ভ্যারিয়েন্টের উপর নির্ভর না করে সরাসরি থিম স্টেট থেকে)
+  const t = {
+    header: isDark
+      ? "bg-[#0b1220] border-slate-700"
+      : "bg-white border-slate-200",
+    text: isDark ? "!text-white" : "!text-slate-900",
+    subText: isDark ? "!text-slate-300" : "!text-slate-600",
+    accent: isDark ? "!text-sky-400" : "!text-blue-700",
+    navIdle: isDark
+      ? "!text-white hover:bg-white/10"
+      : "!text-slate-900 hover:bg-slate-100",
+    navOpen: isDark ? "bg-white/15 !text-white" : "bg-slate-200 !text-slate-950",
+    panel: isDark
+      ? "bg-[#0f172a] border-slate-700"
+      : "bg-white border-slate-200",
+    divider: isDark ? "border-slate-700" : "border-slate-200",
+    item: isDark
+      ? "!text-slate-100 hover:bg-white/10"
+      : "!text-slate-900 hover:bg-slate-100",
+    mobileItem: isDark
+      ? "bg-[#0f172a] !text-slate-100 border border-slate-700 hover:bg-white/10"
+      : "bg-slate-50 !text-slate-900 border border-slate-200 hover:bg-slate-100",
+    mobileHome: isDark ? "bg-white/10 !text-white" : "bg-slate-100 !text-slate-900",
+    iconBtn: isDark
+      ? "bg-[#0f172a] border-slate-600 hover:bg-slate-800"
+      : "bg-white border-slate-300 hover:bg-slate-100",
+    admin: isDark
+      ? "border-amber-500/50 bg-amber-500/15 !text-amber-300 hover:bg-amber-500/25"
+      : "border-amber-500 bg-amber-50 !text-amber-900 hover:bg-amber-100",
+    lang: isDark
+      ? "bg-blue-600/30 border border-blue-500/50 !text-sky-200 hover:bg-blue-600 hover:!text-white"
+      : "bg-blue-600 hover:bg-blue-700 !text-white",
+  };
 
   const categories = [
     {
@@ -67,43 +99,43 @@ export default function Navbar() {
     {
       name: "More",
       icon: "📜",
-      items: [
-        { label: "Rules & Match Formats", href: "/rules" },
-      ],
+      items: [{ label: "Rules & Match Formats", href: "/rules" }],
     },
   ];
 
   return (
-    <header ref={dropdownRef} className="fixed top-0 left-0 right-0 z-[9999] w-full border-b border-slate-200 dark:border-white/10 bg-white dark:bg-[#020617] backdrop-blur-xl transition-colors duration-300 shadow-sm">
+    <header
+      ref={dropdownRef}
+      className={`fixed top-0 left-0 right-0 z-[9999] w-full border-b shadow-sm transition-colors duration-300 ${t.header}`}
+    >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:px-6">
-        
-        {/* লোগো */}
-        <Link href={isBanglaPage ? "/bn" : "/"} className="flex items-center gap-2 group">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600/20 border border-blue-500/40 p-1 shadow">
+        {/* লোগো ও ব্র্যান্ড নাম */}
+        <Link href={isBanglaPage ? "/bn" : "/"} className="flex items-center gap-2.5 group">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 border border-blue-200 dark:bg-blue-600/15 dark:border-blue-500/30 p-1 shadow-sm transition-transform group-hover:scale-105">
             <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain" />
           </div>
           <div>
-            <span 
-              className="text-xs sm:text-sm font-black tracking-wide group-hover:text-sky-500 transition leading-none block"
-              style={{ color: mounted && theme === 'dark' ? '#ffffff' : '#0f172a' }}
-            >
-              Facebook <span className="text-sky-500 dark:text-sky-400">Cricket League</span>
+            <span className={`text-xs sm:text-sm font-black tracking-wide leading-none block ${t.text}`}>
+              Facebook <span className={t.accent}>Cricket League</span>
             </span>
-            <span className="block text-[8px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Official Digital Platform</span>
+            <span className={`block text-[8.5px] font-bold uppercase tracking-wider mt-0.5 ${t.subText}`}>
+              Official Digital Platform
+            </span>
           </div>
         </Link>
 
-        {/* 💻 পিসি ভিউ নেভিগেশন (ক্যাটেগরি ও সাব-মেনু) */}
-        <nav className="hidden lg:flex items-center gap-1">
+        {/* 💻 মেনু বাটনসমূহ */}
+        <nav className="hidden lg:flex items-center gap-1.5">
           <Link
             href={isBanglaPage ? "/bn" : "/"}
-            className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition flex items-center gap-1.5 ${
               pathname === "/" || pathname === "/bn"
-                ? "bg-blue-600 text-white shadow"
-                : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
+                ? "bg-blue-600 !text-white shadow-sm"
+                : t.navIdle
             }`}
           >
-            🏠 {isBanglaPage ? "হোম" : "Home"}
+            <span>🏠</span>
+            <span>{isBanglaPage ? "হোম" : "Home"}</span>
           </Link>
 
           {categories.map((cat) => {
@@ -113,20 +145,20 @@ export default function Navbar() {
                 <button
                   onClick={() => setActiveDropdown(isOpen ? null : cat.name)}
                   className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${
-                    isOpen
-                      ? "bg-slate-100 dark:bg-white/10 text-slate-900 dark:text-white"
-                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
+                    isOpen ? `${t.navOpen} font-extrabold` : t.navIdle
                   }`}
                 >
                   <span>{cat.icon}</span>
                   <span>{cat.name}</span>
-                  <span className={`text-[9px] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}>▼</span>
+                  <span className={`text-[9px] transition-transform duration-200 ${t.subText} ${isOpen ? "rotate-180" : ""}`}>
+                    ▼
+                  </span>
                 </button>
 
                 {/* সাব-মেনু ড্রপডাউন */}
                 {isOpen && (
-                  <div className="absolute left-0 mt-1.5 w-60 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0b1220]/95 p-2 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 z-50">
-                    <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800/80 mb-1">
+                  <div className={`absolute left-0 mt-1.5 w-60 rounded-2xl border p-2 shadow-xl animate-in fade-in zoom-in-95 duration-150 z-50 ${t.panel}`}>
+                    <div className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-wider border-b mb-1 ${t.subText} ${t.divider}`}>
                       {cat.name} Options
                     </div>
                     {cat.items.map((item) => (
@@ -135,11 +167,11 @@ export default function Navbar() {
                         href={item.href}
                         className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition ${
                           pathname === item.href
-                            ? "bg-blue-600 text-white shadow"
-                            : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
+                            ? "bg-blue-600 !text-white shadow-sm"
+                            : t.item
                         }`}
                       >
-                        <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                        <span className={`h-1.5 w-1.5 rounded-full ${isDark ? "bg-sky-400" : "bg-blue-600"}`} />
                         <span>{item.label}</span>
                       </Link>
                     ))}
@@ -149,13 +181,13 @@ export default function Navbar() {
             );
           })}
 
-          {/* সুপার অ্যাডমিন শর্টকাট লিংক */}
+          {/* অ্যাডমিন বাটন */}
           <Link
             href="/superadmin"
-            className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition flex items-center gap-1 ${
+            className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition flex items-center gap-1.5 border ${
               pathname === "/superadmin"
-                ? "bg-amber-600 text-white shadow"
-                : "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                ? "bg-amber-600 border-amber-600 !text-white shadow-sm"
+                : t.admin
             }`}
           >
             <span>🔐</span>
@@ -163,31 +195,33 @@ export default function Navbar() {
           </Link>
         </nav>
 
-        {/* ডানপাশে থিম টগল, ভাষা পরিবর্তন ও মোবাইল মেনু */}
-        <div className="flex items-center gap-1.5">
-          {/* চাঁদ ও সূর্য টগল বাটন */}
+        {/* ডানপাশের কন্ট্রোল বাটন */}
+        <div className="flex items-center gap-2">
+          {/* থিম টগল */}
           {mounted && (
             <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              onClick={() => setTheme(isDark ? "light" : "dark")}
               aria-label="Toggle Theme"
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-[#0b1220] text-amber-500 dark:text-amber-400 shadow transition hover:scale-105 text-sm"
-              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg border shadow-sm transition text-sm ${t.iconBtn}`}
+              title="Toggle Theme"
             >
-              {theme === "dark" ? "☀️" : "🌙"}
+              {isDark ? "☀️" : "🌙"}
             </button>
           )}
 
+          {/* ভাষা পরিবর্তন বাটন */}
           <Link
             href={isBanglaPage ? "/" : "/bn"}
-            className="rounded-lg border border-blue-500/40 bg-blue-500/15 px-2.5 py-1.5 text-xs font-bold text-blue-700 dark:text-sky-300 transition hover:bg-blue-600 hover:text-white flex items-center gap-1"
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold shadow-sm transition flex items-center gap-1.5 ${t.lang}`}
           >
             <span>{isBanglaPage ? "🇬🇧" : "💙"}</span>
             <span>{isBanglaPage ? "English" : "বাংলা"}</span>
           </Link>
 
+          {/* মোবাইল মেনু বাটন */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-[#0b1220] text-slate-700 dark:text-slate-300 lg:hidden text-sm"
+            className={`flex h-8 w-8 items-center justify-center rounded-lg border lg:hidden text-sm transition ${t.iconBtn} ${t.text}`}
             aria-label="Toggle Menu"
           >
             {mobileMenuOpen ? "✕" : "☰"}
@@ -195,15 +229,15 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* 📱 ফোন ভিউ বা মোবাইল ড্রপডাউন মেনু */}
+      {/* 📱 মোবাইল মেনু */}
       {mobileMenuOpen && (
-        <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#080d17]/95 px-4 py-4 backdrop-blur-2xl lg:hidden max-h-[80vh] overflow-y-auto space-y-4 animate-in slide-in-from-top duration-200 shadow-xl">
+        <div className={`border-t px-4 py-4 lg:hidden max-h-[80vh] overflow-y-auto space-y-4 shadow-xl ${t.header}`}>
           <Link
             href={isBanglaPage ? "/bn" : "/"}
-            className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-black ${
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-bold ${
               pathname === "/" || pathname === "/bn"
-                ? "bg-blue-600 text-white shadow"
-                : "bg-slate-100 dark:bg-white/5 text-slate-800 dark:text-slate-200"
+                ? "bg-blue-600 !text-white shadow-sm"
+                : t.mobileHome
             }`}
           >
             <span>🏠</span>
@@ -212,7 +246,7 @@ export default function Navbar() {
 
           {categories.map((cat) => (
             <div key={cat.name} className="space-y-1.5">
-              <div className="flex items-center gap-2 px-1 text-[11px] font-black uppercase tracking-wider text-sky-500 dark:text-sky-400">
+              <div className={`flex items-center gap-2 px-1 text-[11px] font-black uppercase tracking-wider ${t.accent}`}>
                 <span>{cat.icon}</span>
                 <span>{cat.name}</span>
               </div>
@@ -223,11 +257,11 @@ export default function Navbar() {
                     href={item.href}
                     className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold transition ${
                       pathname === item.href
-                        ? "bg-blue-600 text-white shadow"
-                        : "bg-slate-100 dark:bg-[#0b1220] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800/80"
+                        ? "bg-blue-600 !text-white shadow-sm"
+                        : t.mobileItem
                     }`}
                   >
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    <span className={`h-1.5 w-1.5 rounded-full ${isDark ? "bg-sky-400" : "bg-blue-600"}`} />
                     <span>{item.label}</span>
                   </Link>
                 ))}
@@ -235,13 +269,12 @@ export default function Navbar() {
             </div>
           ))}
 
-          {/* মোবাইল মেনুতে সুপার অ্যাডমিন লিংক */}
           <Link
             href="/superadmin"
-            className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-black ${
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-bold border ${
               pathname === "/superadmin"
-                ? "bg-amber-600 text-white shadow"
-                : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                ? "bg-amber-600 border-amber-600 !text-white shadow-sm"
+                : t.admin
             }`}
           >
             <span>🔐</span>
