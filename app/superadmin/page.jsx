@@ -58,6 +58,7 @@ export default function SuperAdminHub() {
   const MEMORIES_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx3Zz8Vbr3r8aTtlpxmslqiyDXpGciX_g5NUIvDjDHK2hpxAWfBXeULtEPU4ICXYMf9uw/exec";
   const THRILLERS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzz_E-ynaL_pajp7l36WWBF7p1VvwWMhev4xTzH66A36hKg6G3Up1mNIQHBWaG9s6fA/exec";
   const FCL_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwMzgj1DMlIk45ZXw9L9Qb-e44GGFBOM0epr0zGN4TtOP2uc6cqe_nJhyBFOAf-4o2PmQ/exec";
+  const FCL_MATCHES_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwn6-BfO0b2jxco5csvSx7ymSafVPmvbhwKP-2Uh2-COdCDNMNl1VLloEZjR3uh7fonvw/exec"; // 🌟 fcl-matches Script URL
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -135,7 +136,19 @@ export default function SuperAdminHub() {
     'TOP WICKET': ''
   });
 
+  // 🌟 FCL Matches Data
+  const [fclMatchesData, setFclMatchesData] = useState({
+    date: '',
+    year: '',
+    month: '',
+    matchTitle: '',
+    category: 'Friendly Match', // ডিফল্ট ফিক্সড ক্যাটাগরি
+    summary: '',
+    link: ''
+  });
+
   const categoriesList = ["স্মৃতিচারণ (Memories / Nostalgia)", "গান (Song)", "কবিতা (Poem)", "গল্প (Story)", "কৌতুক (Humor)"];
+  const matchCategoriesList = ["Friendly Match", "Tournament", "Series", "Test Match", "Special Match"];
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -144,6 +157,8 @@ export default function SuperAdminHub() {
         url = THRILLERS_SCRIPT_URL;
       } else if (selectedForm === 'fcl_overall' || selectedForm === 'fcl_tournaments') {
         url = FCL_SCRIPT_URL;
+      } else if (selectedForm === 'fcl_matches') {
+        url = FCL_MATCHES_SCRIPT_URL;
       }
 
       fetch(url)
@@ -154,15 +169,16 @@ export default function SuperAdminHub() {
           if (selectedForm === 'hvm') setExistingRecords(data.highVoltage || []);
           if (selectedForm === 'fcl_overall') setExistingRecords(data.players || []);
           if (selectedForm === 'fcl_tournaments') setExistingRecords(data.tournaments || []);
+          if (selectedForm === 'fcl_matches') setExistingRecords(data.matches || []);
         })
         .catch(err => console.error("Error fetching sheet data:", err));
     }
   }, [isAuthenticated, selectedForm, message]);
 
-  // 🌟 ফিল্টার করা রেকর্ডস (টাইটেল এবং অথর/প্লেয়ারের নাম দুটো দিয়েই সার্চ ও ফিল্টার হবে)
+  // 🌟 ফিল্টার করা রেকর্ডস (সার্চ কুয়েরি ফিল্টারিং)
   const filteredRecords = existingRecords.filter((rec) => {
-    const titleText = rec['title'] || rec['Performance Title'] || rec['Match Title'] || rec['Full Name'] || rec['name'] || rec['PLAYERS'] || '';
-    const authorText = rec['author'] || rec['Player Name'] || rec['Tournament'] || '';
+    const titleText = rec['title'] || rec['Performance Title'] || rec['Match Title'] || rec['Full Name'] || rec['name'] || rec['PLAYERS'] || rec['matchTitle'] || '';
+    const authorText = rec['author'] || rec['Player Name'] || rec['Tournament'] || rec['summary'] || '';
     const combined = `${titleText} (${authorText})`.toLowerCase();
     return combined.includes(searchQuery.toLowerCase());
   });
@@ -266,6 +282,16 @@ export default function SuperAdminHub() {
           'TOP SCORER': record['TOP SCORER'] || record['topScorer'] || '',
           'TOP WICKET': record['TOP WICKET'] || record['topWicket'] || ''
         });
+      } else if (selectedForm === 'fcl_matches') {
+        setFclMatchesData({
+          date: record['date'] || '',
+          year: record['year'] || '',
+          month: record['month'] || '',
+          matchTitle: record['matchTitle'] || '',
+          category: record['category'] || matchCategoriesList[0],
+          summary: record['summary'] || '',
+          link: record['link'] || ''
+        });
       }
     }
   };
@@ -280,12 +306,14 @@ export default function SuperAdminHub() {
     setFclTourData({
       sheetType: 'Tournaments', 'Name': '', 'PLAYERS': '', 'TOURNAMENT': '', 'Team Name Of The Player': '', 'M': '', 'RUN': '', 'W': '', 'IN': '', 'NO': '', "4's": '', "6's": '', 'Hat-Trick': '', 'MOM': '', 'CPOM/SAPOM': '', 'MOT/CPOT': '', 'Cham/RU': '', 'TOURNAMENT TIME (Month-Year)': '', 'TOP SCORER': '', 'TOP WICKET': ''
     });
+    setFclMatchesData({ date: '', year: '', month: '', matchTitle: '', category: matchCategoriesList[0], summary: '', link: '' });
   };
 
   const getTargetUrl = () => {
     if (selectedForm === 'memories') return MEMORIES_SCRIPT_URL;
     if (selectedForm === 'extraordinary' || selectedForm === 'hvm') return THRILLERS_SCRIPT_URL;
     if (selectedForm === 'fcl_overall' || selectedForm === 'fcl_tournaments') return FCL_SCRIPT_URL;
+    if (selectedForm === 'fcl_matches') return FCL_MATCHES_SCRIPT_URL;
     return MEMORIES_SCRIPT_URL;
   };
 
@@ -323,7 +351,7 @@ export default function SuperAdminHub() {
 
     setLoading(true);
     const targetUrl = getTargetUrl();
-    const currentSheetType = selectedForm === 'memories' ? 'Memories' : selectedForm === 'extraordinary' ? 'Extraordinary Performance' : selectedForm === 'hvm' ? 'High Voltage Matches' : selectedForm === 'fcl_overall' ? 'Overall' : 'Tournaments';
+    const currentSheetType = selectedForm === 'memories' ? 'Memories' : selectedForm === 'extraordinary' ? 'Extraordinary Performance' : selectedForm === 'hvm' ? 'High Voltage Matches' : selectedForm === 'fcl_overall' ? 'Overall' : selectedForm === 'fcl_tournaments' ? 'Tournaments' : 'Matches';
 
     try {
       await fetch(targetUrl, {
@@ -575,17 +603,18 @@ export default function SuperAdminHub() {
             <option value="hvm">⚡ High Voltage Match Form</option>
             <option value="fcl_overall">🏏 FCL Overall Players Data</option>
             <option value="fcl_tournaments">🏆 FCL Tournaments Data</option>
+            <option value="fcl_matches">🏟️ FCL Matches Archive</option>
           </select>
         </div>
       </div>
 
-      {/* 🌟 সার্চ বক্স এবং ড্রপডাউন সেকশন (লেখক/প্লেয়ারের নাম সহ) */}
+      {/* 🌟 সার্চ বক্স এবং ড্রপডাউন সেকশন */}
       <div style={{ marginBottom: '20px', background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <div>
-          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#334155' }}>নাম বা টাইটেল দিয়ে খুঁজুন (Search Record):</label>
+          <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#334155' }}>নাম বা তারিখ দিয়ে খুঁজুন (Search Record):</label>
           <input
             type="text"
-            placeholder="এখানে টাইটেল বা লেখকের নাম লিখে খুঁজুন..."
+            placeholder="এখানে তারিখ (যেমন: 7-Oct-26) লিখে খুঁজুন..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', boxSizing: 'border-box' }}
@@ -597,9 +626,20 @@ export default function SuperAdminHub() {
           <select onChange={handleRecordSelect} value={selectedRowIndex !== null ? selectedRowIndex : "add"} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', fontWeight: '600' }}>
             <option value="add">➕ নতুন রেকর্ড যোগ করুন (Add New)</option>
             {filteredRecords.map((rec, i) => {
-              const title = rec['title'] || rec['Performance Title'] || rec['Match Title'] || rec['Full Name'] || rec['name'] || rec['PLAYERS'] || `Record #${i + 1}`;
-              const author = rec['author'] || rec['Player Name'] || rec['Tournament'] || '';
-              const displayLabel = author ? `${title} — [লেখক/প্লেয়ার: ${author}]` : title;
+              const dateVal = rec['date'] || '';
+              const yearVal = rec['year'] || '';
+              const titleVal = rec['matchTitle'] || rec['title'] || '';
+
+              let displayLabel = `Record #${i + 1}`;
+              if (selectedForm === 'fcl_matches') {
+                const datePart = dateVal ? `📅 [${dateVal}${yearVal ? `, ${yearVal}` : ''}]` : '';
+                displayLabel = `${datePart}`;
+              } else {
+                const title = titleVal || rec['Performance Title'] || rec['Match Title'] || rec['Full Name'] || rec['name'] || rec['PLAYERS'] || '';
+                const author = rec['author'] || rec['Player Name'] || rec['Tournament'] || '';
+                displayLabel = author ? `${title} — [লেখক/প্লেয়ার: ${author}]` : title;
+              }
+
               return (
                 <option key={i} value={rec.rowIndex}>
                   {displayLabel}
@@ -785,133 +825,6 @@ export default function SuperAdminHub() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Total Runs:</label>
-              <input type="number" value={fclOverallData['Total Runs']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Total Runs': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Total Wickets:</label>
-              <input type="number" value={fclOverallData['Total Wickets']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Total Wickets': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Innings:</label>
-              <input type="number" value={fclOverallData['Innings']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Innings': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Not Out:</label>
-              <input type="number" value={fclOverallData['Not Out']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Not Out': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Total 4's:</label>
-              <input type="number" value={fclOverallData["Total 4's"]} onChange={(e) => setFclOverallData({ ...fclOverallData, "Total 4's": e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Total 6's:</label>
-              <input type="number" value={fclOverallData["Total 6's"]} onChange={(e) => setFclOverallData({ ...fclOverallData, "Total 6's": e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Hat-Trick:</label>
-              <input type="number" value={fclOverallData['Hat-Trick']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Hat-Trick': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>MOM (Man Of The Match):</label>
-              <input type="number" value={fclOverallData['MOM (Man Of The Match)']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'MOM (Man Of The Match)': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>CPOM (2nd Pos of MOM):</label>
-              <input type="number" value={fclOverallData['CPOM (T (Cool Player Of The Match) 2nd Position Of MOM']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'CPOM (T (Cool Player Of The Match) 2nd Position Of MOM': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>MOT (Man Of The Tournament):</label>
-              <input type="number" value={fclOverallData['MOT (Man Of The Tournament)']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'MOT (Man Of The Tournament)': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>CPOT (2nd Pos of MOT):</label>
-              <input type="number" value={fclOverallData['CPOT (Cool Player Of The Tournament) 2nd Position Of MOT']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'CPOT (Cool Player Of The Tournament) 2nd Position Of MOT': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Champion:</label>
-              <input type="number" value={fclOverallData['Champion']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Champion': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Runner-Up:</label>
-              <input type="number" value={fclOverallData['Runner-Up']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Runner-Up': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Total Final:</label>
-              <input type="number" value={fclOverallData['Total Final']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Total Final': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Highest Run Scorer:</label>
-              <input type="number" value={fclOverallData['Highest Run Scorer']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Highest Run Scorer': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Top Wicket Taker:</label>
-              <input type="number" value={fclOverallData['Top Wicket Taker']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Top Wicket Taker': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Last Played Tournament:</label>
-            <input type="text" value={fclOverallData['Last Played Tournament']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Last Played Tournament': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Debut Year:</label>
-              <input type="text" value={fclOverallData['Dabut Year (Month/Year)']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Dabut Year (Month/Year)': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Debut Tournament:</label>
-              <input type="text" value={fclOverallData['Dabut Tournament:']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Dabut Tournament:': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Debut Team Name:</label>
-              <input type="text" value={fclOverallData['Dabut Team Name']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Dabut Team Name': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Max Runs In Tournament:</label>
-              <input type="number" value={fclOverallData['Max Runs In Tournament']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Max Runs In Tournament': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Max Wickets In Tournament:</label>
-              <input type="number" value={fclOverallData['Max Wickets In Tournament']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Max Wickets In Tournament': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Player Image URL:</label>
-              <input type="url" value={fclOverallData['Player Image']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Player Image': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Birthday:</label>
-              <input type="text" value={fclOverallData['Birthday']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Birthday': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="submit" disabled={loading} style={{ background: mode === 'edit' ? '#d97706' : '#059669', color: '#fff', padding: '12px', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer', flex: 1 }}>
               {loading ? 'Processing...' : mode === 'edit' ? 'Update Record' : 'Add New Record'}
@@ -937,35 +850,70 @@ export default function SuperAdminHub() {
             <input type="text" value={fclTourData['PLAYERS']} onChange={(e) => setFclTourData({ ...fclTourData, 'PLAYERS': e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Tournament:</label>
-              <input type="text" value={fclTourData['TOURNAMENT']} onChange={(e) => setFclTourData({ ...fclTourData, 'TOURNAMENT': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Team Name:</label>
-              <input type="text" value={fclTourData['Team Name Of The Player']} onChange={(e) => setFclTourData({ ...fclTourData, 'Team Name Of The Player': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Matches (M):</label>
-              <input type="number" value={fclTourData['M']} onChange={(e) => setFclTourData({ ...fclTourData, 'M': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Runs (RUN):</label>
-              <input type="number" value={fclTourData['RUN']} onChange={(e) => setFclTourData({ ...fclTourData, 'RUN': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Wickets (W):</label>
-              <input type="number" value={fclTourData['W']} onChange={(e) => setFclTourData({ ...fclTourData, 'W': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="submit" disabled={loading} style={{ background: mode === 'edit' ? '#d97706' : '#059669', color: '#fff', padding: '12px', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer', flex: 1 }}>
               {loading ? 'Processing...' : mode === 'edit' ? 'Update Record' : 'Add New Record'}
+            </button>
+            {mode === 'edit' && (
+              <button type="button" onClick={handleDelete} disabled={loading} style={{ background: '#dc2626', color: '#fff', padding: '12px', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}>
+                Delete
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+
+      {/* 🌟 FCL Matches Form with Fixed Category Dropdown */}
+      {selectedForm === 'fcl_matches' && (
+        <form onSubmit={(e) => handleSubmit(e, fclMatchesData)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Date:</label>
+              <input type="text" placeholder="যেমন: 7-Oct-26" value={fclMatchesData.date} onChange={(e) => setFclMatchesData({ ...fclMatchesData, date: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Year:</label>
+              <input type="text" placeholder="যেমন: 2026" value={fclMatchesData.year} onChange={(e) => setFclMatchesData({ ...fclMatchesData, year: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Month:</label>
+              <input type="text" placeholder="যেমন: October" value={fclMatchesData.month} onChange={(e) => setFclMatchesData({ ...fclMatchesData, month: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Match Title:</label>
+              <input type="text" placeholder="যেমন: Official Friendly" value={fclMatchesData.matchTitle} onChange={(e) => setFclMatchesData({ ...fclMatchesData, matchTitle: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Category:</label>
+              <select
+                value={fclMatchesData.category}
+                onChange={(e) => setFclMatchesData({ ...fclMatchesData, category: e.target.value })}
+                required
+                style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+              >
+                {matchCategoriesList.map((cat, idx) => (
+                  <option key={idx} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Summary (Description / Emojis):</label>
+            <input type="text" placeholder="যেমন: 🌟 OFFICIAL FRIENDLY MATCH" value={fclMatchesData.summary} onChange={(e) => setFclMatchesData({ ...fclMatchesData, summary: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+          </div>
+
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Link (Facebook Post URL):</label>
+            <input type="url" placeholder="যেমন: https://www.facebook.com/share/p/..." value={fclMatchesData.link} onChange={(e) => setFclMatchesData({ ...fclMatchesData, link: e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="submit" disabled={loading} style={{ background: mode === 'edit' ? '#d97706' : '#2563eb', color: '#fff', padding: '12px', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer', flex: 1 }}>
+              {loading ? 'Processing...' : mode === 'edit' ? 'Update Match Record' : 'Add New Match Record'}
             </button>
             {mode === 'edit' && (
               <button type="button" onClick={handleDelete} disabled={loading} style={{ background: '#dc2626', color: '#fff', padding: '12px', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}>

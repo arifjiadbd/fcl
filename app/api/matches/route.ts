@@ -19,14 +19,16 @@ export async function GET() {
 
     const matches = rawData.map((row, index) => ({
       id: index + 1,
+      rowIndex: index + 2, // গুগলের শিট বা এক্সেলের রো ইনডেক্স ট্র্যাক করার জন্য
       date: String(row["Date"] || "").trim(),
       year: String(row["Year"] || "").trim(),
       month: String(row["Month"] || "").trim(),
-      title: String(row["Match Title"] || "").trim(),
+      matchTitle: String(row["Match Title"] || "").trim(),
+      title: String(row["Match Title"] || "").trim(), // ব্যাকওয়ার্ড কম্প্যাটিবিলিটির জন্য
       category: String(row["Category"] || "").trim(),
       summary: String(row["Summary"] || "").trim(),
       link: String(row["Link"] || "").trim(),
-    })).filter(m => m.title !== "");
+    })).filter(m => m.matchTitle !== "");
 
     return NextResponse.json({ matches }, { status: 200 });
   } catch (error: any) {
