@@ -250,7 +250,6 @@ const pickLayout = (n: number): BoardLayout => (n <= 12 ? "showcase" : n <= 36 ?
 
 const PLACEHOLDER = "/FCL Cricket Avatar Placeholder.jpg";
 
-// মোবাইল স্ট্যাট কার্ডের ফিক্সড ডিজাইন সাইজ (4:5)
 const M_W = 440;
 const M_H = 550;
 
@@ -263,7 +262,7 @@ function extractYear(val: any): string {
   const s = String(val);
   const m4 = s.match(/\b(19|20)\d{2}\b/);
   if (m4) return m4[0];
-  const m2 = s.match(/[-\/\s'’](\d{2})\s*$/);
+  const m2 = s.match(/[-\/\ s'’](\d{2})\s*$/);
   if (m2) return "20" + m2[1];
   return "";
 }
@@ -636,7 +635,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
   const teammatesRef = useRef<HTMLDivElement>(null);
   const combinedRef = useRef<HTMLDivElement>(null);
 
-  // ফোন ভিউ ডিটেক্ট
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
     const upd = () => setIsMobile(mq.matches);
@@ -645,7 +643,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     return () => mq.removeEventListener("change", upd);
   }, []);
 
-  // মোবাইল কার্ড স্ক্রিনের প্রস্থ অনুযায়ী স্কেল
   useEffect(() => {
     const el = mWrapRef.current;
     if (!el) return;
@@ -808,6 +805,107 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     }
   };
 
+  const buildPlayerShareText = () => {
+    const p = selectedPlayer;
+    const lines = [
+      `I am ${p.name}, a proud player of Facebook Cricket League (FCL)!`,
+      "",
+      "Here are some highlights from my FCL journey:",
+      `🏏 Matches: ${Number(p.matches) || 0}`,
+      `🔥 Runs: ${Number(p.runs) || 0}`,
+      `🎯 Wickets: ${Number(p.wickets) || 0}`,
+      `🏆 Tournaments played: ${Number(p.totalTournament) || teammateHistory.tourCount || 0}`,
+    ];
+
+    if ((Number(p.champion) || 0) > 0) lines.push(`🥇 Champion: ${Number(p.champion)}`);
+    if ((Number(p.runnersUp) || 0) > 0) lines.push(`🥈 Runner-up: ${Number(p.runnersUp)}`);
+    if (teammateHistory.count > 0) lines.push(`🤝 Teammates played with: ${teammateHistory.count}`);
+
+    lines.push(
+      "",
+      "Proud to be part of the FCL community!",
+      "View my stats and player card:",
+      "https://fclbd.vercel.app/"
+    );
+    return lines.join("\n");
+  };
+
+  const handleShareFacebook = async () => {
+    const target = isMobile ? mobileCardRef.current : cardRef.current;
+    if (!target) {
+      alert("Player card তৈরি করা যাচ্ছে না। আবার চেষ্টা করো।");
+      return;
+    }
+
+    try {
+      setDownloading(true);
+      const dataUrl = await toPng(
+        target,
+        isMobile
+          ? {
+              cacheBust: true,
+              pixelRatio: 4,
+              skipAutoScale: true,
+              backgroundColor: T.cardBg,
+              width: M_W,
+              height: M_H,
+              style: { transform: "none", margin: "0" },
+            }
+          : {
+              cacheBust: true,
+              pixelRatio: 3,
+              skipAutoScale: true,
+              backgroundColor: T.cardBg,
+              style: { width: "750px", maxWidth: "100%", margin: "0 auto" },
+            }
+      );
+
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const safeName = (selectedPlayer.nickName || selectedPlayer.name || "player")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-");
+      const imageFile = new File([blob], `fcl-player-card-${safeName}.png`, { type: "image/png" });
+      const shareText = buildPlayerShareText();
+      const shareUrl = "https://fclbd.vercel.app/";
+
+      if (
+        typeof navigator !== "undefined" &&
+        typeof navigator.share === "function" &&
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [imageFile] })
+      ) {
+        await navigator.share({
+          title: `${selectedPlayer.name} | FCL Player Card`,
+          text: shareText,
+          url: shareUrl,
+          files: [imageFile],
+        });
+        return;
+      }
+
+      const downloadLink = document.createElement("a");
+      downloadLink.href = dataUrl;
+      downloadLink.download = `fcl-player-card-${safeName}.png`;
+      downloadLink.click();
+
+      try {
+        await navigator.clipboard.writeText(shareText);
+        alert("Player card ছবিটি ডাউনলোড হয়েছে এবং শেয়ার টেক্সট কপি হয়েছে। Facebook পোস্টে ছবিটি আপলোড করে টেক্সটটি পেস্ট করো।");
+      } catch {
+        alert("Player card ছবিটি ডাউনলোড হয়েছে। Facebook পোস্টে এই শেয়ার টেক্সটটি ব্যবহার করো:\n\n" + shareText);
+      }
+
+      const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+      window.open(facebookUrl, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      alert("Facebook-এ শেয়ার করতে সমস্যা হয়েছে। আবার চেষ্টা করো।");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const handleDownloadTeammatesPNG = async () => {
     if (!teammatesRef.current) return;
     try {
@@ -950,7 +1048,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
     </div>
   );
 
-  // মোবাইল কার্ডের কমপ্যাক্ট লাইন
   const ML = ({ k, children }: { k: string; children: ReactNode }) => (
     <div className={`flex items-center justify-between gap-1 border-b py-[3px] text-[10.5px] last:border-b-0 ${T.divider}`}>
       <span className={`whitespace-nowrap font-semibold ${T.label}`}>{k}</span>
@@ -972,14 +1069,12 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
 
   const hasBirthday = !!selectedPlayer.birthday && selectedPlayer.birthday !== "—";
 
-  // ================= মোবাইল ৪:৫ প্রিমিয়াম কার্ড (440 × 550) =================
   const mobileCard = (
     <div
       ref={mobileCardRef}
       className={`flex flex-col gap-2 overflow-hidden rounded-2xl border p-3 shadow-xl ${T.card}`}
       style={{ width: M_W, height: M_H, transform: `scale(${mScale})`, transformOrigin: "top left" }}
     >
-      {/* Header */}
       <div className={`flex items-center justify-between border-b pb-2 ${T.divider}`}>
         <div className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-[#1877F2]/15 p-1">
@@ -993,7 +1088,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
         <span className={`rounded-md border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold ${T.amber}`}>OFFICIAL</span>
       </div>
 
-      {/* Identity row */}
       <div className="flex items-stretch gap-2" style={{ height: 100 }}>
         <div className={`relative w-[92px] shrink-0 overflow-hidden rounded-xl border-2 ${T.surface} ${cardTheme === "dark" ? "!border-sky-400/40" : "!border-sky-300"}`}>
           <img
@@ -1039,7 +1133,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
         </div>
       </div>
 
-      {/* Debut row */}
       <div className="grid grid-cols-4 gap-1.5 text-center">
         {[
           { l: "Debut Date", v: formatFullMonthDate(selectedPlayer.debutYear) || "—", c: T.blue },
@@ -1054,7 +1147,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
         ))}
       </div>
 
-      {/* Rankings hero */}
       <div className={`rounded-xl border-2 p-2 ${T.heroBox}`}>
         <div className={`flex items-center justify-between gap-2 border-b pb-1.5 ${T.heroHead}`}>
           <p className={`flex items-center gap-1 text-[9.5px] font-black uppercase tracking-wider ${T.heroTitle}`}>
@@ -1090,7 +1182,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 gap-2">
         <div className={`rounded-xl border px-2.5 py-1 ${T.surface}`}>
           <ML k="Total Match:">{selectedPlayer.matches}</ML>
@@ -1110,7 +1201,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
         </div>
       </div>
 
-      {/* Last played */}
       <div className={`mt-auto flex items-center justify-between gap-2 rounded-xl border-2 px-2.5 py-1.5 ${T.lastBox}`}>
         <div className="flex items-center gap-1.5">
           <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
@@ -1135,10 +1225,8 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
           style={isMobile ? { height: "86dvh" } : { maxHeight: "92dvh" }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* ================= HEADER (সবসময় উপরে ফিক্সড/স্টিকি থাকে, বডি স্ক্রল করলেও সরবে না) ================= */}
           <div className={`sticky top-0 z-30 shrink-0 border-b px-3 py-2.5 sm:px-4 sm:py-3 backdrop-blur-md ${T.header}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              {/* ট্যাব/টাইটেল — মোবাইলে আর হরাইজন্টাল স্ক্রোল নয়, দরকার হলে wrap হয়ে সব ট্যাব ক্লিয়ার দেখাবে */}
               <div className={`order-2 flex w-full flex-wrap items-center justify-center gap-1.5 rounded-xl border p-1.5 sm:order-1 sm:w-auto sm:flex-nowrap sm:justify-start sm:gap-1 sm:overflow-x-auto ${T.segWrap}`}>
                 <button onClick={() => setCardModalTab("card")} className={tabCls(cardModalTab === "card")}>
                   <span>🎖️</span>
@@ -1185,7 +1273,6 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             </div>
           </div>
 
-          {/* ================= BODY ================= */}
           <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 pt-3 sm:pt-4 pb-20 sm:pb-24 ${T.body}`}>
             {cardModalTab === "card" && isMobile && (
               <div ref={mWrapRef} className="mx-auto w-full" style={{ maxWidth: M_W, height: M_H * mScale }}>
@@ -1573,51 +1660,57 @@ export default function PlayerCardModal({ selectedPlayer, onClose, tournamentsDa
             )}
           </div>
 
-          {/* ================= ফ্লোটিং ডাউনলোড বাটন — মোবাইলে ডান পাশে কর্নারে ফ্লোট করবে, ডেস্কটপে আগের মতো নিচে-ডানে বার আকারে ================= */}
+          {/* ================= ফ্লোটিং শেয়ার ও ডাউনলোড বাটন (ডান পাশে ছোট টেক্সট সহ) ================= */}
           <div
-            className="pointer-events-none absolute z-40 bottom-4 right-3 flex flex-col items-end gap-2 sm:inset-x-0 sm:bottom-0 sm:right-auto sm:flex-row sm:items-center sm:justify-end sm:px-5 sm:pt-3"
+            className="pointer-events-none absolute z-40 bottom-4 right-3 flex items-center gap-2"
             style={{ paddingBottom: "max(10px, env(safe-area-inset-bottom))" }}
           >
             {showDownloadFab ? (
               cardModalTab === "card" ? (
-                <button
-                  onClick={handleDownloadCard}
-                  disabled={downloading}
-                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1877F2] px-4 py-3 sm:px-5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_24px_rgba(24,119,242,0.45)] ring-1 ring-white/20 transition hover:bg-[#166fe5] active:scale-95 disabled:opacity-60"
-                >
-                  <span>📥</span>
-                  <span className="hidden sm:inline">{downloading ? "প্রসেসিং হচ্ছে..." : "ডাউনলোড কার্ড (PNG)"}</span>
-                  <span className="sm:hidden">{downloading ? "..." : "ডাউনলোড"}</span>
-                </button>
+                <>
+                  <button
+                    onClick={handleShareFacebook}
+                    disabled={downloading}
+                    className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-[#1877F2] px-3 py-2 text-xs font-bold text-white shadow-lg ring-1 ring-white/20 transition hover:bg-[#166fe5] active:scale-95 disabled:opacity-60"
+                  >
+                    <span>📤</span>
+                    <span>Share</span>
+                  </button>
+                  <button
+                    onClick={handleDownloadCard}
+                    disabled={downloading}
+                    className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-slate-800 px-3 py-2 text-xs font-bold text-white shadow-lg ring-1 ring-white/20 transition hover:bg-slate-700 active:scale-95 disabled:opacity-60"
+                  >
+                    <span>📥</span>
+                    <span>Download Card</span>
+                  </button>
+                </>
               ) : cardModalTab === "teammates" ? (
                 <button
                   onClick={handleDownloadTeammatesPNG}
                   disabled={downloading || teammateHistory.count === 0}
-                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 px-4 py-3 sm:px-5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_24px_rgba(168,85,247,0.45)] ring-1 ring-white/20 transition hover:opacity-90 active:scale-95 disabled:opacity-60"
+                  className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 px-3 py-2 text-xs font-bold text-white shadow-lg ring-1 ring-white/20 transition hover:opacity-90 active:scale-95 disabled:opacity-60"
                 >
                   <span>📥</span>
-                  <span className="hidden sm:inline">{downloading ? "ইমেজ তৈরি হচ্ছে..." : `ডাউনলোড সতীর্থ তালিকা • ${outLabel}`}</span>
-                  <span className="sm:hidden">{downloading ? "..." : "ডাউনলোড"}</span>
+                  <span>Download Card</span>
                 </button>
               ) : (
                 <button
                   onClick={handleDownloadCombinedPNG}
                   disabled={downloading}
-                  className="pointer-events-auto flex items-center gap-2 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 sm:px-5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_24px_rgba(6,182,212,0.45)] ring-1 ring-white/20 transition hover:opacity-90 active:scale-95 disabled:opacity-60"
+                  className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-2 text-xs font-bold text-white shadow-lg ring-1 ring-white/20 transition hover:opacity-90 active:scale-95 disabled:opacity-60"
                 >
                   <span>📥</span>
-                  <span className="hidden sm:inline">{downloading ? "ইমেজ তৈরি হচ্ছে..." : "ডাউনলোড ফুল প্রোফাইল (PNG)"}</span>
-                  <span className="sm:hidden">{downloading ? "..." : "ডাউনলোড"}</span>
+                  <span>Download Card</span>
                 </button>
               )
             ) : (
               <button
                 onClick={() => setCardModalTab("card")}
-                className="pointer-events-auto flex items-center gap-2 rounded-full bg-[#1877F2] px-4 py-3 sm:px-5 text-[11px] sm:text-xs font-bold text-white shadow-[0_8px_24px_rgba(24,119,242,0.45)] ring-1 ring-white/20 transition hover:bg-[#166fe5] active:scale-95"
+                className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-[#1877F2] px-3.5 py-2 text-xs font-bold text-white shadow-lg ring-1 ring-white/20 transition hover:bg-[#166fe5] active:scale-95"
               >
                 <span>←</span>
-                <span className="hidden sm:inline">স্ট্যাট কার্ডে ফিরে যান</span>
-                <span className="sm:hidden">ফিরে যান</span>
+                <span>ফিরে যান</span>
               </button>
             )}
           </div>
