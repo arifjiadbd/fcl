@@ -7,13 +7,14 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import Link from "next/link";
 
 /* =========================================================
    FCL EXTRAORDINARY PERFORMANCES
-   Official Hall of Heroics
+   Official Hall of Heroics — Compact Premium Motion Edition
    ========================================================= */
 
 interface ExtraordinaryRecord {
@@ -31,11 +32,8 @@ interface ExtraordinaryRecord {
   photo: string;
 }
 
-type SortBy =
-  | "part-asc"
-  | "part-desc"
-  | "year-desc"
-  | "year-asc";
+type SortBy = "part-asc" | "part-desc" | "year-desc" | "year-asc";
+type ViewMode = "grid" | "list";
 
 type IndexedPerformance = {
   item: ExtraordinaryRecord;
@@ -45,7 +43,14 @@ type IndexedPerformance = {
   key: string;
 };
 
-const PAGE_SIZE = 12;
+const SORT_OPTIONS: { value: SortBy; label: string }[] = [
+  { value: "part-asc", label: "Part: 1 → Latest" },
+  { value: "part-desc", label: "Part: Latest → 1" },
+  { value: "year-desc", label: "Year: Newest" },
+  { value: "year-asc", label: "Year: Oldest" },
+];
+
+const SPOTLIGHT_INTERVAL = 5500;
 
 /* =========================================================
    DATA HELPERS
@@ -55,39 +60,25 @@ function normalize(value: unknown): string {
   return String(value ?? "").trim();
 }
 
-function partOf(
-  item: ExtraordinaryRecord,
-  fallback: number
-): string {
+function partOf(item: ExtraordinaryRecord, fallback: number): string {
   const raw = item.part ?? item.Part ?? "";
-
   const value = normalize(raw);
-
-  return value && value !== "0"
-    ? value
-    : String(fallback);
+  return value && value !== "0" ? value : String(fallback);
 }
 
 function yearOf(item: ExtraordinaryRecord): string {
-  return normalize(
-    item.matchYear ?? item["Match Year"] ?? ""
-  );
+  return normalize(item.matchYear ?? item["Match Year"] ?? "");
 }
 
 function toNumber(value: unknown): number {
   const number = Number(value);
-
   return Number.isFinite(number) ? number : 0;
 }
 
 function isValidExternalUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
-
-    return (
-      parsed.protocol === "https:" ||
-      parsed.protocol === "http:"
-    );
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
   } catch {
     return false;
   }
@@ -101,30 +92,35 @@ function cleanPreview(text: string): string {
     .trim();
 }
 
+function getPageList(current: number, total: number): (number | "…")[] {
+  const set = new Set<number>([1, total, current - 1, current, current + 1]);
+  const sorted = Array.from(set)
+    .filter((n) => n >= 1 && n <= total)
+    .sort((a, b) => a - b);
+
+  const result: (number | "…")[] = [];
+
+  sorted.forEach((n, i) => {
+    if (i > 0 && n - sorted[i - 1] > 1) result.push("…");
+    result.push(n);
+  });
+
+  return result;
+}
+
 /* =========================================================
    TEXT FORMATTING
    ========================================================= */
 
-function renderHighlightedParts(
-  text: string
-): ReactNode {
+function renderHighlightedParts(text: string): ReactNode {
   if (!text) return null;
 
-  const parts = text.split(
-    /(\*\*[\s\S]*?\*\*|\*[^*]+\*)/g
-  );
+  const parts = text.split(/(\*\*[\s\S]*?\*\*|\*[^*]+\*)/g);
 
   return parts.map((part, index) => {
-    if (
-      part.startsWith("**") &&
-      part.endsWith("**") &&
-      part.length >= 4
-    ) {
+    if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
       return (
-        <strong
-          key={index}
-          className="fcl-extra-highlight strong"
-        >
+        <strong key={index} className="fcl-extra-highlight strong">
           {part.slice(2, -2).trim()}
         </strong>
       );
@@ -137,26 +133,17 @@ function renderHighlightedParts(
       !part.endsWith("**")
     ) {
       return (
-        <strong
-          key={index}
-          className="fcl-extra-highlight"
-        >
+        <strong key={index} className="fcl-extra-highlight">
           {part.slice(1, -1).trim()}
         </strong>
       );
     }
 
-    return (
-      <span key={index}>
-        {part}
-      </span>
-    );
+    return <span key={index}>{part}</span>;
   });
 }
 
-function renderTextWithHighlights(
-  text: string
-): ReactNode {
+function renderTextWithHighlights(text: string): ReactNode {
   if (!text) return null;
 
   return text
@@ -176,31 +163,19 @@ function renderTextWithHighlights(
         );
       }
 
-      const dialogueMatch = trimmed.match(
-        /^([^:\n]{1,70}):\s+(.+)$/
-      );
+      const dialogueMatch = trimmed.match(/^([^:\n]{1,70}):\s+(.+)$/);
 
       if (dialogueMatch) {
         return (
-          <p
-            key={index}
-            className="fcl-extra-paragraph fcl-extra-dialogue"
-          >
-            <strong className="fcl-extra-speaker">
-              {dialogueMatch[1]}:
-            </strong>{" "}
-            {renderHighlightedParts(
-              dialogueMatch[2]
-            )}
+          <p key={index} className="fcl-extra-paragraph fcl-extra-dialogue">
+            <strong className="fcl-extra-speaker">{dialogueMatch[1]}:</strong>{" "}
+            {renderHighlightedParts(dialogueMatch[2])}
           </p>
         );
       }
 
       return (
-        <p
-          key={index}
-          className="fcl-extra-paragraph"
-        >
+        <p key={index} className="fcl-extra-paragraph">
           {renderHighlightedParts(trimmed)}
         </p>
       );
@@ -208,13 +183,11 @@ function renderTextWithHighlights(
 }
 
 /* =========================================================
-   THEME
+   HOOKS
    ========================================================= */
 
 function detectDarkTheme(): boolean {
-  if (typeof window === "undefined") {
-    return true;
-  }
+  if (typeof window === "undefined") return true;
 
   const html = document.documentElement;
   const body = document.body;
@@ -231,24 +204,15 @@ function detectDarkTheme(): boolean {
     if (value === "light") return false;
   }
 
-  if (
-    html.classList.contains("dark") ||
-    body.classList.contains("dark")
-  ) {
+  if (html.classList.contains("dark") || body.classList.contains("dark")) {
     return true;
   }
 
-  if (
-    html.classList.contains("light") ||
-    body.classList.contains("light")
-  ) {
+  if (html.classList.contains("light") || body.classList.contains("light")) {
     return false;
   }
 
-  const schemes = [
-    html.style.colorScheme,
-    body.style.colorScheme,
-  ];
+  const schemes = [html.style.colorScheme, body.style.colorScheme];
 
   for (const scheme of schemes) {
     if (scheme === "dark") return true;
@@ -257,25 +221,20 @@ function detectDarkTheme(): boolean {
 
   try {
     const stored = localStorage.getItem("theme");
-
     if (stored === "dark") return true;
     if (stored === "light") return false;
   } catch {
     // Storage may be unavailable.
   }
 
-  return window.matchMedia(
-    "(prefers-color-scheme: dark)"
-  ).matches;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
 function useIsDark(): boolean {
   const [isDark, setIsDark] = useState(true);
 
   useEffect(() => {
-    const update = () => {
-      setIsDark(detectDarkTheme());
-    };
+    const update = () => setIsDark(detectDarkTheme());
 
     update();
 
@@ -283,27 +242,13 @@ function useIsDark(): boolean {
 
     const options: MutationObserverInit = {
       attributes: true,
-      attributeFilter: [
-        "class",
-        "data-theme",
-        "data-mode",
-        "style",
-      ],
+      attributeFilter: ["class", "data-theme", "data-mode", "style"],
     };
 
-    observer.observe(
-      document.documentElement,
-      options
-    );
+    observer.observe(document.documentElement, options);
+    observer.observe(document.body, options);
 
-    observer.observe(
-      document.body,
-      options
-    );
-
-    const media = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    );
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
 
     media.addEventListener?.("change", update);
     window.addEventListener("storage", update);
@@ -318,119 +263,429 @@ function useIsDark(): boolean {
   return isDark;
 }
 
+function useIsMobile(): boolean {
+  const [mobile, setMobile] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 760px)");
+    const update = () => setMobile(media.matches);
+
+    update();
+    media.addEventListener?.("change", update);
+
+    return () => media.removeEventListener?.("change", update);
+  }, []);
+
+  return mobile;
+}
+
+function useCountUp(target: number, duration = 900): number {
+  const [value, setValue] = useState(0);
+
+  useEffect(() => {
+    if (target <= 0) {
+      setValue(0);
+      return;
+    }
+
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (reduce) {
+      setValue(target);
+      return;
+    }
+
+    let raf = 0;
+    const start = performance.now();
+
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+
+      setValue(Math.round(target * eased));
+
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+
+  return value;
+}
+
 /* =========================================================
    ICONS
    ========================================================= */
 
-function SearchIcon() {
+type IconProps = { size?: number };
+
+function Svg({
+  size = 18,
+  children,
+  strokeWidth = 1.8,
+}: {
+  size?: number;
+  children: ReactNode;
+  strokeWidth?: number;
+}) {
   return (
     <svg
-      width="19"
-      height="19"
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.8"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
+      {children}
+    </svg>
+  );
+}
+
+function SearchIcon({ size = 18 }: IconProps) {
+  return (
+    <Svg size={size}>
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-4-4" />
-    </svg>
+    </Svg>
   );
 }
 
 function ArrowIcon({
   direction = "right",
+  size = 17,
 }: {
-  direction?: "right" | "left" | "up";
+  direction?: "right" | "left" | "up-right" | "up";
+  size?: number;
 }) {
   const rotation =
     direction === "left"
       ? "rotate(180deg)"
-      : direction === "up"
+      : direction === "up-right"
         ? "rotate(-45deg)"
-        : undefined;
+        : direction === "up"
+          ? "rotate(-90deg)"
+          : undefined;
 
   return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ transform: rotation }}
-      aria-hidden="true"
-    >
-      <path d="M5 12h14" />
-      <path d="m13 6 6 6-6 6" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg
-      width="19"
-      height="19"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M6 6l12 12M18 6 6 18" />
-    </svg>
-  );
-}
-
-/* =========================================================
-   REUSABLE COMPONENTS
-   ========================================================= */
-
-function Eyebrow({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  return (
-    <span className="fcl-extra-eyebrow">
-      {children}
+    <span style={{ display: "inline-flex", transform: rotation }}>
+      <Svg size={size}>
+        <path d="M5 12h14" />
+        <path d="m13 6 6 6-6 6" />
+      </Svg>
     </span>
   );
 }
 
-function SectionHeader({
+function CloseIcon({ size = 18 }: IconProps) {
+  return (
+    <Svg size={size} strokeWidth={1.9}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </Svg>
+  );
+}
+
+function GridIcon({ size = 17 }: IconProps) {
+  return (
+    <Svg size={size}>
+      <rect x="4" y="4" width="6.5" height="6.5" rx="1.5" />
+      <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5" />
+      <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5" />
+      <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5" />
+    </Svg>
+  );
+}
+
+function ListIcon({ size = 17 }: IconProps) {
+  return (
+    <Svg size={size}>
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </Svg>
+  );
+}
+
+function SortIcon({ size = 17 }: IconProps) {
+  return (
+    <Svg size={size}>
+      <path d="M7 4v16M7 20l-3-3M7 20l3-3" />
+      <path d="M17 20V4M17 4l-3 3M17 4l3 3" />
+    </Svg>
+  );
+}
+
+function CheckIcon({ size = 15 }: IconProps) {
+  return (
+    <Svg size={size} strokeWidth={2.2}>
+      <path d="m5 12 5 5 9-10" />
+    </Svg>
+  );
+}
+
+function ChevronIcon({ size = 16 }: IconProps) {
+  return (
+    <Svg size={size} strokeWidth={2}>
+      <path d="m6 9 6 6 6-6" />
+    </Svg>
+  );
+}
+
+/* =========================================================
+   SMALL COMPONENTS
+   ========================================================= */
+
+function Eyebrow({ children }: { children: ReactNode }) {
+  return <span className="fcl-extra-eyebrow">{children}</span>;
+}
+
+function Avatar({
+  name,
+  photo,
+  size = 40,
+}: {
+  name: string;
+  photo: string;
+  size?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  const valid = Boolean(photo) && isValidExternalUrl(photo) && !failed;
+
+  return (
+    <span
+      className="fcl-extra-avatar"
+      style={{ width: size, height: size, fontSize: size * 0.42 }}
+    >
+      {valid ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={photo}
+          alt=""
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        name?.charAt(0)?.toUpperCase() || "F"
+      )}
+    </span>
+  );
+}
+
+function StatValue({ value }: { value: number | string }) {
+  const counted = useCountUp(typeof value === "number" ? value : 0);
+
+  return (
+    <>{typeof value === "number" ? counted.toLocaleString("en-US") : value}</>
+  );
+}
+
+function HeroStat({
   label,
-  title,
-  description,
-  right,
+  value,
 }: {
   label: string;
-  title: string;
-  description?: string;
-  right?: ReactNode;
+  value: number | string;
 }) {
   return (
-    <div className="fcl-extra-section-header">
-      <div>
-        <Eyebrow>{label}</Eyebrow>
+    <div className="fcl-extra-hero-stat">
+      <strong>
+        <StatValue value={value} />
+      </strong>
+      <span>{label}</span>
+    </div>
+  );
+}
 
-        <h2>{title}</h2>
+/* =========================================================
+   SPOTLIGHT (rotating featured)
+   ========================================================= */
 
-        {description && (
-          <p>{description}</p>
-        )}
+function Spotlight({
+  items,
+  loading,
+  onOpen,
+}: {
+  items: IndexedPerformance[];
+  loading: boolean;
+  onOpen: (performance: IndexedPerformance) => void;
+}) {
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    if (items.length < 2 || paused) return;
+
+    const timer = window.setInterval(() => {
+      setIndex((previous) => (previous + 1) % items.length);
+    }, SPOTLIGHT_INTERVAL);
+
+    return () => window.clearInterval(timer);
+  }, [items.length, paused, index]);
+
+  if (loading) {
+    return (
+      <div className="fcl-extra-spot loading" aria-hidden="true">
+        <div className="fcl-extra-skeleton" style={{ width: 120, height: 12 }} />
+        <div
+          className="fcl-extra-skeleton"
+          style={{ width: "70%", height: 22, marginTop: 20 }}
+        />
+        <div
+          className="fcl-extra-skeleton"
+          style={{ width: "90%", height: 14, marginTop: 14 }}
+        />
+      </div>
+    );
+  }
+
+  if (items.length === 0) return null;
+
+  const current = items[index % items.length];
+
+  return (
+    <div
+      className={`fcl-extra-spot ${paused ? "paused" : ""}`}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div className="fcl-extra-spot-head">
+        <span className="fcl-extra-live">
+          <i />
+          LATEST HEROICS
+        </span>
+
+        <span className="fcl-extra-spot-part">PART {current.part}</span>
       </div>
 
-      {right && (
-        <div className="fcl-extra-header-right">
-          {right}
+      <button
+        key={current.key}
+        type="button"
+        className="fcl-extra-spot-body"
+        onClick={() => onOpen(current)}
+      >
+        <Avatar
+          name={current.item.playerName}
+          photo={current.item.photo}
+          size={48}
+        />
+
+        <span className="fcl-extra-spot-text">
+          <strong>{current.item.playerName || "Unknown Player"}</strong>
+
+          <em>{current.item.performanceTitle || "Extraordinary Performance"}</em>
+
+          <small>{current.item.tournamentMatch || "FCL Match Record"}</small>
+        </span>
+
+        <span className="fcl-extra-spot-go">
+          <ArrowIcon />
+        </span>
+      </button>
+
+      {items.length > 1 && (
+        <div className="fcl-extra-spot-dots">
+          {items.map((entry, dotIndex) => (
+            <button
+              key={entry.key}
+              type="button"
+              aria-label={`Show featured performance ${dotIndex + 1}`}
+              className={dotIndex === index ? "active" : ""}
+              onClick={() => setIndex(dotIndex)}
+            >
+              {dotIndex === index && <span key={index} />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================
+   SORT MENU
+   ========================================================= */
+
+function SortMenu({
+  value,
+  onChange,
+}: {
+  value: SortBy;
+  onChange: (value: SortBy) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onDown = (event: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown);
+    document.addEventListener("keydown", onKey);
+
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const current = SORT_OPTIONS.find((option) => option.value === value);
+
+  return (
+    <div className="fcl-extra-sort" ref={ref}>
+      <button
+        type="button"
+        className={`fcl-extra-sort-btn ${open ? "open" : ""}`}
+        onClick={() => setOpen((previous) => !previous)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Sort performances"
+      >
+        <SortIcon />
+
+        <span className="label">{current?.label}</span>
+
+        <span className="chev">
+          <ChevronIcon />
+        </span>
+      </button>
+
+      {open && (
+        <div className="fcl-extra-sort-menu" role="listbox">
+          {SORT_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              className={option.value === value ? "selected" : ""}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+
+              {option.value === value && <CheckIcon />}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -443,53 +698,61 @@ function SectionHeader({
 
 function PerformanceCard({
   performance,
+  index,
   onOpen,
 }: {
   performance: IndexedPerformance;
+  index: number;
   onOpen: () => void;
 }) {
   const { item, part, year } = performance;
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    const target = event.currentTarget;
+    const rect = target.getBoundingClientRect();
+
+    target.style.setProperty("--mx", `${event.clientX - rect.left}px`);
+    target.style.setProperty("--my", `${event.clientY - rect.top}px`);
+  };
 
   return (
     <button
       type="button"
       onClick={onOpen}
+      onPointerMove={handlePointerMove}
       className="fcl-extra-card"
+      style={{ "--i": index } as CSSProperties}
       aria-label={`${item.performanceTitle} - বিস্তারিত দেখুন`}
     >
-      <div className="fcl-extra-card-accent" />
-
       <div className="fcl-extra-card-top">
-        <span className="fcl-extra-part">
-          PART {part}
-        </span>
+        <div className="fcl-extra-badges">
+          <span className="fcl-extra-part">PART {part}</span>
 
-        {year && year !== "0" && (
-          <span className="fcl-extra-year">
-            {year}
-          </span>
-        )}
-      </div>
-
-      <div className="fcl-extra-card-content">
-        <div className="fcl-extra-player-label">
-          <span className="fcl-extra-player-dot" />
-
-          FEATURED PLAYER
+          {year && year !== "0" && (
+            <span className="fcl-extra-year">{year}</span>
+          )}
         </div>
 
-        <h3>{item.playerName || "Unknown Player"}</h3>
+        <span className="fcl-extra-card-arrow">
+          <ArrowIcon direction="up-right" size={16} />
+        </span>
+      </div>
 
-        <div className="fcl-extra-card-divider" />
+      <div className="fcl-extra-card-person">
+        <Avatar name={item.playerName} photo={item.photo} size={40} />
 
-        <h4>
-          {item.performanceTitle ||
-            "Extraordinary Performance"}
-        </h4>
+        <div>
+          <span>PERFORMED BY</span>
+
+          <h3>{item.playerName || "Unknown Player"}</h3>
+        </div>
+      </div>
+
+      <div className="fcl-extra-card-body">
+        <h4>{item.performanceTitle || "Extraordinary Performance"}</h4>
 
         <p className="fcl-extra-match">
-          {item.tournamentMatch ||
-            "FCL Match Record"}
+          {item.tournamentMatch || "FCL Match Record"}
         </p>
 
         <p className="fcl-extra-preview">
@@ -497,114 +760,112 @@ function PerformanceCard({
             "এই পারফরম্যান্সের বিস্তারিত পড়তে কার্ডটি খুলুন।"}
         </p>
       </div>
-
-      <div className="fcl-extra-card-footer">
-        <span>
-          বিস্তারিত পারফরম্যান্স দেখুন
-        </span>
-
-        <span className="fcl-extra-card-arrow">
-          <ArrowIcon />
-        </span>
-      </div>
     </button>
   );
 }
 
 /* =========================================================
-   PERFORMANCE DETAILS MODAL
+   PERFORMANCE MODAL (desktop dialog / mobile bottom sheet)
    ========================================================= */
 
 function PerformanceModal({
   performance,
+  position,
+  total,
   onClose,
+  onPrev,
+  onNext,
 }: {
   performance: IndexedPerformance;
+  position: number;
+  total: number;
   onClose: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
 }) {
   const { item, part, year } = performance;
 
-  const dialogRef = useRef<HTMLDivElement | null>(
-    null
-  );
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
 
-  const closeRef = useRef<HTMLButtonElement | null>(
-    null
-  );
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const previousOverflow =
-      document.body.style.overflow;
+    const previousOverflow = document.body.style.overflow;
 
     document.body.style.overflow = "hidden";
-
     closeRef.current?.focus();
 
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
+        return;
       }
 
-      if (
-        event.key === "Tab" &&
-        dialogRef.current
-      ) {
-        const focusable =
-          dialogRef.current.querySelectorAll<
-            HTMLElement
-          >(
-            'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-          );
+      if (event.key === "ArrowLeft" && onPrev) {
+        onPrev();
+        return;
+      }
+
+      if (event.key === "ArrowRight" && onNext) {
+        onNext();
+        return;
+      }
+
+      if (event.key === "Tab" && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
 
         if (focusable.length === 0) return;
 
         const first = focusable[0];
-        const last =
-          focusable[focusable.length - 1];
+        const last = focusable[focusable.length - 1];
 
-        if (
-          event.shiftKey &&
-          document.activeElement === first
-        ) {
+        if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
           last.focus();
-        } else if (
-          !event.shiftKey &&
-          document.activeElement === last
-        ) {
+        } else if (!event.shiftKey && document.activeElement === last) {
           event.preventDefault();
           first.focus();
         }
       }
     };
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown
-    );
+    window.addEventListener("keydown", handleKeyDown);
 
-    return () => {
-      document.body.style.overflow =
-        previousOverflow;
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, onPrev, onNext]);
 
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown
-      );
-    };
-  }, [onClose]);
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+    setProgress(0);
+  }, [performance.key]);
 
-  const hasPostLink = isValidExternalUrl(
-    item.facebookLink
-  );
+  const handleScroll = () => {
+    const element = bodyRef.current;
+
+    if (!element) return;
+
+    const max = element.scrollHeight - element.clientHeight;
+
+    setProgress(max > 0 ? element.scrollTop / max : 0);
+  };
+
+  const hasPostLink = isValidExternalUrl(item.facebookLink);
 
   return (
     <div
       className="fcl-extra-modal-backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
+        if (event.target === event.currentTarget) onClose();
       }}
     >
       <div
@@ -614,13 +875,19 @@ function PerformanceModal({
         aria-modal="true"
         aria-labelledby="fcl-extra-modal-title"
       >
-        <div className="fcl-extra-modal-top">
-          <div className="fcl-extra-modal-reference">
-            <span>
-              FCL / PERFORMANCE RECORD
-            </span>
+        <div className="fcl-extra-sheet-handle" aria-hidden="true" />
 
-            <strong>PART {part}</strong>
+        <div className="fcl-extra-modal-top">
+          <div className="fcl-extra-modal-meta">
+            <span className="fcl-extra-part">PART {part}</span>
+
+            {year && year !== "0" && (
+              <span className="fcl-extra-year">{year}</span>
+            )}
+
+            <span className="fcl-extra-modal-pos">
+              {position} / {total}
+            </span>
           </div>
 
           <button
@@ -634,82 +901,83 @@ function PerformanceModal({
           </button>
         </div>
 
-        <div className="fcl-extra-modal-body">
-          <div className="fcl-extra-modal-meta">
-            <span className="fcl-extra-part">
-              PART {part}
-            </span>
+        <div className="fcl-extra-modal-progress" aria-hidden="true">
+          <span style={{ transform: `scaleX(${progress})` }} />
+        </div>
 
-            {year && year !== "0" && (
-              <span className="fcl-extra-year">
-                {year}
-              </span>
-            )}
-          </div>
-
-          <div className="fcl-extra-modal-heading">
-            <Eyebrow>
-              EXTRAORDINARY PERFORMANCE
-            </Eyebrow>
+        <div
+          className="fcl-extra-modal-body"
+          ref={bodyRef}
+          onScroll={handleScroll}
+        >
+          <div className="fcl-extra-modal-content" key={performance.key}>
+            <Eyebrow>EXTRAORDINARY PERFORMANCE</Eyebrow>
 
             <h2 id="fcl-extra-modal-title">
-              {item.performanceTitle ||
-                "Extraordinary Performance"}
+              {item.performanceTitle || "Extraordinary Performance"}
             </h2>
 
             <div className="fcl-extra-modal-player">
-              <div className="fcl-extra-modal-player-mark">
-                {item.playerName
-                  ?.charAt(0)
-                  ?.toUpperCase() || "F"}
-              </div>
+              <Avatar
+                key={`${item.photo}-${item.playerName}`}
+                name={item.playerName}
+                photo={item.photo}
+                size={44}
+              />
 
               <div>
                 <span>PERFORMED BY</span>
 
-                <strong>
-                  {item.playerName ||
-                    "Unknown Player"}
-                </strong>
+                <strong>{item.playerName || "Unknown Player"}</strong>
               </div>
             </div>
-          </div>
 
-          <div className="fcl-extra-modal-match">
-            <span>MATCH / TOURNAMENT</span>
+            <div className="fcl-extra-modal-match">
+              <span>MATCH / TOURNAMENT</span>
 
-            <strong>
-              {item.tournamentMatch ||
-                "FCL Match Record"}
-            </strong>
-          </div>
-
-          <div className="fcl-extra-modal-story">
-            <div className="fcl-extra-story-heading">
-              <span>PERFORMANCE REPORT</span>
-
-              <span>FCL ARCHIVES</span>
+              <strong>{item.tournamentMatch || "FCL Match Record"}</strong>
             </div>
 
-            <div className="fcl-extra-story-content">
-              {item.description ? (
-                renderTextWithHighlights(
-                  item.description
-                )
-              ) : (
-                <p>
-                  এই পারফরম্যান্সের বিস্তারিত
-                  বিবরণ এখনো সংরক্ষিত হয়নি।
-                </p>
-              )}
+            <div className="fcl-extra-modal-story">
+              <div className="fcl-extra-story-heading">
+                <span>PERFORMANCE REPORT</span>
+
+                <span>FCL ARCHIVES</span>
+              </div>
+
+              <div className="fcl-extra-story-content">
+                {item.description ? (
+                  renderTextWithHighlights(item.description)
+                ) : (
+                  <p>
+                    এই পারফরম্যান্সের বিস্তারিত বিবরণ এখনো সংরক্ষিত হয়নি।
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
         <div className="fcl-extra-modal-footer">
-          <span>
-            FACEBOOK CRICKET LEAGUE
-          </span>
+          <div className="fcl-extra-modal-nav">
+            <button
+              type="button"
+              onClick={onPrev}
+              disabled={!onPrev}
+              aria-label="Previous performance"
+            >
+              <ArrowIcon direction="left" />
+            </button>
+
+            <button
+              type="button"
+              onClick={onNext}
+              disabled={!onNext}
+              aria-label="Next performance"
+            >
+              <ArrowIcon />
+            </button>
+          </div>
 
           {hasPostLink ? (
             <a
@@ -719,13 +987,10 @@ function PerformanceModal({
               className="fcl-extra-facebook-button"
             >
               মূল ফেসবুক পোস্ট
-
-              <ArrowIcon direction="up" />
+              <ArrowIcon direction="up-right" size={16} />
             </a>
           ) : (
-            <span className="fcl-extra-no-link">
-              মূল পোস্টের লিংক নেই
-            </span>
+            <span className="fcl-extra-no-link">মূল পোস্টের লিংক নেই</span>
           )}
         </div>
       </div>
@@ -734,34 +999,24 @@ function PerformanceModal({
 }
 
 /* =========================================================
-   LOADING & EMPTY
+   LOADING / EMPTY / PAGER
    ========================================================= */
 
-function LoadingCards() {
+function LoadingCards({ count }: { count: number }) {
   return (
     <div
       className="fcl-extra-grid"
       aria-busy="true"
       aria-label="Loading performances"
     >
-      {Array.from({ length: 6 }).map(
-        (_, index) => (
-          <div
-            key={index}
-            className="fcl-extra-skeleton-card"
-          >
-            <div className="fcl-extra-skeleton badge" />
-
-            <div className="fcl-extra-skeleton name" />
-
-            <div className="fcl-extra-skeleton title" />
-
-            <div className="fcl-extra-skeleton line" />
-
-            <div className="fcl-extra-skeleton line short" />
-          </div>
-        )
-      )}
+      {Array.from({ length: count }).map((_, index) => (
+        <div key={index} className="fcl-extra-skeleton-card">
+          <div className="fcl-extra-skeleton badge" />
+          <div className="fcl-extra-skeleton name" />
+          <div className="fcl-extra-skeleton line" />
+          <div className="fcl-extra-skeleton line short" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -777,9 +1032,7 @@ function EmptyState({
 }) {
   return (
     <div className="fcl-extra-empty">
-      <div className="fcl-extra-empty-mark">
-        FCL
-      </div>
+      <div className="fcl-extra-empty-mark">FCL</div>
 
       <h3>{title}</h3>
 
@@ -792,11 +1045,80 @@ function EmptyState({
           className="fcl-extra-primary-button"
         >
           সব পারফরম্যান্স দেখুন
-
           <ArrowIcon />
         </button>
       )}
     </div>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  from,
+  to,
+  count,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  from: number;
+  to: number;
+  count: number;
+  onChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  return (
+    <nav className="fcl-extra-pager" aria-label="Pagination">
+      <span className="fcl-extra-pager-meta">
+        {from}–{to} / {count}
+      </span>
+
+      <div className="fcl-extra-pager-controls">
+        <button
+          type="button"
+          onClick={() => onChange(page - 1)}
+          disabled={page <= 1}
+          aria-label="Previous page"
+        >
+          <ArrowIcon direction="left" />
+        </button>
+
+        <div className="fcl-extra-pager-nums">
+          {getPageList(page, totalPages).map((entry, index) =>
+            entry === "…" ? (
+              <span key={`gap-${index}`} className="gap">
+                …
+              </span>
+            ) : (
+              <button
+                key={entry}
+                type="button"
+                className={entry === page ? "active" : ""}
+                onClick={() => onChange(entry)}
+                aria-current={entry === page ? "page" : undefined}
+              >
+                {entry}
+              </button>
+            )
+          )}
+        </div>
+
+        <span className="fcl-extra-pager-mobile">
+          {page} / {totalPages}
+        </span>
+
+        <button
+          type="button"
+          onClick={() => onChange(page + 1)}
+          disabled={page >= totalPages}
+          aria-label="Next page"
+        >
+          <ArrowIcon />
+        </button>
+      </div>
+    </nav>
   );
 }
 
@@ -806,36 +1128,28 @@ function EmptyState({
 
 export default function ExtraordinaryPage() {
   const isDark = useIsDark();
+  const isMobile = useIsMobile();
 
-  const [
-    performances,
-    setPerformances,
-  ] = useState<ExtraordinaryRecord[]>([]);
-
+  const [performances, setPerformances] = useState<ExtraordinaryRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
-  const [error, setError] =
-    useState<string | null>(null);
+  const [selectedPerf, setSelectedPerf] = useState<IndexedPerformance | null>(
+    null
+  );
 
-  const [retryKey, setRetryKey] =
-    useState(0);
+  const [sortBy, setSortBy] = useState<SortBy>("part-asc");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedYear, setSelectedYear] = useState("All");
+  const [view, setView] = useState<ViewMode>("grid");
+  const [page, setPage] = useState(1);
+  const [showTop, setShowTop] = useState(false);
 
-  const [selectedPerf, setSelectedPerf] =
-    useState<IndexedPerformance | null>(
-      null
-    );
+  const searchRef = useRef<HTMLInputElement | null>(null);
 
-  const [sortBy, setSortBy] =
-    useState<SortBy>("part-asc");
-
-  const [searchQuery, setSearchQuery] =
-    useState("");
-
-  const [selectedYear, setSelectedYear] =
-    useState("All");
-
-  const [visibleCount, setVisibleCount] =
-    useState(PAGE_SIZE);
+  const pageSize =
+    view === "list" ? (isMobile ? 8 : 10) : isMobile ? 6 : 9;
 
   /* =======================================================
      FETCH DATA
@@ -851,88 +1165,50 @@ export default function ExtraordinaryPage() {
       setError(null);
 
       try {
-        const response = await fetch(
-          "/api/thrillers-data",
-          {
-            signal: controller.signal,
-          }
-        );
+        const response = await fetch("/api/thrillers-data", {
+          signal: controller.signal,
+        });
 
         if (!response.ok) {
-          throw new Error(
-            `API returned ${response.status}`
-          );
+          throw new Error(`API returned ${response.status}`);
         }
 
         const data = await response.json();
 
         if (!active) return;
 
-        const records = Array.isArray(
-          data?.extraordinary
-        )
+        const records = Array.isArray(data?.extraordinary)
           ? data.extraordinary
           : [];
 
-        const normalizedRecords =
-          records.map(
-            (
-              item: Partial<ExtraordinaryRecord>
-            ) => ({
-              part: item.part,
-              Part: item.Part,
+        const normalizedRecords = records.map(
+          (item: Partial<ExtraordinaryRecord>) => ({
+            part: item.part,
+            Part: item.Part,
 
-              matchYear: item.matchYear,
-              "Match Year":
-                item["Match Year"],
+            matchYear: item.matchYear,
+            "Match Year": item["Match Year"],
 
-              playerName: normalize(
-                item.playerName
-              ),
-
-              performanceTitle: normalize(
-                item.performanceTitle
-              ),
-
-              tournamentMatch: normalize(
-                item.tournamentMatch
-              ),
-
-              description: normalize(
-                item.description
-              ),
-
-              facebookLink: normalize(
-                item.facebookLink
-              ),
-
-              photo: normalize(
-                item.photo
-              ),
-            })
-          );
-
-        setPerformances(
-          normalizedRecords
+            playerName: normalize(item.playerName),
+            performanceTitle: normalize(item.performanceTitle),
+            tournamentMatch: normalize(item.tournamentMatch),
+            description: normalize(item.description),
+            facebookLink: normalize(item.facebookLink),
+            photo: normalize(item.photo),
+          })
         );
+
+        setPerformances(normalizedRecords);
       } catch (err) {
-        if (
-          err instanceof DOMException &&
-          err.name === "AbortError"
-        ) {
+        if (err instanceof DOMException && err.name === "AbortError") {
           return;
         }
 
         if (!active) return;
 
-        console.error(
-          "Extraordinary performances error:",
-          err
-        );
+        console.error("Extraordinary performances error:", err);
 
-        setError(
-          "পারফরম্যান্সের তথ্য লোড করা যায়নি। আবার চেষ্টা করুন।"
-        );
+        setError("পারফরম্যান্সের তথ্য লোড করা যায়নি। আবার চেষ্টা করুন।");
       } finally {
         if (active) {
           setLoading(false);
@@ -952,163 +1228,198 @@ export default function ExtraordinaryPage() {
      DERIVED DATA
      ======================================================= */
 
-  const indexedPerformances = useMemo<
-    IndexedPerformance[]
-  >(() => {
-    return performances.map(
-      (item, index) => ({
-        item,
-        originalIndex: index,
-        part: partOf(
-          item,
-          index + 1
-        ),
-        year: yearOf(item),
-        key: `${index}-${item.playerName}-${item.performanceTitle}`,
-      })
-    );
+  const indexedPerformances = useMemo<IndexedPerformance[]>(() => {
+    return performances.map((item, index) => ({
+      item,
+      originalIndex: index,
+      part: partOf(item, index + 1),
+      year: yearOf(item),
+      key: `${index}-${item.playerName}-${item.performanceTitle}`,
+    }));
   }, [performances]);
 
   const availableYears = useMemo(() => {
     return Array.from(
       new Set(
         indexedPerformances
-          .map((record) =>
-            record.year
-          )
-          .filter(
-            (year) =>
-              year && year !== "0"
-          )
+          .map((record) => record.year)
+          .filter((year) => year && year !== "0")
       )
-    ).sort(
-      (a, b) =>
-        toNumber(b) - toNumber(a)
-    );
+    ).sort((a, b) => toNumber(b) - toNumber(a));
+  }, [indexedPerformances]);
+
+  const spotlightItems = useMemo(() => {
+    return [...indexedPerformances]
+      .sort(
+        (a, b) =>
+          toNumber(b.part) - toNumber(a.part) ||
+          b.originalIndex - a.originalIndex
+      )
+      .slice(0, 5);
   }, [indexedPerformances]);
 
   const filteredPerformances = useMemo(() => {
-    const query = searchQuery
-      .trim()
-      .toLowerCase();
+    const query = searchQuery.trim().toLowerCase();
 
-    const result =
-      indexedPerformances.filter(
-        (record) => {
-          const matchesYear =
-            selectedYear === "All" ||
-            record.year ===
-              selectedYear;
+    const result = indexedPerformances.filter((record) => {
+      const matchesYear = selectedYear === "All" || record.year === selectedYear;
 
-          if (!matchesYear) return false;
+      if (!matchesYear) return false;
 
-          if (!query) return true;
+      if (!query) return true;
 
-          return [
-            record.item.playerName,
-            record.item.performanceTitle,
-            record.item.tournamentMatch,
-            record.item.description,
-            record.part,
-            record.year,
-          ].some((value) =>
-            normalize(value)
-              .toLowerCase()
-              .includes(query)
-          );
-        }
-      );
+      return [
+        record.item.playerName,
+        record.item.performanceTitle,
+        record.item.tournamentMatch,
+        record.item.description,
+        record.part,
+        record.year,
+      ].some((value) => normalize(value).toLowerCase().includes(query));
+    });
 
     result.sort((a, b) => {
-      const partA =
-        toNumber(a.part);
-
-      const partB =
-        toNumber(b.part);
-
-      const yearA =
-        toNumber(a.year);
-
-      const yearB =
-        toNumber(b.year);
-
       let comparison = 0;
 
       switch (sortBy) {
         case "part-asc":
-          comparison = partA - partB;
+          comparison = toNumber(a.part) - toNumber(b.part);
           break;
 
         case "part-desc":
-          comparison = partB - partA;
+          comparison = toNumber(b.part) - toNumber(a.part);
           break;
 
         case "year-desc":
-          comparison = yearB - yearA;
+          comparison = toNumber(b.year) - toNumber(a.year);
           break;
 
         case "year-asc":
-          comparison = yearA - yearB;
+          comparison = toNumber(a.year) - toNumber(b.year);
           break;
       }
 
-      return (
-        comparison ||
-        a.originalIndex -
-          b.originalIndex
-      );
+      return comparison || a.originalIndex - b.originalIndex;
     });
 
     return result;
-  }, [
-    indexedPerformances,
-    selectedYear,
-    searchQuery,
-    sortBy,
-  ]);
+  }, [indexedPerformances, selectedYear, searchQuery, sortBy]);
 
-  const visiblePerformances =
-    filteredPerformances.slice(
-      0,
-      visibleCount
-    );
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredPerformances.length / pageSize)
+  );
 
-  const hasMore =
-    visibleCount <
-    filteredPerformances.length;
+  const currentPage = Math.min(page, totalPages);
+
+  const visiblePerformances = filteredPerformances.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  const rangeFrom =
+    filteredPerformances.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+
+  const rangeTo = Math.min(
+    currentPage * pageSize,
+    filteredPerformances.length
+  );
 
   const uniquePlayers = useMemo(() => {
     return new Set(
-      performances
-        .map((item) =>
-          item.playerName.toLowerCase()
-        )
-        .filter(Boolean)
+      performances.map((item) => item.playerName.toLowerCase()).filter(Boolean)
     ).size;
   }, [performances]);
 
-  const latestYear =
-    availableYears[0] || "—";
+  const latestYear = availableYears[0] || "—";
+
+  const filtersActive =
+    searchQuery.trim() !== "" || selectedYear !== "All" || sortBy !== "part-asc";
+
+  /* =======================================================
+     MODAL NAVIGATION
+     ======================================================= */
+
+  const navList = useMemo(() => {
+    if (!selectedPerf) return [];
+
+    return filteredPerformances.some((entry) => entry.key === selectedPerf.key)
+      ? filteredPerformances
+      : [selectedPerf];
+  }, [filteredPerformances, selectedPerf]);
+
+  const selectedIndex = selectedPerf
+    ? navList.findIndex((entry) => entry.key === selectedPerf.key)
+    : -1;
+
+  const closeModal = useCallback(() => setSelectedPerf(null), []);
+
+  const goPrev = useCallback(() => {
+    if (selectedIndex > 0) setSelectedPerf(navList[selectedIndex - 1]);
+  }, [navList, selectedIndex]);
+
+  const goNext = useCallback(() => {
+    if (selectedIndex >= 0 && selectedIndex < navList.length - 1) {
+      setSelectedPerf(navList[selectedIndex + 1]);
+    }
+  }, [navList, selectedIndex]);
+
+  /* =======================================================
+     EFFECTS
+     ======================================================= */
+
+  useEffect(() => {
+    const onScroll = () => setShowTop(window.scrollY > 520);
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "/" || selectedPerf) return;
+
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      event.preventDefault();
+      searchRef.current?.focus();
+    };
+
+    window.addEventListener("keydown", onKey);
+
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedPerf]);
 
   /* =======================================================
      ACTIONS
      ======================================================= */
 
-  const closeModal = useCallback(() => {
-    setSelectedPerf(null);
-  }, []);
-
   const resetFilters = () => {
     setSearchQuery("");
     setSelectedYear("All");
     setSortBy("part-asc");
-    setVisibleCount(PAGE_SIZE);
+    setPage(1);
   };
 
-  const retryFetch = () => {
-    setRetryKey(
-      (previous) => previous + 1
-    );
+  const goToPage = (next: number) => {
+    setPage(Math.min(Math.max(next, 1), totalPages));
+
+    requestAnimationFrame(() => {
+      document
+        .getElementById("fcl-extra-collection")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const scrollToCollection = () => {
+    document
+      .getElementById("fcl-extra-collection")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   /* =======================================================
@@ -1116,425 +1427,255 @@ export default function ExtraordinaryPage() {
      ======================================================= */
 
   const themeStyle = {
-    colorScheme: isDark
-      ? "dark"
-      : "light",
+    colorScheme: isDark ? "dark" : "light",
 
-    "--extra-bg": isDark
-      ? "#020617"
-      : "#ffffff",
-
-    "--extra-secondary": isDark
-      ? "#071020"
-      : "#f8fafc",
-
-    "--extra-card": isDark
-      ? "#0b1220"
-      : "#ffffff",
-
-    "--extra-raised": isDark
-      ? "#0f172a"
-      : "#f1f5f9",
-
-    "--extra-heading": isDark
-      ? "#f8fafc"
-      : "#0f172a",
-
-    "--extra-text": isDark
-      ? "#cbd5e1"
-      : "#334155",
-
-    "--extra-muted": isDark
-      ? "#94a3b8"
-      : "#64748b",
-
-    "--extra-subtle": isDark
-      ? "#64748b"
-      : "#94a3b8",
-
-    "--extra-border": isDark
-      ? "#1e293b"
-      : "#e2e8f0",
-
-    "--extra-border-soft": isDark
-      ? "#172033"
-      : "#edf2f7",
+    "--extra-bg": isDark ? "#020617" : "#ffffff",
+    "--extra-secondary": isDark ? "#071020" : "#f8fafc",
+    "--extra-card": isDark ? "#0b1220" : "#ffffff",
+    "--extra-raised": isDark ? "#0f172a" : "#f1f5f9",
+    "--extra-heading": isDark ? "#f8fafc" : "#0f172a",
+    "--extra-text": isDark ? "#cbd5e1" : "#334155",
+    "--extra-muted": isDark ? "#94a3b8" : "#64748b",
+    "--extra-subtle": isDark ? "#64748b" : "#94a3b8",
+    "--extra-border": isDark ? "#1e293b" : "#e2e8f0",
+    "--extra-glass": isDark ? "rgba(7,16,32,.78)" : "rgba(255,255,255,.82)",
 
     "--extra-blue": "#1877F2",
     "--extra-cyan": "#22d3ee",
     "--extra-gold": "#f59e0b",
 
     "--extra-blue-soft": isDark
-      ? "rgba(24,119,242,.12)"
-      : "rgba(24,119,242,.07)",
+      ? "rgba(24,119,242,.14)"
+      : "rgba(24,119,242,.08)",
 
     "--extra-shadow": isDark
-      ? "0 20px 55px rgba(0,0,0,.18)"
-      : "0 20px 55px rgba(15,23,42,.055)",
+      ? "0 18px 45px rgba(0,0,0,.22)"
+      : "0 18px 45px rgba(15,23,42,.06)",
   } as CSSProperties;
+
+  /* =======================================================
+     RENDER
+     ======================================================= */
 
   return (
     <div
       className={`fcl-extra-page ${
-        isDark
-          ? "fcl-extra-dark"
-          : "fcl-extra-light"
+        isDark ? "fcl-extra-dark" : "fcl-extra-light"
       }`}
       style={themeStyle}
     >
-      {/* ================================================
-          HERO
-          ================================================ */}
+      {/* ================= HERO ================= */}
 
       <header className="fcl-extra-hero">
         <div className="fcl-extra-hero-grid" />
-
         <div className="fcl-extra-hero-glow one" />
         <div className="fcl-extra-hero-glow two" />
+
+        <div className="fcl-extra-sq a" />
+        <div className="fcl-extra-sq b" />
+        <div className="fcl-extra-sq c" />
 
         <div className="fcl-extra-container">
           <div className="fcl-extra-hero-inner">
             <div className="fcl-extra-hero-content">
               <div className="fcl-extra-hero-label">
                 <span />
-
                 FCL HALL OF HEROICS
               </div>
 
               <h1>
-                Extraordinary
-                <br />
-
-                <span>Performances.</span>
+                Extraordinary <em>Performances.</em>
               </h1>
 
               <p>
-                FCL-এর ইতিহাসে এমন কিছু
-                পারফরম্যান্স রয়েছে,
-                যেগুলো সাধারণ পরিসংখ্যানের
-                সীমা ছাড়িয়ে কিংবদন্তি
-                হয়ে উঠেছে। সেই অসাধারণ
-                ইনিংস, হ্যাটট্রিক এবং
-                স্মরণীয় কীর্তির
-                অফিশিয়াল সংগ্রহশালা।
+                সাধারণ পরিসংখ্যানের সীমা ছাড়িয়ে যাওয়া ইনিংস, হ্যাটট্রিক আর
+                স্মরণীয় কীর্তির অফিশিয়াল সংগ্রহশালা।
               </p>
 
               <div className="fcl-extra-hero-actions">
-                <a
-                  href="#fcl-extra-collection"
+                <button
+                  type="button"
+                  onClick={scrollToCollection}
                   className="fcl-extra-primary-button"
                 >
                   পারফরম্যান্স দেখুন
+                  <ArrowIcon direction="up" />
+                </button>
 
-                  <ArrowIcon />
-                </a>
-
-                <Link
-                  href="/records"
-                  className="fcl-extra-outline-button"
-                >
+                <Link href="/records" className="fcl-extra-outline-button">
                   FCL Records
                 </Link>
               </div>
-
-              <div className="fcl-extra-hero-est">
-                <span />
-
-                FACEBOOK CRICKET LEAGUE
-                <strong>EST. 2013</strong>
-              </div>
             </div>
 
-            <div className="fcl-extra-hero-visual">
-              <div className="fcl-extra-visual-orbit">
-                <div className="fcl-extra-visual-inner">
-                  <span>FCL</span>
+            <Spotlight
+              items={spotlightItems}
+              loading={loading}
+              onOpen={setSelectedPerf}
+            />
+          </div>
 
-                  <strong>
-                    HALL OF
-                    <br />
-                    HEROICS
-                  </strong>
-                </div>
-              </div>
+          <div className="fcl-extra-hero-stats">
+            <HeroStat
+              label="PERFORMANCES"
+              value={loading ? "—" : performances.length}
+            />
 
-              <div className="fcl-extra-visual-caption">
-                EXCELLENCE BEYOND THE ORDINARY
-              </div>
-            </div>
+            <HeroStat label="PLAYERS" value={loading ? "—" : uniquePlayers} />
+
+            <HeroStat
+              label="MATCH YEARS"
+              value={loading ? "—" : availableYears.length}
+            />
+
+            <HeroStat label="LATEST YEAR" value={loading ? "—" : latestYear} />
           </div>
         </div>
       </header>
 
-      {/* ================================================
-          OVERVIEW
-          ================================================ */}
+      {/* ================= COLLECTION ================= */}
 
-      <section className="fcl-extra-overview">
+      <main id="fcl-extra-collection" className="fcl-extra-collection">
         <div className="fcl-extra-container">
-          <div className="fcl-extra-stats">
-            <div className="fcl-extra-stat">
-              <span>TOTAL PERFORMANCES</span>
+          {/* ---------- COMMAND BAR ---------- */}
 
-              <strong>
-                {loading
-                  ? "—"
-                  : performances.length.toLocaleString(
-                      "en-US"
-                    )}
-              </strong>
-
-              <p>সংরক্ষিত অসাধারণ কীর্তি</p>
-            </div>
-
-            <div className="fcl-extra-stat">
-              <span>FEATURED PLAYERS</span>
-
-              <strong>
-                {loading
-                  ? "—"
-                  : uniquePlayers.toLocaleString(
-                      "en-US"
-                    )}
-              </strong>
-
-              <p>অনন্য খেলোয়াড়</p>
-            </div>
-
-            <div className="fcl-extra-stat">
-              <span>MATCH YEARS</span>
-
-              <strong>
-                {loading
-                  ? "—"
-                  : availableYears.length.toLocaleString(
-                      "en-US"
-                    )}
-              </strong>
-
-              <p>বিভিন্ন বছরের পারফরম্যান্স</p>
-            </div>
-
-            <div className="fcl-extra-stat">
-              <span>LATEST RECORD YEAR</span>
-
-              <strong>
-                {loading
-                  ? "—"
-                  : latestYear}
-              </strong>
-
-              <p>সর্বশেষ সংরক্ষিত বছর</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ================================================
-          COLLECTION
-          ================================================ */}
-
-      <main
-        id="fcl-extra-collection"
-        className="fcl-extra-collection"
-      >
-        <div className="fcl-extra-container">
-          <SectionHeader
-            label="THE OFFICIAL COLLECTION"
-            title="অসাধারণ পারফরম্যান্স আর্কাইভ"
-            description="খেলোয়াড়, ম্যাচ, পারফরম্যান্সের নাম অথবা সাল দিয়ে খুঁজুন। প্রতিটি কীর্তির বিস্তারিত পড়তে কার্ড নির্বাচন করুন।"
-            right={
-              <span className="fcl-extra-result-count">
-                {
-                  filteredPerformances.length
-                }{" "}
-                RECORDS
-              </span>
-            }
-          />
-
-          {/* ============================================
-              FILTER PANEL
-              ============================================ */}
-
-          <div className="fcl-extra-filter-panel">
-            <div className="fcl-extra-filter-heading">
-              <div>
-                <span>EXPLORE RECORDS</span>
-
-                <strong>
-                  আপনার পছন্দের পারফরম্যান্স খুঁজুন
-                </strong>
-              </div>
-
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="fcl-extra-reset"
-              >
-                Reset Filters
-              </button>
-            </div>
-
-            <div className="fcl-extra-filter-grid">
+          <div className="fcl-extra-toolbar">
+            <div className="fcl-extra-toolbar-row">
               <div className="fcl-extra-search">
-                <label
-                  htmlFor="fcl-extra-search-input"
-                >
-                  SEARCH PERFORMANCES
-                </label>
+                <SearchIcon />
 
-                <div className="fcl-extra-search-field">
-                  <SearchIcon />
+                <input
+                  ref={searchRef}
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => {
+                    setSearchQuery(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="খেলোয়াড়, ম্যাচ বা পারফরম্যান্স খুঁজুন..."
+                  aria-label="Search performances"
+                />
 
-                  <input
-                    id="fcl-extra-search-input"
-                    type="search"
-                    value={searchQuery}
-                    onChange={(event) => {
-                      setSearchQuery(
-                        event.target.value
-                      );
-
-                      setVisibleCount(
-                        PAGE_SIZE
-                      );
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    className="clear"
+                    onClick={() => {
+                      setSearchQuery("");
+                      setPage(1);
                     }}
-                    placeholder="Player, match, performance..."
-                  />
-                </div>
+                    aria-label="Clear search"
+                  >
+                    <CloseIcon size={14} />
+                  </button>
+                ) : (
+                  <kbd>/</kbd>
+                )}
               </div>
 
-              <div className="fcl-extra-select-field">
-                <label
-                  htmlFor="fcl-extra-year"
+              <SortMenu
+                value={sortBy}
+                onChange={(value) => {
+                  setSortBy(value);
+                  setPage(1);
+                }}
+              />
+
+              <div className="fcl-extra-view-toggle" role="group" aria-label="View">
+                <button
+                  type="button"
+                  className={view === "grid" ? "active" : ""}
+                  onClick={() => {
+                    setView("grid");
+                    setPage(1);
+                  }}
+                  aria-label="Grid view"
+                  aria-pressed={view === "grid"}
                 >
-                  MATCH YEAR
-                </label>
+                  <GridIcon />
+                </button>
 
-                <select
-                  id="fcl-extra-year"
-                  value={selectedYear}
-                  onChange={(event) => {
-                    setSelectedYear(
-                      event.target.value
-                    );
+                <button
+                  type="button"
+                  className={view === "list" ? "active" : ""}
+                  onClick={() => {
+                    setView("list");
+                    setPage(1);
+                  }}
+                  aria-label="List view"
+                  aria-pressed={view === "list"}
+                >
+                  <ListIcon />
+                </button>
+              </div>
+            </div>
 
-                    setVisibleCount(
-                      PAGE_SIZE
-                    );
+            <div className="fcl-extra-chips-row">
+              <div className="fcl-extra-chips">
+                <button
+                  type="button"
+                  className={`chip ${selectedYear === "All" ? "active" : ""}`}
+                  onClick={() => {
+                    setSelectedYear("All");
+                    setPage(1);
                   }}
                 >
-                  <option value="All">
-                    All Years
-                  </option>
+                  All
+                </button>
 
-                  {availableYears.map(
-                    (year) => (
-                      <option
-                        key={year}
-                        value={year}
-                      >
-                        {year}
-                      </option>
-                    )
-                  )}
-                </select>
+                {availableYears.map((year) => (
+                  <button
+                    key={year}
+                    type="button"
+                    className={`chip ${selectedYear === year ? "active" : ""}`}
+                    onClick={() => {
+                      setSelectedYear(year);
+                      setPage(1);
+                    }}
+                  >
+                    {year}
+                  </button>
+                ))}
+
+                {filtersActive && (
+                  <button
+                    type="button"
+                    className="chip reset"
+                    onClick={resetFilters}
+                  >
+                    <CloseIcon size={12} />
+                    Reset
+                  </button>
+                )}
               </div>
 
-              <div className="fcl-extra-select-field">
-                <label
-                  htmlFor="fcl-extra-sort"
-                >
-                  SORT BY
-                </label>
-
-                <select
-                  id="fcl-extra-sort"
-                  value={sortBy}
-                  onChange={(event) => {
-                    setSortBy(
-                      event.target.value as SortBy
-                    );
-
-                    setVisibleCount(
-                      PAGE_SIZE
-                    );
-                  }}
-                >
-                  <option value="part-asc">
-                    Part (1 → Latest)
-                  </option>
-
-                  <option value="part-desc">
-                    Part (Latest → 1)
-                  </option>
-
-                  <option value="year-desc">
-                    Year (Newest First)
-                  </option>
-
-                  <option value="year-asc">
-                    Year (Oldest First)
-                  </option>
-                </select>
-              </div>
+              <span className="fcl-extra-count">
+                {loading ? "…" : filteredPerformances.length} RECORDS
+              </span>
             </div>
           </div>
 
-          {/* ============================================
-              ERROR
-              ============================================ */}
+          {/* ---------- ERROR ---------- */}
 
           {error && !loading && (
-            <div
-              className="fcl-extra-error"
-              role="alert"
-            >
+            <div className="fcl-extra-error" role="alert">
               <div>
-                <strong>
-                  তথ্য লোড করা যায়নি
-                </strong>
-
+                <strong>তথ্য লোড করা যায়নি</strong>
                 <p>{error}</p>
               </div>
 
-              <button
-                type="button"
-                onClick={retryFetch}
-              >
+              <button type="button" onClick={() => setRetryKey((p) => p + 1)}>
                 আবার চেষ্টা করুন
               </button>
             </div>
           )}
 
-          {/* ============================================
-              CONTENT
-              ============================================ */}
+          {/* ---------- RESULTS ---------- */}
 
           <div className="fcl-extra-results">
-            <div className="fcl-extra-results-heading">
-              <div>
-                <Eyebrow>
-                  RECORDED MASTERCLASSES
-                </Eyebrow>
-
-                <h3>
-                  স্মরণীয় পারফরম্যান্সসমূহ
-                </h3>
-              </div>
-
-              <span>
-                {loading
-                  ? "Loading..."
-                  : `${filteredPerformances.length} Results`}
-              </span>
-            </div>
-
             {loading ? (
-              <LoadingCards />
-            ) : filteredPerformances.length ===
-              0 ? (
+              <LoadingCards count={isMobile ? 4 : 6} />
+            ) : filteredPerformances.length === 0 ? (
               <EmptyState
                 title={
                   error
@@ -1546,198 +1687,82 @@ export default function ExtraordinaryPage() {
                     ? "আবার চেষ্টা করুন অথবা কিছুক্ষণ পরে ফিরে আসুন।"
                     : "আপনার অনুসন্ধানের সঙ্গে কোনো রেকর্ড মেলেনি। অন্য শব্দ বা সাল নির্বাচন করুন।"
                 }
-                onReset={
-                  error
-                    ? undefined
-                    : resetFilters
-                }
+                onReset={error ? undefined : resetFilters}
               />
             ) : (
               <>
-                <div className="fcl-extra-grid">
-                  {visiblePerformances.map(
-                    (performance) => (
-                      <PerformanceCard
-                        key={
-                          performance.key
-                        }
-                        performance={
-                          performance
-                        }
-                        onOpen={() =>
-                          setSelectedPerf(
-                            performance
-                          )
-                        }
-                      />
-                    )
-                  )}
+                <div
+                  key={`${sortBy}-${selectedYear}-${currentPage}-${view}`}
+                  className={`fcl-extra-grid ${view === "list" ? "list" : ""}`}
+                >
+                  {visiblePerformances.map((performance, index) => (
+                    <PerformanceCard
+                      key={performance.key}
+                      performance={performance}
+                      index={index}
+                      onOpen={() => setSelectedPerf(performance)}
+                    />
+                  ))}
                 </div>
 
-                {hasMore && (
-                  <div className="fcl-extra-load-more">
-                    <p>
-                      দেখানো হচ্ছে{" "}
-                      <strong>
-                        {
-                          visiblePerformances.length
-                        }
-                      </strong>{" "}
-                      /{" "}
-                      {
-                        filteredPerformances.length
-                      }{" "}
-                      টি পারফরম্যান্স
-                    </p>
-
-                    <div className="fcl-extra-progress">
-                      <span
-                        style={{
-                          width: `${
-                            (visiblePerformances.length /
-                              filteredPerformances.length) *
-                            100
-                          }%`,
-                        }}
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setVisibleCount(
-                          (previous) =>
-                            previous +
-                            PAGE_SIZE
-                        )
-                      }
-                      className="fcl-extra-load-button"
-                    >
-                      আরও পারফরম্যান্স দেখুন
-
-                      <ArrowIcon />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setVisibleCount(
-                          filteredPerformances.length
-                        )
-                      }
-                      className="fcl-extra-show-all"
-                    >
-                      সব রেকর্ড দেখুন
-                    </button>
-                  </div>
-                )}
+                <Pagination
+                  page={currentPage}
+                  totalPages={totalPages}
+                  from={rangeFrom}
+                  to={rangeTo}
+                  count={filteredPerformances.length}
+                  onChange={goToPage}
+                />
               </>
             )}
           </div>
         </div>
       </main>
 
-      {/* ================================================
-          BOTTOM CTA
-          ================================================ */}
-
-      <section className="fcl-extra-bottom">
-        <div className="fcl-extra-container">
-          <div className="fcl-extra-bottom-card">
-            <div className="fcl-extra-bottom-content">
-              <Eyebrow>
-                THE LEGACY CONTINUES
-              </Eyebrow>
-
-              <h2>
-                কিছু পারফরম্যান্স
-                <br />
-
-                <span>
-                  ইতিহাস হয়ে থাকে।
-                </span>
-              </h2>
-
-              <p>
-                FCL-এর রেকর্ড, খেলোয়াড়দের
-                র‍্যাঙ্কিং এবং স্মরণীয় ম্যাচগুলোর
-                বিস্তারিত জানতে আমাদের
-                অন্যান্য আর্কাইভ ঘুরে দেখুন।
-              </p>
-
-              <div className="fcl-extra-bottom-actions">
-                <Link
-                  href="/records"
-                  className="fcl-extra-primary-button"
-                >
-                  FCL Records
-
-                  <ArrowIcon />
-                </Link>
-
-                <Link
-                  href="/rankings"
-                  className="fcl-extra-outline-button"
-                >
-                  Player Rankings
-                </Link>
-              </div>
-            </div>
-
-            <div className="fcl-extra-bottom-emblem">
-              <span>FCL</span>
-
-              <strong>HEROICS</strong>
-
-              <small>EST. 2013</small>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ================================================
-          FOOTER
-          ================================================ */}
+      {/* ================= FOOTER ================= */}
 
       <footer className="fcl-extra-footer">
         <div className="fcl-extra-container">
-          <div className="fcl-extra-footer-top">
-            <div>
-              <strong>
-                FACEBOOK CRICKET LEAGUE
-              </strong>
-
-              <p>
-                Extraordinary Performances Archive
-              </p>
-            </div>
-
-            <Link href="/">
-              Back to Home ↗
-            </Link>
-          </div>
-
-          <div className="fcl-extra-footer-bottom">
+          <div className="fcl-extra-footer-inner">
             <span>
-              © {new Date().getFullYear()} FCL
+              © {new Date().getFullYear()} <strong>FCL</strong> · Extraordinary
+              Performances Archive
             </span>
 
-            <span>
-              Celebrating Cricket Excellence
-              Since 2013
-            </span>
+            <nav>
+              <Link href="/">Home</Link>
+              <Link href="/records">Records</Link>
+              <Link href="/rankings">Rankings</Link>
+            </nav>
           </div>
         </div>
       </footer>
 
-      {/* ================================================
-          MODAL
-          ================================================ */}
+      {/* ================= BACK TO TOP ================= */}
+
+      <button
+        type="button"
+        className={`fcl-extra-top ${showTop ? "visible" : ""}`}
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        aria-label="Back to top"
+      >
+        <ArrowIcon direction="up" />
+      </button>
+
+      {/* ================= MODAL ================= */}
 
       {selectedPerf && (
         <PerformanceModal
           performance={selectedPerf}
+          position={Math.max(selectedIndex, 0) + 1}
+          total={navList.length}
           onClose={closeModal}
+          onPrev={selectedIndex > 0 ? goPrev : undefined}
+          onNext={
+            selectedIndex >= 0 && selectedIndex < navList.length - 1
+              ? goNext
+              : undefined
+          }
         />
       )}
 
@@ -1754,18 +1779,16 @@ export default function ExtraordinaryPage() {
 
 const EXTRAORDINARY_STYLES = `
 
-/* =========================================================
-   ROOT
-   ========================================================= */
+/* ---------- ROOT ---------- */
 
 .fcl-extra-page {
+  --extra-sticky-top: 0px;
   min-height: 100vh;
   background: var(--extra-bg);
   color: var(--extra-text);
   font-family: inherit;
-  transition:
-    background-color .25s ease,
-    color .25s ease;
+  overflow-x: clip;
+  transition: background-color .25s ease, color .25s ease;
 }
 
 .fcl-extra-page *,
@@ -1779,6 +1802,10 @@ const EXTRAORDINARY_STYLES = `
   font-family: inherit;
 }
 
+.fcl-extra-page button:disabled {
+  cursor: not-allowed;
+}
+
 .fcl-extra-page button,
 .fcl-extra-page a {
   -webkit-tap-highlight-color: transparent;
@@ -1786,10 +1813,9 @@ const EXTRAORDINARY_STYLES = `
 
 .fcl-extra-page button:focus-visible,
 .fcl-extra-page a:focus-visible,
-.fcl-extra-page input:focus-visible,
-.fcl-extra-page select:focus-visible {
-  outline: 3px solid var(--extra-blue);
-  outline-offset: 3px;
+.fcl-extra-page input:focus-visible {
+  outline: 2px solid var(--extra-blue);
+  outline-offset: 2px;
 }
 
 .fcl-extra-page ::selection {
@@ -1797,7 +1823,7 @@ const EXTRAORDINARY_STYLES = `
 }
 
 .fcl-extra-container {
-  width: min(100% - 40px, 1200px);
+  width: min(100% - 40px, 1180px);
   margin-inline: auto;
 }
 
@@ -1810,9 +1836,7 @@ const EXTRAORDINARY_STYLES = `
   text-transform: uppercase;
 }
 
-/* =========================================================
-   HERO
-   ========================================================= */
+/* ---------- HERO ---------- */
 
 .fcl-extra-hero {
   position: relative;
@@ -1827,16 +1851,11 @@ const EXTRAORDINARY_STYLES = `
   pointer-events: none;
   opacity: .45;
   background-image:
-    linear-gradient(
-      rgba(24,119,242,.055) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      90deg,
-      rgba(24,119,242,.055) 1px,
-      transparent 1px
-    );
+    linear-gradient(rgba(24,119,242,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(24,119,242,.055) 1px, transparent 1px);
   background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, #000 40%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent);
 }
 
 .fcl-extra-hero-glow {
@@ -1847,39 +1866,84 @@ const EXTRAORDINARY_STYLES = `
 }
 
 .fcl-extra-hero-glow.one {
-  width: 550px;
-  height: 550px;
-  left: -210px;
+  width: 520px;
+  height: 520px;
+  left: -200px;
   top: -260px;
-  background: rgba(24,119,242,.12);
+  background: rgba(24,119,242,.14);
 }
 
 .fcl-extra-hero-glow.two {
-  width: 500px;
-  height: 500px;
-  right: -180px;
+  width: 460px;
+  height: 460px;
+  right: -170px;
   bottom: -250px;
-  background: rgba(34,211,238,.09);
+  background: rgba(34,211,238,.1);
+}
+
+/* floating blurred squares */
+
+.fcl-extra-sq {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 24px;
+  border: 1px solid rgba(24,119,242,.22);
+  background: linear-gradient(135deg, rgba(24,119,242,.2), rgba(34,211,238,.05));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  animation: fclExtraFloat 9s ease-in-out infinite;
+}
+
+.fcl-extra-sq.a {
+  width: 96px;
+  height: 96px;
+  right: 7%;
+  top: 14%;
+  --r: 14deg;
+  transform: rotate(14deg);
+}
+
+.fcl-extra-sq.b {
+  width: 58px;
+  height: 58px;
+  left: 4%;
+  bottom: 24%;
+  --r: -12deg;
+  transform: rotate(-12deg);
+  animation-delay: -3s;
+  opacity: .8;
+}
+
+.fcl-extra-sq.c {
+  width: 140px;
+  height: 140px;
+  right: 30%;
+  bottom: -70px;
+  --r: 22deg;
+  transform: rotate(22deg);
+  animation-delay: -6s;
+  opacity: .55;
 }
 
 .fcl-extra-hero-inner {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0,1.3fr) minmax(270px,.7fr);
+  grid-template-columns: minmax(0, 1fr) 380px;
   align-items: center;
-  gap: 60px;
-  padding: 90px 0 100px;
+  gap: 44px;
+  padding: 44px 0 26px;
 }
 
 .fcl-extra-hero-content {
   position: relative;
   z-index: 1;
+  animation: fclExtraRise .7s cubic-bezier(.2,.8,.2,1) both;
 }
 
 .fcl-extra-hero-label {
   display: inline-flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
   color: var(--extra-blue);
   font-size: 10px;
   font-weight: 900;
@@ -1892,42 +1956,42 @@ const EXTRAORDINARY_STYLES = `
   border-radius: 50%;
   background: var(--extra-blue);
   box-shadow: 0 0 0 5px var(--extra-blue-soft);
+  animation: fclExtraPulse 2s ease-in-out infinite;
 }
 
 .fcl-extra-hero-content h1 {
-  margin: 25px 0 0;
+  margin: 14px 0 0;
   color: var(--extra-heading);
-  font-size: clamp(39px,5.5vw,72px);
-  line-height: 1.12;
+  font-size: clamp(30px, 4.4vw, 54px);
+  line-height: 1.15;
   font-weight: 950;
-  letter-spacing: -.055em;
+  letter-spacing: -.05em;
 }
 
-.fcl-extra-hero-content h1 span {
-  background: linear-gradient(
-    100deg,
-    #1877F2,
-    #3b82f6 45%,
-    #22d3ee
-  );
+.fcl-extra-hero-content h1 em {
+  display: inline-block;
+  font-style: normal;
+  background: linear-gradient(100deg, #1877F2, #3b82f6 35%, #22d3ee 65%, #1877F2);
+  background-size: 220% 100%;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
+  animation: fclExtraShimmer 6s linear infinite;
 }
 
 .fcl-extra-hero-content > p {
-  max-width: 620px;
-  margin: 26px 0 0;
+  max-width: 500px;
+  margin: 14px 0 0;
   color: var(--extra-muted);
-  font-size: 14px;
-  line-height: 2.1;
+  font-size: 13.5px;
+  line-height: 1.9;
 }
 
 .fcl-extra-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 35px;
+  gap: 10px;
+  margin-top: 22px;
 }
 
 .fcl-extra-primary-button,
@@ -1935,10 +1999,10 @@ const EXTRAORDINARY_STYLES = `
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  gap: 13px;
-  min-height: 45px;
-  padding: 12px 21px;
-  border-radius: 10px;
+  gap: 10px;
+  min-height: 42px;
+  padding: 10px 18px;
+  border-radius: 12px;
   text-decoration: none;
   font-size: 12px;
   font-weight: 900;
@@ -1948,19 +2012,23 @@ const EXTRAORDINARY_STYLES = `
 .fcl-extra-primary-button {
   color: white;
   border: 1px solid #1877F2;
-  background: #1877F2;
-  box-shadow: 0 8px 22px rgba(24,119,242,.19);
+  background: linear-gradient(135deg, #1877F2, #2f8bff);
+  box-shadow: 0 8px 22px rgba(24,119,242,.22);
 }
 
 .fcl-extra-primary-button:hover {
   transform: translateY(-2px);
-  background: #0866dc;
-  box-shadow: 0 12px 27px rgba(24,119,242,.25);
+  box-shadow: 0 12px 28px rgba(24,119,242,.3);
+}
+
+.fcl-extra-primary-button:active,
+.fcl-extra-outline-button:active {
+  transform: scale(.97);
 }
 
 .fcl-extra-outline-button {
   color: var(--extra-heading);
-  background: var(--extra-card);
+  background: var(--extra-glass);
   border: 1px solid var(--extra-border);
 }
 
@@ -1969,266 +2037,258 @@ const EXTRAORDINARY_STYLES = `
   border-color: var(--extra-blue);
 }
 
-.fcl-extra-hero-est {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 13px;
-  margin-top: 47px;
-  color: var(--extra-subtle);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: .12em;
-}
+/* ---------- HERO STATS ---------- */
 
-.fcl-extra-hero-est > span {
-  width: 33px;
-  height: 1px;
-  background: var(--extra-blue);
-}
-
-.fcl-extra-hero-est strong {
-  color: var(--extra-muted);
-  font-size: 10px;
-}
-
-/* =========================================================
-   HERO VISUAL
-   ========================================================= */
-
-.fcl-extra-hero-visual {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.fcl-extra-visual-orbit {
+.fcl-extra-hero-stats {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 315px;
-  height: 315px;
-  border-radius: 50%;
-  border: 1px dashed rgba(24,119,242,.25);
-}
-
-.fcl-extra-visual-orbit::before {
-  content: "";
-  position: absolute;
-  inset: 25px;
-  border-radius: 50%;
-  border: 1px solid rgba(24,119,242,.23);
-  background: rgba(24,119,242,.04);
-  box-shadow: 0 0 70px rgba(24,119,242,.08);
-}
-
-.fcl-extra-visual-inner {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 205px;
-  height: 205px;
-  border-radius: 50%;
-  border: 2px solid rgba(24,119,242,.35);
-  background: var(--extra-card);
-}
-
-.fcl-extra-visual-inner span {
-  color: var(--extra-blue);
-  font-size: 65px;
-  font-weight: 950;
-  letter-spacing: -.11em;
-  line-height: 1;
-}
-
-.fcl-extra-visual-inner strong {
-  margin-top: 15px;
-  color: var(--extra-muted);
-  font-size: 10px;
-  font-weight: 900;
-  line-height: 1.8;
-  letter-spacing: .17em;
-  text-align: center;
-}
-
-.fcl-extra-visual-caption {
-  margin-top: 25px;
-  color: var(--extra-subtle);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: .16em;
-  text-align: center;
-}
-
-/* =========================================================
-   STATS
-   ========================================================= */
-
-.fcl-extra-overview {
-  border-bottom: 1px solid var(--extra-border);
-  background: var(--extra-bg);
-}
-
-.fcl-extra-stats {
   display: grid;
-  grid-template-columns: repeat(4,minmax(0,1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 26px;
+  border: 1px solid var(--extra-border);
+  border-radius: 16px;
+  background: var(--extra-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: fclExtraRise .7s .15s cubic-bezier(.2,.8,.2,1) both;
 }
 
-.fcl-extra-stat {
-  padding: 34px 25px 34px 0;
+.fcl-extra-hero-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 14px 20px;
 }
 
-.fcl-extra-stat + .fcl-extra-stat {
-  padding-left: 30px;
+.fcl-extra-hero-stat + .fcl-extra-hero-stat {
   border-left: 1px solid var(--extra-border);
 }
 
-.fcl-extra-stat > span {
+.fcl-extra-hero-stat strong {
+  color: var(--extra-heading);
+  font-size: 24px;
+  font-weight: 950;
+  letter-spacing: -.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.fcl-extra-hero-stat span {
   color: var(--extra-muted);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 900;
   letter-spacing: .12em;
 }
 
-.fcl-extra-stat strong {
-  display: block;
-  margin-top: 13px;
-  color: var(--extra-heading);
-  font-size: clamp(27px,3vw,36px);
-  font-weight: 950;
-  letter-spacing: -.05em;
+/* ---------- SPOTLIGHT ---------- */
+
+.fcl-extra-spot {
+  position: relative;
+  z-index: 1;
+  padding: 16px;
+  border: 1px solid var(--extra-border);
+  border-radius: 20px;
+  background: var(--extra-glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--extra-shadow);
+  animation: fclExtraRise .7s .1s cubic-bezier(.2,.8,.2,1) both;
 }
 
-.fcl-extra-stat p {
-  margin: 6px 0 0;
-  color: var(--extra-subtle);
-  font-size: 12px;
+.fcl-extra-spot.loading {
+  min-height: 150px;
 }
 
-/* =========================================================
-   COLLECTION
-   ========================================================= */
-
-.fcl-extra-collection {
-  padding: 85px 0 110px;
-  background: var(--extra-bg);
-  scroll-margin-top: 85px;
-}
-
-.fcl-extra-section-header {
+.fcl-extra-spot-head {
   display: flex;
   justify-content: space-between;
-  align-items: end;
-  gap: 25px;
-  margin-bottom: 30px;
+  align-items: center;
+  gap: 10px;
 }
 
-.fcl-extra-section-header h2 {
-  margin: 12px 0 0;
-  color: var(--extra-heading);
-  font-size: clamp(27px,3vw,37px);
-  font-weight: 950;
-  letter-spacing: -.045em;
-  line-height: 1.4;
-}
-
-.fcl-extra-section-header p {
-  margin: 12px 0 0;
-  color: var(--extra-muted);
-  font-size: 13px;
-  line-height: 1.9;
-}
-
-.fcl-extra-result-count {
+.fcl-extra-live {
   display: inline-flex;
   align-items: center;
-  padding: 9px 13px;
-  border: 1px solid var(--extra-border);
-  border-radius: 8px;
-  background: var(--extra-secondary);
-  color: var(--extra-muted);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: .08em;
-  white-space: nowrap;
-}
-
-/* =========================================================
-   FILTERS
-   ========================================================= */
-
-.fcl-extra-filter-panel {
-  padding: 26px;
-  border: 1px solid var(--extra-border);
-  border-radius: 16px;
-  background: var(--extra-card);
-  box-shadow: var(--extra-shadow);
-}
-
-.fcl-extra-filter-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 23px;
-}
-
-.fcl-extra-filter-heading > div {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.fcl-extra-filter-heading > div span {
+  gap: 8px;
   color: var(--extra-blue);
   font-size: 9px;
   font-weight: 900;
-  letter-spacing: .15em;
+  letter-spacing: .14em;
 }
 
-.fcl-extra-filter-heading strong {
+.fcl-extra-live i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 0 rgba(34,197,94,.55);
+  animation: fclExtraLive 1.8s infinite;
+}
+
+.fcl-extra-spot-part {
+  color: var(--extra-gold);
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .1em;
+}
+
+.fcl-extra-spot-body {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--extra-border);
+  border-radius: 14px;
+  background: var(--extra-card);
+  color: inherit;
+  text-align: left;
+  animation: fclExtraSwap .45s cubic-bezier(.2,.8,.2,1) both;
+  transition: border-color .2s ease, transform .2s ease;
+}
+
+.fcl-extra-spot-body:hover {
+  border-color: rgba(24,119,242,.5);
+  transform: translateY(-2px);
+}
+
+.fcl-extra-spot-body:active {
+  transform: scale(.98);
+}
+
+.fcl-extra-spot-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.fcl-extra-spot-text strong {
   color: var(--extra-heading);
-  font-size: 14px;
-  font-weight: 900;
+  font-size: 15px;
+  font-weight: 950;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.fcl-extra-reset {
-  border: 0;
-  background: transparent;
+.fcl-extra-spot-text em {
+  color: var(--extra-blue);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fcl-extra-spot-text small {
   color: var(--extra-muted);
-  font-size: 11px;
-  font-weight: 850;
+  font-size: 10.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.fcl-extra-reset:hover {
+.fcl-extra-spot-go {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--extra-blue-soft);
   color: var(--extra-blue);
 }
 
-.fcl-extra-filter-grid {
-  display: grid;
-  grid-template-columns: minmax(0,1.5fr) minmax(150px,.7fr) minmax(175px,.8fr);
-  gap: 15px;
+.fcl-extra-spot-dots {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
 }
 
-.fcl-extra-search label,
-.fcl-extra-select-field label {
-  display: block;
-  margin-bottom: 9px;
-  color: var(--extra-muted);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: .07em;
-}
-
-.fcl-extra-search-field {
+.fcl-extra-spot-dots button {
   position: relative;
+  flex: 1;
+  height: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--extra-border);
+  overflow: hidden;
 }
 
-.fcl-extra-search-field svg {
+.fcl-extra-spot-dots button span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1877F2, #22d3ee);
+  transform-origin: left;
+  animation: fclExtraDot ${5500}ms linear both;
+}
+
+.fcl-extra-spot.paused .fcl-extra-spot-dots button span {
+  animation-play-state: paused;
+}
+
+/* ---------- AVATAR ---------- */
+
+.fcl-extra-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid rgba(24,119,242,.25);
+  background: var(--extra-blue-soft);
+  color: var(--extra-blue);
+  font-weight: 950;
+}
+
+.fcl-extra-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------- COLLECTION ---------- */
+
+.fcl-extra-collection {
+  padding: 22px 0 36px;
+  background: var(--extra-bg);
+  scroll-margin-top: 8px;
+}
+
+/* ---------- TOOLBAR ---------- */
+
+.fcl-extra-toolbar {
+  position: sticky;
+  top: calc(var(--extra-sticky-top) + 10px);
+  z-index: 20;
+  padding: 10px;
+  border: 1px solid var(--extra-border);
+  border-radius: 18px;
+  background: var(--extra-glass);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: var(--extra-shadow);
+}
+
+.fcl-extra-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fcl-extra-search {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.fcl-extra-search > svg {
   position: absolute;
   left: 14px;
   top: 50%;
@@ -2237,147 +2297,358 @@ const EXTRAORDINARY_STYLES = `
   pointer-events: none;
 }
 
-.fcl-extra-search input,
-.fcl-extra-select-field select {
+.fcl-extra-search input {
   display: block;
   width: 100%;
-  min-height: 47px;
+  height: 44px;
+  padding: 0 44px 0 42px;
   border: 1px solid var(--extra-border);
-  border-radius: 9px;
+  border-radius: 12px;
   background: var(--extra-secondary);
   color: var(--extra-heading);
   font-family: inherit;
-  font-size: 12px;
-  transition: border-color .2s ease;
-}
-
-.fcl-extra-search input {
-  padding: 12px 14px 12px 43px;
-}
-
-.fcl-extra-select-field select {
-  padding: 12px;
-  cursor: pointer;
+  font-size: 12.5px;
+  transition: border-color .2s ease, box-shadow .2s ease;
 }
 
 .fcl-extra-search input::placeholder {
   color: var(--extra-subtle);
 }
 
-.fcl-extra-search input:focus,
-.fcl-extra-select-field select:focus {
-  border-color: var(--extra-blue);
+.fcl-extra-search input:focus {
   outline: none;
+  border-color: var(--extra-blue);
+  box-shadow: 0 0 0 4px var(--extra-blue-soft);
 }
 
-/* =========================================================
-   RESULTS
-   ========================================================= */
-
-.fcl-extra-results {
-  margin-top: 60px;
+.fcl-extra-search input::-webkit-search-cancel-button {
+  display: none;
 }
 
-.fcl-extra-results-heading {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-.fcl-extra-results-heading h3 {
-  margin: 10px 0 0;
-  color: var(--extra-heading);
-  font-size: 22px;
-  font-weight: 950;
-  line-height: 1.4;
-}
-
-.fcl-extra-results-heading > span {
+.fcl-extra-search kbd {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--extra-border);
+  border-radius: 6px;
   color: var(--extra-muted);
+  font-family: inherit;
   font-size: 11px;
   font-weight: 800;
-  white-space: nowrap;
+  pointer-events: none;
+}
+
+.fcl-extra-search .clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--extra-raised);
+  color: var(--extra-muted);
+}
+
+.fcl-extra-search .clear:hover {
+  color: white;
+  background: #ef4444;
+}
+
+/* sort */
+
+.fcl-extra-sort {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.fcl-extra-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: 44px;
+  padding: 0 13px;
+  border: 1px solid var(--extra-border);
+  border-radius: 12px;
+  background: var(--extra-secondary);
+  color: var(--extra-heading);
+  font-size: 12px;
+  font-weight: 850;
+  transition: all .2s ease;
+}
+
+.fcl-extra-sort-btn:hover,
+.fcl-extra-sort-btn.open {
+  border-color: var(--extra-blue);
+  color: var(--extra-blue);
+}
+
+.fcl-extra-sort-btn .chev {
+  display: inline-flex;
+  transition: transform .2s ease;
+}
+
+.fcl-extra-sort-btn.open .chev {
+  transform: rotate(180deg);
+}
+
+.fcl-extra-sort-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 40;
+  min-width: 210px;
+  padding: 6px;
+  border: 1px solid var(--extra-border);
+  border-radius: 14px;
+  background: var(--extra-card);
+  box-shadow: 0 22px 60px rgba(0,0,0,.25);
+  transform-origin: top right;
+  animation: fclExtraMenu .18s ease both;
+}
+
+.fcl-extra-sort-menu button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--extra-text);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.fcl-extra-sort-menu button:hover {
+  background: var(--extra-raised);
+}
+
+.fcl-extra-sort-menu button.selected {
+  color: var(--extra-blue);
+  background: var(--extra-blue-soft);
+}
+
+/* view toggle */
+
+.fcl-extra-view-toggle {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 3px;
+  border: 1px solid var(--extra-border);
+  border-radius: 12px;
+  background: var(--extra-secondary);
+}
+
+.fcl-extra-view-toggle button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--extra-muted);
+  transition: all .2s ease;
+}
+
+.fcl-extra-view-toggle button.active {
+  background: var(--extra-blue);
+  color: white;
+  box-shadow: 0 5px 14px rgba(24,119,242,.3);
+}
+
+/* chips */
+
+.fcl-extra-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.fcl-extra-chips {
+  display: flex;
+  flex: 1;
+  gap: 7px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-right: 18px;
+  scrollbar-width: none;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+}
+
+.fcl-extra-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.fcl-extra-chips .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--extra-border);
+  border-radius: 999px;
+  background: var(--extra-secondary);
+  color: var(--extra-muted);
+  font-size: 11.5px;
+  font-weight: 850;
+  transition: all .2s ease;
+}
+
+.fcl-extra-chips .chip:hover {
+  color: var(--extra-heading);
+  border-color: var(--extra-blue);
+}
+
+.fcl-extra-chips .chip:active {
+  transform: scale(.95);
+}
+
+.fcl-extra-chips .chip.active {
+  border-color: var(--extra-blue);
+  background: var(--extra-blue);
+  color: white;
+  box-shadow: 0 6px 16px rgba(24,119,242,.3);
+}
+
+.fcl-extra-chips .chip.reset {
+  border-color: rgba(239,68,68,.3);
+  background: rgba(239,68,68,.08);
+  color: #ef4444;
+  animation: fclExtraPop .25s ease both;
+}
+
+.fcl-extra-count {
+  flex-shrink: 0;
+  padding: 7px 11px;
+  border: 1px solid var(--extra-border);
+  border-radius: 9px;
+  background: var(--extra-secondary);
+  color: var(--extra-muted);
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: .09em;
+}
+
+/* ---------- GRID & CARDS ---------- */
+
+.fcl-extra-results {
+  margin-top: 16px;
 }
 
 .fcl-extra-grid {
   display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-  align-items: stretch;
-  gap: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
-
-/* =========================================================
-   CARDS
-   ========================================================= */
 
 .fcl-extra-card {
   position: relative;
   display: flex;
   flex-direction: column;
+  gap: 14px;
   width: 100%;
   min-width: 0;
-  min-height: 340px;
-  padding: 25px;
+  padding: 18px;
   overflow: hidden;
   text-align: left;
   border: 1px solid var(--extra-border);
-  border-radius: 15px;
+  border-radius: 18px;
   background: var(--extra-card);
   color: var(--extra-text);
   box-shadow: var(--extra-shadow);
-  transition:
-    transform .25s ease,
-    border-color .25s ease,
-    box-shadow .25s ease;
+  animation: fclExtraCardIn .55s cubic-bezier(.2,.8,.2,1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+  transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+
+.fcl-extra-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #1877F2, #22d3ee, #f59e0b);
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+
+.fcl-extra-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 0%), rgba(24,119,242,.15), transparent 65%);
+  transition: opacity .25s ease;
 }
 
 .fcl-extra-card:hover {
   transform: translateY(-4px);
   border-color: rgba(24,119,242,.45);
-  box-shadow:
-    0 25px 60px rgba(24,119,242,.09);
+  box-shadow: 0 22px 50px rgba(24,119,242,.12);
 }
 
-.fcl-extra-card-accent {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(
-    90deg,
-    #1877F2,
-    #22d3ee,
-    #f59e0b
-  );
-  opacity: 0;
-  transition: opacity .25s ease;
-}
-
-.fcl-extra-card:hover .fcl-extra-card-accent {
+.fcl-extra-card:hover::before,
+.fcl-extra-card:hover::after {
   opacity: 1;
+}
+
+.fcl-extra-card:active {
+  transform: scale(.985);
+}
+
+.fcl-extra-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .fcl-extra-card-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 15px;
+  gap: 10px;
+}
+
+.fcl-extra-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fcl-extra-part,
+.fcl-extra-year {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 9.5px;
+  font-weight: 950;
+  letter-spacing: .06em;
+  white-space: nowrap;
 }
 
 .fcl-extra-part {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 11px;
-  border: 1px solid rgba(245,158,11,.28);
-  border-radius: 7px;
-  background: rgba(245,158,11,.075);
+  border: 1px solid rgba(245,158,11,.3);
+  background: rgba(245,158,11,.08);
   color: #d97706;
-  font-size: 10px;
-  font-weight: 950;
-  letter-spacing: .06em;
 }
 
 .fcl-extra-dark .fcl-extra-part {
@@ -2385,127 +2656,228 @@ const EXTRAORDINARY_STYLES = `
 }
 
 .fcl-extra-year {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 11px;
   border: 1px solid var(--extra-border);
-  border-radius: 7px;
   background: var(--extra-secondary);
   color: var(--extra-muted);
-  font-size: 10px;
-  font-weight: 900;
 }
 
-.fcl-extra-card-content {
-  padding-top: 37px;
-  flex: 1;
+.fcl-extra-card-arrow {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--extra-blue-soft);
+  color: var(--extra-blue);
+  transition: all .25s ease;
 }
 
-.fcl-extra-player-label {
+.fcl-extra-card:hover .fcl-extra-card-arrow {
+  background: var(--extra-blue);
+  color: white;
+  transform: rotate(45deg);
+}
+
+.fcl-extra-card-person {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 11px;
+  min-width: 0;
+}
+
+.fcl-extra-card-person > div {
+  min-width: 0;
+}
+
+.fcl-extra-card-person span {
+  display: block;
   color: var(--extra-blue);
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 900;
   letter-spacing: .13em;
 }
 
-.fcl-extra-player-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--extra-blue);
-}
-
-.fcl-extra-card-content h3 {
-  margin: 12px 0 0;
-  color: var(--extra-heading);
-  font-size: clamp(19px,2vw,25px);
-  font-weight: 950;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.fcl-extra-card-divider {
-  width: 35px;
-  height: 2px;
-  margin: 24px 0 21px;
-  background: var(--extra-blue);
-  opacity: .6;
-}
-
-.fcl-extra-card-content h4 {
-  margin: 0;
+.fcl-extra-card-person h3 {
+  margin: 3px 0 0;
   color: var(--extra-heading);
   font-size: 16px;
+  font-weight: 950;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fcl-extra-card-body {
+  min-width: 0;
+}
+
+.fcl-extra-card-body h4 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 0;
+  color: var(--extra-heading);
+  font-size: 14px;
   font-weight: 900;
-  line-height: 1.65;
-  overflow-wrap: anywhere;
+  line-height: 1.6;
   transition: color .2s ease;
 }
 
-.fcl-extra-card:hover .fcl-extra-card-content h4 {
+.fcl-extra-card:hover .fcl-extra-card-body h4 {
   color: var(--extra-blue);
 }
 
 .fcl-extra-match {
-  margin: 12px 0 0;
+  margin: 4px 0 0;
   color: var(--extra-muted);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
-  line-height: 1.8;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fcl-extra-preview {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  margin: 16px 0 0;
+  margin: 9px 0 0;
   color: var(--extra-text);
-  font-size: 12px;
-  line-height: 2;
-  overflow-wrap: anywhere;
+  font-size: 11.5px;
+  line-height: 1.85;
 }
 
-.fcl-extra-card-footer {
+/* list view */
+
+.fcl-extra-grid.list {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.fcl-extra-grid.list .fcl-extra-card {
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 16px;
+}
+
+.fcl-extra-grid.list .fcl-extra-card-top {
+  display: contents;
+}
+
+.fcl-extra-grid.list .fcl-extra-badges {
+  order: 1;
+  width: 150px;
+  flex-shrink: 0;
+}
+
+.fcl-extra-grid.list .fcl-extra-card-person {
+  order: 2;
+  width: 230px;
+  flex-shrink: 0;
+}
+
+.fcl-extra-grid.list .fcl-extra-card-body {
+  order: 3;
+  flex: 1;
+}
+
+.fcl-extra-grid.list .fcl-extra-card-body h4 {
+  -webkit-line-clamp: 1;
+}
+
+.fcl-extra-grid.list .fcl-extra-preview {
+  display: none;
+}
+
+.fcl-extra-grid.list .fcl-extra-card-arrow {
+  order: 4;
+}
+
+/* ---------- PAGER ---------- */
+
+.fcl-extra-pager {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 15px;
-  margin-top: 28px;
-  padding-top: 18px;
-  border-top: 1px solid var(--extra-border);
+  gap: 14px;
+  margin-top: 18px;
 }
 
-.fcl-extra-card-footer > span:first-child {
-  color: var(--extra-blue);
-  font-size: 12px;
-  font-weight: 900;
+.fcl-extra-pager-meta {
+  color: var(--extra-muted);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
-.fcl-extra-card-arrow {
+.fcl-extra-pager-controls {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 35px;
-  height: 35px;
-  flex-shrink: 0;
-  border-radius: 9px;
-  background: var(--extra-blue-soft);
+  gap: 6px;
+}
+
+.fcl-extra-pager-controls button {
+  display: grid;
+  place-items: center;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 6px;
+  border: 1px solid var(--extra-border);
+  border-radius: 11px;
+  background: var(--extra-card);
+  color: var(--extra-heading);
+  font-size: 12px;
+  font-weight: 900;
+  transition: all .2s ease;
+}
+
+.fcl-extra-pager-controls button:hover:not(:disabled):not(.active) {
+  border-color: var(--extra-blue);
   color: var(--extra-blue);
-  transition: transform .2s ease;
 }
 
-.fcl-extra-card:hover .fcl-extra-card-arrow {
-  transform: translateX(4px);
+.fcl-extra-pager-controls button:active:not(:disabled) {
+  transform: scale(.93);
 }
 
-/* =========================================================
-   MODAL
-   ========================================================= */
+.fcl-extra-pager-controls button:disabled {
+  opacity: .35;
+}
+
+.fcl-extra-pager-controls button.active {
+  border-color: var(--extra-blue);
+  background: var(--extra-blue);
+  color: white;
+  box-shadow: 0 6px 16px rgba(24,119,242,.3);
+}
+
+.fcl-extra-pager-nums {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fcl-extra-pager-nums .gap {
+  padding: 0 4px;
+  color: var(--extra-subtle);
+}
+
+.fcl-extra-pager-mobile {
+  display: none;
+  min-width: 64px;
+  text-align: center;
+  color: var(--extra-heading);
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- MODAL ---------- */
 
 .fcl-extra-modal-backdrop {
   position: fixed;
@@ -2515,63 +2887,67 @@ const EXTRAORDINARY_STYLES = `
   justify-content: center;
   align-items: center;
   padding: 20px;
-  background: rgba(2,6,23,.76);
+  background: rgba(2,6,23,.72);
   backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
   animation: fclExtraFade .2s ease both;
 }
 
 .fcl-extra-modal {
   display: flex;
   flex-direction: column;
-  width: min(100%,760px);
-  max-height: min(92dvh,900px);
+  width: min(100%, 720px);
+  max-height: min(88dvh, 820px);
   overflow: hidden;
   border: 1px solid var(--extra-border);
-  border-radius: 18px;
+  border-radius: 22px;
   background: var(--extra-card);
-  box-shadow: 0 35px 110px rgba(0,0,0,.35);
-  animation: fclExtraModalEnter .25s ease both;
+  box-shadow: 0 35px 110px rgba(0,0,0,.4);
+  animation: fclExtraModalEnter .32s cubic-bezier(.2,.9,.25,1.05) both;
+}
+
+.fcl-extra-sheet-handle {
+  display: none;
+  width: 40px;
+  height: 4px;
+  margin: 8px auto 0;
+  border-radius: 4px;
+  background: var(--extra-border);
 }
 
 .fcl-extra-modal-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 18px;
-  padding: 17px 25px;
-  border-bottom: 1px solid var(--extra-border);
+  gap: 14px;
+  padding: 12px 16px 12px 20px;
   background: var(--extra-secondary);
 }
 
-.fcl-extra-modal-reference {
+.fcl-extra-modal-meta {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 7px;
 }
 
-.fcl-extra-modal-reference span {
-  color: var(--extra-muted);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: .11em;
-}
-
-.fcl-extra-modal-reference strong {
-  color: var(--extra-blue);
+.fcl-extra-modal-pos {
+  margin-left: 4px;
+  color: var(--extra-subtle);
   font-size: 10px;
-  font-weight: 950;
+  font-weight: 900;
+  letter-spacing: .08em;
+  font-variant-numeric: tabular-nums;
 }
 
 .fcl-extra-modal-close {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 37px;
-  height: 37px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   border: 1px solid var(--extra-border);
-  border-radius: 9px;
+  border-radius: 11px;
   background: var(--extra-card);
   color: var(--extra-heading);
   transition: all .2s ease;
@@ -2579,35 +2955,44 @@ const EXTRAORDINARY_STYLES = `
 
 .fcl-extra-modal-close:hover {
   background: #ef4444;
-  color: white;
   border-color: #ef4444;
+  color: white;
+  transform: rotate(90deg);
+}
+
+.fcl-extra-modal-progress {
+  height: 2px;
+  background: var(--extra-border);
+}
+
+.fcl-extra-modal-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #1877F2, #22d3ee);
+  transform-origin: left;
+  transform: scaleX(0);
 }
 
 .fcl-extra-modal-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 30px;
+  overscroll-behavior: contain;
+  padding: 22px 24px;
   scrollbar-width: thin;
   scrollbar-color: var(--extra-border) transparent;
 }
 
-.fcl-extra-modal-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 9px;
+.fcl-extra-modal-content {
+  animation: fclExtraSwap .4s cubic-bezier(.2,.8,.2,1) both;
 }
 
-.fcl-extra-modal-heading {
-  margin-top: 26px;
-}
-
-.fcl-extra-modal-heading h2 {
-  margin: 13px 0 0;
+.fcl-extra-modal-content h2 {
+  margin: 10px 0 0;
   color: var(--extra-heading);
-  font-size: clamp(23px,3vw,34px);
+  font-size: clamp(21px, 3vw, 30px);
   font-weight: 950;
-  letter-spacing: -.035em;
+  letter-spacing: -.03em;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -2615,47 +3000,34 @@ const EXTRAORDINARY_STYLES = `
 .fcl-extra-modal-player {
   display: flex;
   align-items: center;
-  gap: 13px;
-  margin-top: 23px;
+  gap: 12px;
+  margin-top: 16px;
 }
 
-.fcl-extra-modal-player-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 11px;
-  border: 1px solid rgba(24,119,242,.23);
-  background: var(--extra-blue-soft);
-  color: var(--extra-blue);
-  font-size: 19px;
-  font-weight: 950;
-}
-
-.fcl-extra-modal-player > div:last-child {
+.fcl-extra-modal-player > div {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
 }
 
-.fcl-extra-modal-player > div:last-child span {
+.fcl-extra-modal-player span {
   color: var(--extra-muted);
   font-size: 9px;
   font-weight: 900;
   letter-spacing: .1em;
 }
 
-.fcl-extra-modal-player > div:last-child strong {
+.fcl-extra-modal-player strong {
   color: var(--extra-heading);
   font-size: 14px;
   font-weight: 900;
 }
 
 .fcl-extra-modal-match {
-  margin-top: 27px;
-  padding: 18px 20px;
+  margin-top: 16px;
+  padding: 12px 16px;
   border-left: 3px solid var(--extra-blue);
+  border-radius: 0 10px 10px 0;
   background: var(--extra-secondary);
 }
 
@@ -2669,7 +3041,7 @@ const EXTRAORDINARY_STYLES = `
 
 .fcl-extra-modal-match strong {
   display: block;
-  margin-top: 9px;
+  margin-top: 6px;
   color: var(--extra-heading);
   font-size: 13px;
   font-weight: 850;
@@ -2678,9 +3050,9 @@ const EXTRAORDINARY_STYLES = `
 }
 
 .fcl-extra-modal-story {
-  margin-top: 30px;
+  margin-top: 16px;
   border: 1px solid var(--extra-border);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--extra-secondary);
   overflow: hidden;
 }
@@ -2689,8 +3061,8 @@ const EXTRAORDINARY_STYLES = `
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 15px;
-  padding: 17px 21px;
+  gap: 12px;
+  padding: 12px 18px;
   border-bottom: 1px solid var(--extra-border);
 }
 
@@ -2702,10 +3074,10 @@ const EXTRAORDINARY_STYLES = `
 }
 
 .fcl-extra-story-content {
-  padding: 24px;
+  padding: 18px 20px;
   color: var(--extra-text);
   font-size: 13px;
-  line-height: 2.1;
+  line-height: 2.05;
   overflow-wrap: anywhere;
 }
 
@@ -2715,18 +3087,18 @@ const EXTRAORDINARY_STYLES = `
 }
 
 .fcl-extra-paragraph + .fcl-extra-paragraph {
-  margin-top: 12px;
+  margin-top: 10px;
 }
 
 .fcl-extra-paragraph-gap {
-  height: 14px;
+  height: 10px;
 }
 
 .fcl-extra-dialogue {
-  padding: 10px 13px;
+  padding: 8px 12px;
   border-left: 2px solid rgba(24,119,242,.4);
+  border-radius: 0 8px 8px 0;
   background: var(--extra-blue-soft);
-  border-radius: 0 6px 6px 0;
 }
 
 .fcl-extra-speaker {
@@ -2735,10 +3107,10 @@ const EXTRAORDINARY_STYLES = `
 }
 
 .fcl-extra-highlight {
-  color: #d97706;
   padding: 1px 4px;
   border-radius: 3px;
   background: rgba(245,158,11,.09);
+  color: #d97706;
   font-weight: 850;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
@@ -2749,45 +3121,73 @@ const EXTRAORDINARY_STYLES = `
 }
 
 .fcl-extra-highlight.strong {
+  background: rgba(245,158,11,.15);
   font-weight: 950;
-  background: rgba(245,158,11,.14);
 }
 
 .fcl-extra-modal-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 18px;
-  padding: 19px 25px;
+  gap: 12px;
+  padding: 12px 16px 12px 20px;
   border-top: 1px solid var(--extra-border);
   background: var(--extra-secondary);
 }
 
-.fcl-extra-modal-footer > span:first-child {
-  color: var(--extra-subtle);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: .09em;
+.fcl-extra-modal-nav {
+  display: flex;
+  gap: 8px;
+}
+
+.fcl-extra-modal-nav button {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--extra-border);
+  border-radius: 12px;
+  background: var(--extra-card);
+  color: var(--extra-heading);
+  transition: all .2s ease;
+}
+
+.fcl-extra-modal-nav button:hover:not(:disabled) {
+  border-color: var(--extra-blue);
+  color: var(--extra-blue);
+}
+
+.fcl-extra-modal-nav button:active:not(:disabled) {
+  transform: scale(.92);
+}
+
+.fcl-extra-modal-nav button:disabled {
+  opacity: .35;
 }
 
 .fcl-extra-facebook-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 12px 17px;
-  border-radius: 9px;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1877F2, #2f8bff);
   color: white;
-  background: var(--extra-blue);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   text-decoration: none;
+  box-shadow: 0 8px 20px rgba(24,119,242,.25);
   transition: all .2s ease;
 }
 
 .fcl-extra-facebook-button:hover {
-  background: #0866dc;
   transform: translateY(-2px);
+}
+
+.fcl-extra-facebook-button:active {
+  transform: scale(.97);
 }
 
 .fcl-extra-no-link {
@@ -2795,95 +3195,17 @@ const EXTRAORDINARY_STYLES = `
   font-size: 11px;
 }
 
-/* =========================================================
-   LOAD MORE
-   ========================================================= */
-
-.fcl-extra-load-more {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 54px;
-}
-
-.fcl-extra-load-more p {
-  color: var(--extra-muted);
-  font-size: 12px;
-}
-
-.fcl-extra-load-more p strong {
-  color: var(--extra-heading);
-}
-
-.fcl-extra-progress {
-  width: min(100%,260px);
-  height: 4px;
-  margin: 14px 0 25px;
-  border-radius: 10px;
-  background: var(--extra-border);
-  overflow: hidden;
-}
-
-.fcl-extra-progress span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    #1877F2,
-    #22d3ee
-  );
-  transition: width .25s ease;
-}
-
-.fcl-extra-load-button {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  min-height: 45px;
-  padding: 12px 23px;
-  border: 1px solid var(--extra-blue);
-  border-radius: 9px;
-  background: var(--extra-blue);
-  color: white;
-  font-size: 12px;
-  font-weight: 900;
-  transition: all .2s ease;
-}
-
-.fcl-extra-load-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 9px 22px rgba(24,119,242,.2);
-}
-
-.fcl-extra-show-all {
-  margin-top: 14px;
-  padding: 10px;
-  border: 0;
-  background: transparent;
-  color: var(--extra-muted);
-  font-size: 11px;
-  font-weight: 850;
-}
-
-.fcl-extra-show-all:hover {
-  color: var(--extra-blue);
-}
-
-/* =========================================================
-   ERROR / EMPTY / LOADING
-   ========================================================= */
+/* ---------- ERROR / EMPTY / SKELETON ---------- */
 
 .fcl-extra-error {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
-  margin-top: 25px;
-  padding: 21px 23px;
-  border: 1px solid rgba(239,68,68,.23);
-  border-radius: 12px;
+  gap: 16px;
+  margin-top: 14px;
+  padding: 14px 18px;
+  border: 1px solid rgba(239,68,68,.25);
+  border-radius: 14px;
   background: rgba(239,68,68,.06);
 }
 
@@ -2894,17 +3216,16 @@ const EXTRAORDINARY_STYLES = `
 }
 
 .fcl-extra-error p {
-  margin: 7px 0 0;
+  margin: 4px 0 0;
   color: var(--extra-text);
   font-size: 12px;
-  line-height: 1.8;
 }
 
 .fcl-extra-error button {
   flex-shrink: 0;
-  padding: 10px 14px;
-  border: 1px solid rgba(239,68,68,.25);
-  border-radius: 8px;
+  padding: 9px 14px;
+  border: 1px solid rgba(239,68,68,.28);
+  border-radius: 10px;
   background: var(--extra-card);
   color: #ef4444;
   font-size: 11px;
@@ -2916,544 +3237,538 @@ const EXTRAORDINARY_STYLES = `
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 320px;
-  padding: 45px 25px;
+  padding: 36px 20px;
   border: 1px dashed var(--extra-border);
-  border-radius: 16px;
+  border-radius: 18px;
   background: var(--extra-secondary);
   text-align: center;
+  animation: fclExtraRise .4s ease both;
 }
 
 .fcl-extra-empty-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 78px;
-  height: 78px;
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
   border: 1px solid rgba(24,119,242,.25);
   background: var(--extra-blue-soft);
   color: var(--extra-blue);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 950;
   letter-spacing: -.09em;
 }
 
 .fcl-extra-empty h3 {
-  margin: 23px 0 0;
+  margin: 16px 0 0;
   color: var(--extra-heading);
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 950;
 }
 
 .fcl-extra-empty p {
-  max-width: 440px;
-  margin: 12px 0 22px;
+  max-width: 420px;
+  margin: 8px 0 18px;
   color: var(--extra-muted);
-  font-size: 13px;
-  line-height: 1.9;
+  font-size: 12.5px;
+  line-height: 1.8;
 }
 
 .fcl-extra-skeleton-card {
-  min-height: 340px;
-  padding: 26px;
+  min-height: 190px;
+  padding: 18px;
   border: 1px solid var(--extra-border);
-  border-radius: 15px;
+  border-radius: 18px;
   background: var(--extra-card);
 }
 
 .fcl-extra-skeleton {
-  border-radius: 7px;
-  background: linear-gradient(
-    90deg,
-    var(--extra-secondary) 20%,
-    var(--extra-raised) 50%,
-    var(--extra-secondary) 80%
-  );
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--extra-secondary) 20%, var(--extra-raised) 50%, var(--extra-secondary) 80%);
   background-size: 200% 100%;
   animation: fclExtraSkeleton 1.5s ease infinite;
 }
 
 .fcl-extra-skeleton.badge {
   width: 90px;
-  height: 28px;
+  height: 24px;
 }
 
 .fcl-extra-skeleton.name {
   width: 60%;
-  height: 28px;
-  margin-top: 60px;
-}
-
-.fcl-extra-skeleton.title {
-  width: 85%;
-  height: 24px;
-  margin-top: 37px;
+  height: 26px;
+  margin-top: 22px;
 }
 
 .fcl-extra-skeleton.line {
   width: 95%;
-  height: 13px;
-  margin-top: 18px;
+  height: 12px;
+  margin-top: 16px;
 }
 
 .fcl-extra-skeleton.line.short {
   width: 65%;
 }
 
-/* =========================================================
-   BOTTOM CTA
-   ========================================================= */
-
-.fcl-extra-bottom {
-  padding-bottom: 90px;
-  background: var(--extra-bg);
-}
-
-.fcl-extra-bottom-card {
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 40px;
-  overflow: hidden;
-  padding: 55px 60px;
-  border: 1px solid var(--extra-border);
-  border-radius: 19px;
-  background: var(--extra-secondary);
-}
-
-.fcl-extra-bottom-card::before {
-  content: "";
-  position: absolute;
-  top: -170px;
-  right: -140px;
-  width: 450px;
-  height: 450px;
-  border-radius: 50%;
-  background: rgba(24,119,242,.1);
-  filter: blur(90px);
-}
-
-.fcl-extra-bottom-content {
-  position: relative;
-  z-index: 1;
-  max-width: 610px;
-}
-
-.fcl-extra-bottom-content h2 {
-  margin: 16px 0;
-  color: var(--extra-heading);
-  font-size: clamp(28px,3.5vw,43px);
-  font-weight: 950;
-  letter-spacing: -.04em;
-  line-height: 1.45;
-}
-
-.fcl-extra-bottom-content h2 span {
-  color: var(--extra-blue);
-}
-
-.fcl-extra-bottom-content p {
-  margin: 0;
-  color: var(--extra-muted);
-  font-size: 13px;
-  line-height: 2.1;
-}
-
-.fcl-extra-bottom-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 28px;
-}
-
-.fcl-extra-bottom-emblem {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 190px;
-  height: 190px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 1px solid rgba(24,119,242,.25);
-  background: var(--extra-blue-soft);
-}
-
-.fcl-extra-bottom-emblem span {
-  color: var(--extra-blue);
-  font-size: 48px;
-  font-weight: 950;
-  letter-spacing: -.1em;
-}
-
-.fcl-extra-bottom-emblem strong {
-  margin-top: 6px;
-  color: var(--extra-heading);
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .15em;
-}
-
-.fcl-extra-bottom-emblem small {
-  margin-top: 9px;
-  color: var(--extra-muted);
-  font-size: 9px;
-  font-weight: 800;
-}
-
-/* =========================================================
-   FOOTER
-   ========================================================= */
+/* ---------- FOOTER ---------- */
 
 .fcl-extra-footer {
-  background: var(--extra-secondary);
   border-top: 1px solid var(--extra-border);
+  background: var(--extra-secondary);
 }
 
-.fcl-extra-footer-top {
+.fcl-extra-footer-inner {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 25px;
-  padding: 35px 0;
-}
-
-.fcl-extra-footer-top strong {
-  color: var(--extra-heading);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: .09em;
-}
-
-.fcl-extra-footer-top p {
-  margin: 8px 0 0;
+  gap: 16px;
+  padding: 16px 0;
   color: var(--extra-muted);
-  font-size: 12px;
+  font-size: 11px;
 }
 
-.fcl-extra-footer-top a {
+.fcl-extra-footer-inner strong {
+  color: var(--extra-heading);
+}
+
+.fcl-extra-footer-inner nav {
+  display: flex;
+  gap: 18px;
+}
+
+.fcl-extra-footer-inner a {
   color: var(--extra-blue);
-  font-size: 12px;
   font-weight: 900;
   text-decoration: none;
 }
 
-.fcl-extra-footer-bottom {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 20px 0;
-  border-top: 1px solid var(--extra-border);
-  color: var(--extra-subtle);
-  font-size: 11px;
+.fcl-extra-footer-inner a:hover {
+  text-decoration: underline;
 }
 
-/* =========================================================
-   ANIMATION
-   ========================================================= */
+/* ---------- BACK TO TOP ---------- */
+
+.fcl-extra-top {
+  position: fixed;
+  right: 16px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--extra-blue);
+  color: white;
+  box-shadow: 0 12px 28px rgba(24,119,242,.4);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(14px) scale(.9);
+  transition: all .3s ease;
+}
+
+.fcl-extra-top.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.fcl-extra-top:active {
+  transform: scale(.92);
+}
+
+/* ---------- KEYFRAMES ---------- */
 
 @keyframes fclExtraFade {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes fclExtraModalEnter {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(.98);
-  }
+  from { opacity: 0; transform: translateY(18px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+@keyframes fclExtraSheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes fclExtraRise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fclExtraCardIn {
+  from { opacity: 0; transform: translateY(18px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fclExtraSwap {
+  from { opacity: 0; transform: translateX(14px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fclExtraMenu {
+  from { opacity: 0; transform: translateY(-6px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fclExtraPop {
+  from { opacity: 0; transform: scale(.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fclExtraShimmer {
+  to { background-position: 220% 0; }
+}
+
+@keyframes fclExtraFloat {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-16px) rotate(calc(var(--r, 0deg) + 8deg)); }
+}
+
+@keyframes fclExtraPulse {
+  0%, 100% { box-shadow: 0 0 0 4px var(--extra-blue-soft); }
+  50% { box-shadow: 0 0 0 8px rgba(24,119,242,0); }
+}
+
+@keyframes fclExtraLive {
+  0% { box-shadow: 0 0 0 0 rgba(34,197,94,.5); }
+  100% { box-shadow: 0 0 0 9px rgba(34,197,94,0); }
+}
+
+@keyframes fclExtraDot {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 @keyframes fclExtraSkeleton {
-  to {
-    background-position-x: -200%;
-  }
+  to { background-position-x: -200%; }
 }
 
-/* =========================================================
-   RESPONSIVE
-   ========================================================= */
+/* ---------- RESPONSIVE ---------- */
 
-@media (max-width: 1050px) {
-
-  .fcl-extra-hero-inner {
-    gap: 35px;
-  }
-
-  .fcl-extra-visual-orbit {
-    width: 270px;
-    height: 270px;
-  }
-
-  .fcl-extra-visual-inner {
-    width: 180px;
-    height: 180px;
-  }
-
-  .fcl-extra-visual-inner span {
-    font-size: 55px;
-  }
-}
-
-@media (max-width: 850px) {
-
-  .fcl-extra-hero-inner {
-    grid-template-columns: 1fr;
-    padding: 75px 0;
-  }
-
-  .fcl-extra-hero-visual {
+@media (hover: none) {
+  .fcl-extra-card::after,
+  .fcl-extra-card::before {
     display: none;
   }
 
-  .fcl-extra-stats {
-    grid-template-columns: repeat(2,minmax(0,1fr));
+  .fcl-extra-card:hover {
+    transform: none;
+    box-shadow: var(--extra-shadow);
+    border-color: var(--extra-border);
   }
 
-  .fcl-extra-stat {
-    padding: 26px 20px;
-  }
-
-  .fcl-extra-stat + .fcl-extra-stat {
-    padding-left: 20px;
-  }
-
-  .fcl-extra-stat:nth-child(3) {
-    border-left: 0;
-    border-top: 1px solid var(--extra-border);
-  }
-
-  .fcl-extra-stat:nth-child(4) {
-    border-top: 1px solid var(--extra-border);
-  }
-
-  .fcl-extra-filter-grid {
-    grid-template-columns: repeat(2,minmax(0,1fr));
-  }
-
-  .fcl-extra-search {
-    grid-column: 1 / -1;
-  }
-
-  .fcl-extra-collection {
-    padding: 65px 0 80px;
-  }
-
-  .fcl-extra-bottom-card {
-    padding: 45px;
-  }
-
-  .fcl-extra-bottom-emblem {
-    width: 145px;
-    height: 145px;
-  }
-
-  .fcl-extra-bottom-emblem span {
-    font-size: 37px;
+  .fcl-extra-card:active {
+    transform: scale(.975);
   }
 }
 
-@media (max-width: 640px) {
-
-  .fcl-extra-container {
-    width: min(100% - 28px,1200px);
+@media (max-width: 1050px) {
+  .fcl-extra-hero-inner {
+    grid-template-columns: minmax(0, 1fr) 330px;
+    gap: 28px;
   }
+
+  .fcl-extra-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fcl-extra-grid.list .fcl-extra-badges {
+    width: 130px;
+  }
+
+  .fcl-extra-grid.list .fcl-extra-card-person {
+    width: 190px;
+  }
+
+  .fcl-extra-sort-btn .label {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .fcl-extra-container {
+    width: min(100% - 24px, 1180px);
+  }
+
+  /* hero (app header) */
 
   .fcl-extra-hero-inner {
-    padding: 60px 0 66px;
-  }
-
-  .fcl-extra-hero-label {
-    font-size: 9px;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 26px 0 14px;
   }
 
   .fcl-extra-hero-content h1 {
-    font-size: clamp(34px,8.5vw,46px);
-    line-height: 1.18;
+    margin-top: 10px;
+    font-size: clamp(28px, 8.6vw, 38px);
   }
 
   .fcl-extra-hero-content > p {
+    margin-top: 10px;
     font-size: 12px;
-    line-height: 2;
-    margin-top: 22px;
+    line-height: 1.8;
   }
 
   .fcl-extra-hero-actions {
-    margin-top: 27px;
-    gap: 10px;
+    margin-top: 16px;
   }
 
-  .fcl-extra-primary-button,
-  .fcl-extra-outline-button {
-    min-height: 43px;
-    padding: 11px 15px;
-    font-size: 11px;
+  .fcl-extra-hero-actions .fcl-extra-primary-button,
+  .fcl-extra-hero-actions .fcl-extra-outline-button {
+    flex: 1;
+    min-height: 42px;
+    padding: 9px 12px;
   }
 
-  .fcl-extra-hero-est {
-    margin-top: 38px;
-    font-size: 9px;
+  .fcl-extra-sq.a {
+    width: 60px;
+    height: 60px;
+    top: 8%;
+    right: 5%;
   }
 
-  .fcl-extra-stat {
-    padding: 23px 12px 23px 0;
+  .fcl-extra-sq.c {
+    display: none;
   }
 
-  .fcl-extra-stat + .fcl-extra-stat {
-    padding-left: 15px;
+  /* compact spotlight */
+
+  .fcl-extra-spot {
+    padding: 12px;
+    border-radius: 18px;
   }
 
-  .fcl-extra-stat > span {
-    font-size: 8px;
-    letter-spacing: .07em;
+  .fcl-extra-spot-body {
+    margin-top: 10px;
+    padding: 10px;
   }
 
-  .fcl-extra-stat strong {
-    font-size: 28px;
+  .fcl-extra-spot-dots {
+    margin-top: 10px;
   }
 
-  .fcl-extra-stat p {
-    font-size: 11px;
+  /* stats as compact tiles */
+
+  .fcl-extra-hero-stats {
+    margin-bottom: 16px;
+    border-radius: 14px;
   }
+
+  .fcl-extra-hero-stat {
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 11px 4px;
+    text-align: center;
+  }
+
+  .fcl-extra-hero-stat strong {
+    font-size: 19px;
+  }
+
+  .fcl-extra-hero-stat span {
+    font-size: 7.5px;
+    letter-spacing: .06em;
+  }
+
+  /* collection */
 
   .fcl-extra-collection {
-    padding: 50px 0 65px;
+    padding: 14px 0 28px;
   }
 
-  .fcl-extra-section-header {
-    display: block;
-    margin-bottom: 24px;
+  .fcl-extra-toolbar {
+    top: calc(var(--extra-sticky-top) + 6px);
+    padding: 8px;
+    border-radius: 16px;
   }
 
-  .fcl-extra-section-header h2 {
-    font-size: 27px;
-  }
-
-  .fcl-extra-section-header p {
+  .fcl-extra-search input {
+    height: 42px;
+    padding-right: 40px;
     font-size: 12px;
   }
 
-  .fcl-extra-header-right {
-    margin-top: 15px;
+  .fcl-extra-search kbd {
+    display: none;
   }
 
-  .fcl-extra-filter-panel {
-    padding: 17px;
-    border-radius: 13px;
+  .fcl-extra-sort-btn {
+    width: 42px;
+    height: 42px;
+    justify-content: center;
+    padding: 0;
   }
 
-  .fcl-extra-filter-heading strong {
-    font-size: 12px;
+  .fcl-extra-sort-btn .label,
+  .fcl-extra-sort-btn .chev {
+    display: none;
   }
 
-  .fcl-extra-filter-grid {
-    gap: 13px;
+  .fcl-extra-sort-menu {
+    min-width: 200px;
   }
 
-  .fcl-extra-search input,
-  .fcl-extra-select-field select {
-    font-size: 11px;
+  .fcl-extra-view-toggle button {
+    width: 34px;
+    height: 34px;
   }
 
-  .fcl-extra-select-field label {
-    font-size: 9px;
+  .fcl-extra-chips-row {
+    margin-top: 8px;
+  }
+
+  .fcl-extra-count {
+    display: none;
+  }
+
+  .fcl-extra-chips {
+    padding-right: 10px;
   }
 
   .fcl-extra-results {
-    margin-top: 45px;
-  }
-
-  .fcl-extra-results-heading h3 {
-    font-size: 19px;
+    margin-top: 12px;
   }
 
   .fcl-extra-grid {
     grid-template-columns: 1fr;
-    gap: 17px;
+    gap: 11px;
   }
 
   .fcl-extra-card {
-    min-height: 315px;
-    padding: 22px;
+    gap: 12px;
+    padding: 15px;
+    border-radius: 17px;
   }
 
-  .fcl-extra-card-content {
-    padding-top: 28px;
-  }
-
-  .fcl-extra-card-content h3 {
-    font-size: 22px;
-  }
-
-  .fcl-extra-card-content h4 {
+  .fcl-extra-card-person h3 {
     font-size: 15px;
   }
 
-  .fcl-extra-modal-backdrop {
-    padding: 10px;
-    align-items: center;
+  /* mobile list view */
+
+  .fcl-extra-grid.list {
+    gap: 8px;
   }
 
-  .fcl-extra-modal {
-    max-height: 94dvh;
-    border-radius: 13px;
+  .fcl-extra-grid.list .fcl-extra-card {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 12px 14px;
   }
 
-  .fcl-extra-modal-top {
-    padding: 14px 16px;
+  .fcl-extra-grid.list .fcl-extra-badges {
+    order: 1;
+    width: auto;
   }
 
-  .fcl-extra-modal-reference span {
-    font-size: 8px;
-  }
-
-  .fcl-extra-modal-body {
-    padding: 21px 18px;
-  }
-
-  .fcl-extra-modal-heading h2 {
-    font-size: 24px;
-  }
-
-  .fcl-extra-modal-story {
-    margin-top: 25px;
-  }
-
-  .fcl-extra-story-heading {
-    padding: 15px;
-  }
-
-  .fcl-extra-story-content {
-    padding: 18px;
-    font-size: 12px;
-    line-height: 2.05;
-  }
-
-  .fcl-extra-modal-footer {
-    gap: 12px;
-    padding: 15px 16px;
-  }
-
-  .fcl-extra-modal-footer > span:first-child {
+  .fcl-extra-grid.list .fcl-extra-badges .fcl-extra-year {
     display: none;
   }
 
-  .fcl-extra-facebook-button {
+  .fcl-extra-grid.list .fcl-extra-card-person {
+    order: 2;
+    flex: 1;
+    width: auto;
+  }
+
+  .fcl-extra-grid.list .fcl-extra-card-person span {
+    display: none;
+  }
+
+  .fcl-extra-grid.list .fcl-extra-card-arrow {
+    order: 3;
+    width: 28px;
+    height: 28px;
+  }
+
+  .fcl-extra-grid.list .fcl-extra-card-body {
+    order: 4;
+    flex: 0 0 100%;
+  }
+
+  .fcl-extra-grid.list .fcl-extra-match {
+    display: none;
+  }
+
+  /* pager */
+
+  .fcl-extra-pager {
+    justify-content: center;
+    margin-top: 14px;
+  }
+
+  .fcl-extra-pager-meta,
+  .fcl-extra-pager-nums {
+    display: none;
+  }
+
+  .fcl-extra-pager-mobile {
+    display: block;
+  }
+
+  .fcl-extra-pager-controls {
+    gap: 10px;
+    padding: 6px;
+    border: 1px solid var(--extra-border);
+    border-radius: 16px;
+    background: var(--extra-glass);
+  }
+
+  .fcl-extra-pager-controls button {
+    min-width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  /* bottom sheet modal */
+
+  .fcl-extra-modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .fcl-extra-modal {
     width: 100%;
+    max-height: 92dvh;
+    border-radius: 24px 24px 0 0;
+    border-bottom: 0;
+    animation: fclExtraSheetUp .38s cubic-bezier(.2,.9,.25,1) both;
+  }
+
+  .fcl-extra-sheet-handle {
+    display: block;
+  }
+
+  .fcl-extra-modal-top {
+    padding: 10px 14px 10px 16px;
+  }
+
+  .fcl-extra-modal-body {
+    padding: 18px 16px;
+  }
+
+  .fcl-extra-modal-content h2 {
+    font-size: 22px;
+  }
+
+  .fcl-extra-story-content {
+    padding: 15px 16px;
+    font-size: 12.5px;
+    line-height: 2;
+  }
+
+  .fcl-extra-modal-footer {
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .fcl-extra-facebook-button {
+    flex: 1;
   }
 
   .fcl-extra-error {
@@ -3465,52 +3780,32 @@ const EXTRAORDINARY_STYLES = `
     width: fit-content;
   }
 
-  .fcl-extra-bottom {
-    padding-bottom: 55px;
-  }
-
-  .fcl-extra-bottom-card {
-    padding: 30px 24px;
-  }
-
-  .fcl-extra-bottom-content h2 {
-    font-size: 28px;
-  }
-
-  .fcl-extra-bottom-content p {
-    font-size: 12px;
-  }
-
-  .fcl-extra-bottom-emblem {
-    display: none;
-  }
-
-  .fcl-extra-footer-top {
-    align-items: flex-start;
-  }
-
-  .fcl-extra-footer-top strong {
-    font-size: 10px;
-  }
-
-  .fcl-extra-footer-top a {
-    flex-shrink: 0;
-    font-size: 11px;
-  }
-
-  .fcl-extra-footer-bottom {
+  .fcl-extra-footer-inner {
     flex-direction: column;
     gap: 8px;
-    font-size: 10px;
+    padding: 14px 0 18px;
+    text-align: center;
+  }
+
+  .fcl-extra-top {
+    right: 12px;
+    bottom: calc(14px + env(safe-area-inset-bottom));
   }
 }
 
-/* =========================================================
-   REDUCED MOTION
-   ========================================================= */
+@media (max-width: 380px) {
+  .fcl-extra-hero-stat span {
+    font-size: 7px;
+  }
+
+  .fcl-extra-hero-stat strong {
+    font-size: 17px;
+  }
+}
+
+/* ---------- REDUCED MOTION ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-
   .fcl-extra-page *,
   .fcl-extra-page *::before,
   .fcl-extra-page *::after {

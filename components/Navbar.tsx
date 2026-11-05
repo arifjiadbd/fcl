@@ -82,6 +82,7 @@ export default function Navbar() {
       name: "Matches & Thrills",
       icon: "⚡",
       items: [
+        { label: "FCL News Portal (Paper)", href: "/news" },
         { label: "Match Directory & History", href: "/matches" },
         { label: "High Voltage Matches", href: "/thrillers" },
         { label: "Extraordinary Performance", href: "/extraordinary" },
