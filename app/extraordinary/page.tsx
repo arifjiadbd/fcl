@@ -75,6 +75,15 @@ function toNumber(value: unknown): number {
   return Number.isFinite(number) ? number : 0;
 }
 
+function getPhotoUrl(photoVal: string): string {
+  const clean = normalize(photoVal);
+  if (!clean) return "";
+  if (clean.startsWith("http://") || clean.startsWith("https://") || clean.startsWith("/")) {
+    return clean;
+  }
+  return `/players/${encodeURIComponent(clean)}`;
+}
+
 function isValidExternalUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -454,8 +463,9 @@ function Avatar({
   size?: number;
 }) {
   const [failed, setFailed] = useState(false);
+  const resolvedPhoto = getPhotoUrl(photo);
 
-  const valid = Boolean(photo) && isValidExternalUrl(photo) && !failed;
+  const valid = Boolean(resolvedPhoto) && !failed;
 
   return (
     <span
@@ -465,7 +475,7 @@ function Avatar({
       {valid ? (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
-          src={photo}
+          src={resolvedPhoto}
           alt=""
           loading="lazy"
           referrerPolicy="no-referrer"
@@ -790,6 +800,7 @@ function PerformanceModal({
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
   const [progress, setProgress] = useState(0);
+  const [photoFailed, setPhotoFailed] = useState(false);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -847,6 +858,7 @@ function PerformanceModal({
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: 0 });
     setProgress(0);
+    setPhotoFailed(false);
   }, [performance.key]);
 
   const handleScroll = () => {
@@ -860,6 +872,8 @@ function PerformanceModal({
   };
 
   const hasPostLink = isValidExternalUrl(item.facebookLink);
+  const resolvedPhoto = getPhotoUrl(item.photo);
+  const hasPhoto = Boolean(resolvedPhoto) && !photoFailed;
 
   return (
     <div
@@ -911,24 +925,45 @@ function PerformanceModal({
           onScroll={handleScroll}
         >
           <div className="fcl-extra-modal-content" key={performance.key}>
-            <Eyebrow>EXTRAORDINARY PERFORMANCE</Eyebrow>
+            {/* ডানে ওপরে বড় ছবির জায়গা এবং বামে টেক্সট */}
+            <div className="fcl-extra-modal-header-grid">
+              <div className="fcl-extra-modal-header-text">
+                <Eyebrow>EXTRAORDINARY PERFORMANCE</Eyebrow>
 
-            <h2 id="fcl-extra-modal-title">
-              {item.performanceTitle || "Extraordinary Performance"}
-            </h2>
+                <h2 id="fcl-extra-modal-title">
+                  {item.performanceTitle || "Extraordinary Performance"}
+                </h2>
 
-            <div className="fcl-extra-modal-player">
-              <Avatar
-                key={`${item.photo}-${item.playerName}`}
-                name={item.playerName}
-                photo={item.photo}
-                size={44}
-              />
+                <div className="fcl-extra-modal-player">
+                  <Avatar
+                    key={`${item.photo}-${item.playerName}`}
+                    name={item.playerName}
+                    photo={item.photo}
+                    size={44}
+                  />
 
-              <div>
-                <span>PERFORMED BY</span>
+                  <div>
+                    <span>PERFORMED BY</span>
 
-                <strong>{item.playerName || "Unknown Player"}</strong>
+                    <strong>{item.playerName || "Unknown Player"}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* ডানে ওপরের বড় ছবি প্রিভিউ বক্স (আরেকটু বড়, নিচে ও বামে সামঞ্জস্যপূর্ণ) */}
+              <div className="fcl-extra-modal-big-photo">
+                {hasPhoto ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={resolvedPhoto}
+                    alt={item.playerName || "Player"}
+                    onError={() => setPhotoFailed(true)}
+                  />
+                ) : (
+                  <div className="fcl-extra-modal-photo-placeholder">
+                    <span>{item.playerName?.charAt(0)?.toUpperCase() || "FCL"}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2251,6 +2286,45 @@ const EXTRAORDINARY_STYLES = `
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* ---------- MODAL HEADER GRID (BIGGER PHOTO, SHIFTED LEFT/DOWN) ---------- */
+
+.fcl-extra-modal-header-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  align-items: center;
+  gap: 20px;
+}
+
+.fcl-extra-modal-big-photo {
+  width: 180px;
+  height: 180px;
+  margin-top: 8px;
+  margin-left: -10px;
+  border-radius: 20px;
+  border: 2.5px solid rgba(24,119,242,0.4);
+  overflow: hidden;
+  background: var(--extra-secondary);
+  box-shadow: 0 14px 35px rgba(0,0,0,0.35);
+  flex-shrink: 0;
+}
+
+.fcl-extra-modal-big-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fcl-extra-modal-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: var(--extra-blue-soft);
+  color: var(--extra-blue);
+  font-size: 28px;
+  font-weight: 950;
 }
 
 /* ---------- COLLECTION ---------- */
