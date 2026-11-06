@@ -5,10 +5,6 @@ import Link from "next/link";
 import { toPng } from "html-to-image";
 import PlayerCardModal from "@/components/PlayerCardModal";
 
-/* ------------------------------------------------------------------ */
-/*  Theme detection — নেভবার বাটনের সাথে সাথে বদলায়                   */
-/*  (class "dark"/"light", data-theme, localStorage("theme"), OS)      */
-/* ------------------------------------------------------------------ */
 function useIsDark() {
   const [isDark, setIsDark] = useState(true);
 
@@ -97,6 +93,7 @@ interface BdayEntry {
   day: number;
   text: string;
   daysLeft: number;
+  daysAgo: number;
 }
 
 const MONTH_NAMES = [
@@ -111,8 +108,9 @@ const MONTH_BN = [
 
 const FALLBACK_PHOTO = "/FCL Cricket Avatar Placeholder.jpg";
 
-// ৫টি বাংলা (আপনি সম্বোধন, শুদ্ধ বাংলা) এবং ৫টি ইংরেজি উইশ মেসেজ
-// কোটেশন চিহ্ন (“ ”) কার্ডে আলাদা ডেকোরেশন হিসেবে বসে, তাই এখানে দেওয়া হয়নি
+const FB_PROFILE_URL = "https://www.facebook.com/arifrockss";
+const MESSENGER_URL = "https://m.me/arifrockss";
+
 const WISH_MESSAGES = [
   (name: string) => `প্রিয় ${name}, আজ আপনার বিশেষ দিন। মাঠের প্রতিটি চার-ছক্কার মতোই আপনার জীবনও আনন্দে ভরে উঠুক। সুস্বাস্থ্য, সাফল্য ও অফুরন্ত হাসিতে কাটুক আগামীর প্রতিটি দিন। শুভ জন্মদিন!`,
   (name: string) => `শুভ জন্মদিন, ${name}! আপনার অসাধারণ খেলা ও দলের প্রতি নিষ্ঠা আমাদের সবসময় অনুপ্রাণিত করে। আজকের দিনে কামনা করি, আপনার প্রতিটি ইনিংস জয়ের বার্তা বয়ে আনুক।`,
@@ -126,8 +124,6 @@ const WISH_MESSAGES = [
   (name: string) => `Happy Birthday to our MVP, ${name}! Thank you for always giving your best performance. May your life's innings be filled with endless boundaries of success!`,
 ];
 
-// salt = পেজ লোডে একবার র‍্যান্ডম নম্বর → বাংলা/ইংরেজি মিশিয়ে র‍্যান্ডম উইশ আসবে
-// (কার্ড আর পাশের টেক্সটে একই salt থাকায় দুই জায়গায় একই উইশ দেখাবে)
 function getPlayerWish(player: Player, salt: number) {
   const seed = (player.id || 0) + player.name.length + salt;
   const index = seed % WISH_MESSAGES.length;
@@ -163,6 +159,19 @@ function getPhoto(p: Player) {
   return raw.startsWith("/") ? raw : `/players/${raw}`;
 }
 
+function hasPhotoField(p: Player) {
+  const raw = p.photo || p.photoUrl;
+  return !!raw && raw !== "—" && String(raw).trim() !== "";
+}
+
+function pKey(p: Player) {
+  return `${p.id ?? ""}|${p.name}`;
+}
+
+function playerHasPhoto(p: Player, broken: Set<string>) {
+  return hasPhotoField(p) && !broken.has(pKey(p));
+}
+
 function daysUntil(month: number, day: number) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -171,16 +180,26 @@ function daysUntil(month: number, day: number) {
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
+function daysSince(month: number, day: number) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let target = new Date(today.getFullYear(), month, day);
+  if (target > today) target = new Date(today.getFullYear() - 1, month, day);
+  return Math.round((today.getTime() - target.getTime()) / 86400000);
+}
+
 function leftLabel(d: number) {
   if (d === 0) return "আজ";
   if (d === 1) return "আগামীকাল";
   return `${d} দিন বাকি`;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   🎨 পোস্টার-স্টাইল উইশ কার্ড (400 × 500 ফিক্সড ডিজাইন)
-   — কার্ডের নিজস্ব ডিজাইন দুই থিমেই একই থাকে
-   ═══════════════════════════════════════════════════════════ */
+function agoLabel(d: number) {
+  if (d === 0) return "আজ";
+  if (d === 1) return "গতকাল";
+  return `${d} দিন আগে`;
+}
+
 function Balloon({ color, dark, w, style }: { color: string; dark: string; w: number; style: React.CSSProperties }) {
   return (
     <svg width={w} height={w * 1.6} viewBox="0 0 50 80" style={{ position: "absolute", ...style }}>
@@ -235,7 +254,6 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
   const nameSize = len > 26 ? 15 : len > 20 ? 17 : len > 14 ? 19 : 22;
   const dynamicWishText = getPlayerWish(player, salt);
 
-  // যেসব অর্জন আছে (০ বা খালি হলে দেখানো হবে না) — নিচের ফাঁকা জায়গা ভরাট করতে
   const chips = [
     { icon: "🏆", label: "Champion", v: player.champion },
     { icon: "⭐", label: "MoM", v: player.mom },
@@ -256,7 +274,6 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
         boxShadow: "0 0 0 4px rgba(255,255,255,.9)",
       }}
     >
-      {/* ব্যাকগ্রাউন্ড ডিজাইন */}
       <svg width="400" height="500" viewBox="0 0 400 500" style={{ position: "absolute", inset: 0 }}>
         <path d="M0 0H84Q36 22 0 84Z" fill="#1d4ed8" />
         <path d="M0 0H44Q18 12 0 40Z" fill="#2563eb" />
@@ -267,7 +284,6 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
         <path d="M400 448Q330 470 262 474" stroke="#22c55e" strokeWidth="5" strokeLinecap="round" fill="none" />
       </svg>
 
-      {/* বেলুন ও গোলাপ ফুল (পাশে — ছবির আশেপাশে) */}
       <Balloon color="#2563eb" dark="#1e3a8a" w={42} style={{ left: -12, top: 112 }} />
       <RoseIcon style={{ left: 10, top: 168 }} />
       <Balloon color="#22c55e" dark="#15803d" w={42} style={{ right: -10, top: 104 }} />
@@ -276,7 +292,6 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
       <GiftBox />
       <CricketBall />
 
-      {/* কর্নার টেক্সট */}
       <div style={{ position: "absolute", left: 52, top: 28, transform: "rotate(-6deg)", fontFamily: "'Pacifico',cursive", fontSize: 9.5, lineHeight: 1.25, color: "#1d4ed8", textAlign: "center" }}>
         More Birthdays<br />More Happiness ♡
       </div>
@@ -284,7 +299,6 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
         Same Team<br />Same Dream<br />FCL
       </div>
 
-      {/* কনটেন্ট */}
       <div style={{ position: "absolute", top: 4, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", padding: "0 16px" }}>
         <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#fff", padding: 1.5, border: "2px solid #1d4ed8", boxShadow: "0 2px 8px rgba(29,78,216,.3)" }}>
           <img src="/fcl-logo.png" alt="FCL" crossOrigin="anonymous" style={{ width: "100%", height: "100%", objectFit: "contain", borderRadius: "50%" }} />
@@ -298,7 +312,6 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
           Champion
         </div>
 
-        {/* 🌟 প্লেয়ার ছবি — আরো বড়, ঠিক মাঝখানে (উপরে-নিচে গ্যাপ কম) */}
         <div style={{ marginTop: 3, padding: 3, borderRadius: "50%", background: "linear-gradient(135deg,#e11d48,#1d4ed8,#22c55e)", boxShadow: "0 6px 16px rgba(29,78,216,0.4)" }}>
           <div style={{ width: 136, height: 136, borderRadius: "50%", overflow: "hidden", border: "3px solid #fff", background: "#e2e8f0" }}>
             <img
@@ -313,7 +326,6 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
           </div>
         </div>
 
-        {/* নাম ও ট্যাগ */}
         <div style={{ marginTop: 3, fontSize: nameSize, fontWeight: 800, color: "#0b2a6f", lineHeight: 1.15, textAlign: "center", width: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {player.name}
         </div>
@@ -326,9 +338,7 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
           </div>
         </div>
 
-        {/* উইশ মেসেজ — উপরে-নিচে স্ট্যান্ডার্ড গ্যাপ (৯px), দুই কোটেশনের মাথায় গোলাপ */}
         <div style={{ margin: "9px 0", width: "100%", display: "flex", alignItems: "stretch", gap: 4 }}>
-          {/* ওপেনিং কোট */}
           <div style={{ width: 26, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", flexShrink: 0 }}>
             <RoseIcon absolute={false} size={20} />
             <span style={{ fontFamily: "Georgia,serif", fontSize: 30, lineHeight: "18px", height: 18, color: "#1d4ed8", fontWeight: 700 }}>“</span>
@@ -339,14 +349,12 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
             <div style={{ fontWeight: 800, fontSize: 9.5, color: "#1d4ed8", marginTop: 3 }}>— FCL Family</div>
           </div>
 
-          {/* ক্লোজিং কোট */}
           <div style={{ width: 26, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", flexShrink: 0 }}>
             <RoseIcon absolute={false} size={20} />
             <span style={{ fontFamily: "Georgia,serif", fontSize: 30, lineHeight: "18px", height: 18, color: "#1d4ed8", fontWeight: 700 }}>”</span>
           </div>
         </div>
 
-        {/* স্ট্যাটস বক্স */}
         <div style={{ display: "flex", gap: 7, width: 240 }}>
           {[
             { l: "Matches", v: player.matches },
@@ -360,7 +368,6 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
           ))}
         </div>
 
-        {/* 🏅 অর্জন চিপস — নিচের ফাঁকা জায়গা ভরাট */}
         {chips.length > 0 && (
           <div style={{ marginTop: 6, display: "flex", gap: 5, justifyContent: "center", flexWrap: "nowrap" }}>
             {chips.map((c) => (
@@ -375,7 +382,6 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
         )}
       </div>
 
-      {/* ফুটার বার */}
       <div
         style={{
           position: "absolute", left: 0, right: 0, bottom: 0, height: 24, background: "#0b2a6f",
@@ -393,7 +399,6 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
   );
 }
 
-/* কার্ডকে স্ক্রিনের সাইজে ফিট করার র‍্যাপার */
 function ScaledCard({
   cardRef,
   onClick,
@@ -431,7 +436,14 @@ function ScaledCard({
   );
 }
 
-/* ───────────── ডেট টাইল ───────────── */
+function MessengerIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2C6.36 2 2 6.13 2 11.7c0 2.91 1.19 5.42 3.13 7.16.16.14.26.35.27.57l.05 1.78c.02.57.6.94 1.12.71l1.98-.87c.17-.07.35-.09.52-.05.91.25 1.88.38 2.93.38 5.64 0 10-4.13 10-9.7S17.64 2 12 2Zm6 7.46-2.94 4.66c-.47.74-1.47.93-2.17.4l-2.34-1.75a.6.6 0 0 0-.72 0l-3.16 2.4c-.42.32-.97-.19-.69-.64l2.94-4.66c.47-.74 1.47-.93 2.17-.4l2.34 1.75c.21.16.5.16.72 0l3.16-2.4c.42-.32.97.19.69.64Z" />
+    </svg>
+  );
+}
+
 function DateTile({ month, day, hot }: { month: number; day: number; hot?: boolean }) {
   return (
     <div
@@ -447,28 +459,57 @@ function DateTile({ month, day, hot }: { month: number; day: number; hot?: boole
   );
 }
 
-/* ───────────── প্লেয়ার রো ───────────── */
-function PlayerRow({ entry, onOpen }: { entry: BdayEntry; onOpen: (p: Player) => void }) {
+function PlayerRow({
+  entry,
+  onOpen,
+  onCard,
+  hasPhoto,
+  onMessenger,
+}: {
+  entry: BdayEntry;
+  onOpen: (p: Player) => void;
+  onCard: (e: BdayEntry) => void;
+  hasPhoto: boolean;
+  onMessenger: (name: string) => void;
+}) {
   const { player: p, month, day, daysLeft } = entry;
   const isToday = daysLeft === 0;
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onOpen(p)}
-      className={`group flex w-full items-center gap-3 rounded-2xl border p-2.5 text-left transition active:scale-[0.99] sm:p-3 ${
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen(p);
+        }
+      }}
+      className={`group flex w-full cursor-pointer items-center gap-3 rounded-2xl border p-2.5 text-left transition active:scale-[0.99] sm:p-3 ${
         isToday ? "border-emerald-400/50 bg-gradient-to-r from-blue-500/15 to-emerald-500/5" : "bd-row"
       }`}
     >
       <DateTile month={month} day={day} hot={isToday} />
-      <div className="bd-avatar h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 sm:h-12 sm:w-12">
-        <img
-          src={getPhoto(p)}
-          alt={p.name}
-          loading="lazy"
-          className="h-full w-full object-cover transition group-hover:scale-110"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = FALLBACK_PHOTO;
-          }}
-        />
+      <div className="relative shrink-0">
+        <div className="bd-avatar h-11 w-11 overflow-hidden rounded-full border-2 sm:h-12 sm:w-12">
+          <img
+            src={getPhoto(p)}
+            alt={p.name}
+            loading="lazy"
+            className="h-full w-full object-cover transition group-hover:scale-110"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = FALLBACK_PHOTO;
+            }}
+          />
+        </div>
+        {!hasPhoto && (
+          <span
+            title="ছবি নেই"
+            className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-black text-white ring-2 ring-white/70"
+          >
+            !
+          </span>
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <p className="bd-name truncate text-sm font-extrabold transition">{p.name}</p>
@@ -476,14 +517,132 @@ function PlayerRow({ entry, onOpen }: { entry: BdayEntry; onOpen: (p: Player) =>
           @{p.nickName || "Player"} • {p.role}
         </p>
       </div>
-      <span
-        className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-          isToday ? "bg-emerald-500 text-white" : daysLeft <= 7 ? "bd-amber-pill" : "bd-chip"
-        }`}
-      >
-        {leftLabel(daysLeft)}
-      </span>
-    </button>
+      <div className="flex shrink-0 flex-col items-end gap-1.5">
+        <span
+          className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+            isToday ? "bg-emerald-500 text-white" : daysLeft <= 7 ? "bd-amber-pill" : "bd-chip"
+          }`}
+        >
+          {leftLabel(daysLeft)}
+        </span>
+        <div className="flex gap-1">
+          {!hasPhoto && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onMessenger(p.name);
+              }}
+              title="Messenger-এ ছবি পাঠান"
+              className="inline-flex h-6 items-center gap-1 rounded-full bg-[#0084ff] px-2 text-[10px] font-bold text-white transition hover:brightness-110"
+            >
+              <MessengerIcon size={11} /> ছবি দিন
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCard(entry);
+            }}
+            title="বার্থডে কার্ড নামান"
+            className="bd-chip inline-flex h-6 items-center gap-1 rounded-full px-2 text-[10px] font-bold transition hover:brightness-110"
+          >
+            🎁 কার্ড
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CardStudio({
+  entry,
+  salt,
+  hasPhoto,
+  downloading,
+  onClose,
+  onNewWish,
+  onDownload,
+  onProfile,
+  onMessenger,
+}: {
+  entry: BdayEntry;
+  salt: number;
+  hasPhoto: boolean;
+  downloading: boolean;
+  onClose: () => void;
+  onNewWish: () => void;
+  onDownload: (p: Player, ref: RefObject<HTMLDivElement | null>) => void;
+  onProfile: (p: Player) => void;
+  onMessenger: (name: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const { player, month, day, daysLeft, daysAgo } = entry;
+  const dateText = `${String(day).padStart(2, "0")} ${MONTH_NAMES[month]}`;
+  const when = daysLeft === 0 ? "আজ" : daysAgo <= daysLeft ? agoLabel(daysAgo) : leftLabel(daysLeft);
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="bd-panel relative max-h-[94vh] w-full max-w-lg overflow-y-auto rounded-t-[2rem] border p-4 sm:rounded-[2rem] sm:p-6">
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="bd-head text-base font-black sm:text-lg">🎁 বার্থডে কার্ড</h3>
+            <p className="bd-sub mt-0.5 truncate text-xs">
+              {player.name} • {day} {MONTH_BN[month]} • {when}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="বন্ধ করুন"
+            className="bd-btn flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-bold"
+          >
+            ✕
+          </button>
+        </div>
+
+        <ScaledCard cardRef={ref} onClick={() => onProfile(player)}>
+          <WishCard player={player} dateText={dateText} salt={salt} />
+        </ScaledCard>
+        <p className="bd-faint mt-2 text-center text-[10px]">কার্ডে ট্যাপ করলে প্লেয়ার প্রোফাইল খুলবে</p>
+
+        {!hasPhoto && (
+          <div className="bd-glass mt-3 flex items-center gap-3 rounded-2xl border p-3">
+            <span className="text-2xl">📸</span>
+            <p className="bd-text2 min-w-0 flex-1 text-[11px] leading-snug sm:text-xs">
+              এই প্লেয়ারের ছবি নেই। ছবি দিলে কার্ড আরও সুন্দর হবে — সরাসরি Messenger-এ পাঠান।
+            </p>
+            <button
+              onClick={() => onMessenger(player.name)}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#0084ff] px-3 py-2 text-[11px] font-black text-white transition hover:brightness-110"
+            >
+              <MessengerIcon size={13} /> ছবি দিন
+            </button>
+          </div>
+        )}
+
+        <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
+          <button
+            onClick={() => onDownload(player, ref)}
+            disabled={downloading}
+            className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-gradient-to-r from-blue-600 to-emerald-500 px-5 py-3 text-sm font-black text-white shadow-xl shadow-blue-600/30 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+          >
+            {downloading ? "⏳ তৈরি হচ্ছে..." : "📥 ডাউনলোড (PNG)"}
+          </button>
+          <button
+            onClick={onNewWish}
+            className="bd-sky-btn flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black transition active:scale-[0.98]"
+          >
+            🎲 নতুন উইশ
+          </button>
+          <button
+            onClick={() => onProfile(player)}
+            className="bd-white-btn flex items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-black shadow-lg transition active:scale-[0.98]"
+          >
+            👤 প্রোফাইল
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -499,8 +658,12 @@ export default function BirthdayPage() {
   const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [selectedPlayerForModal, setSelectedPlayerForModal] = useState<Player | null>(null);
-  // র‍্যান্ডম উইশের জন্য salt (প্রতিবার পেজ লোডে আলাদা; বাটনে চাপলে নতুন উইশ)
   const [wishSalt, setWishSalt] = useState<number>(() => Math.floor(Math.random() * 1000));
+
+  const [brokenPhotos, setBrokenPhotos] = useState<Set<string>>(new Set());
+  const [cardEntry, setCardEntry] = useState<BdayEntry | null>(null);
+  const [showMissing, setShowMissing] = useState(false);
+  const [toast, setToast] = useState("");
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
@@ -528,6 +691,7 @@ export default function BirthdayPage() {
             day: parsed.day,
             text: parsed.text,
             daysLeft: daysUntil(parsed.month, parsed.day),
+            daysAgo: daysSince(parsed.month, parsed.day),
           });
         });
         setEntries(result);
@@ -538,6 +702,47 @@ export default function BirthdayPage() {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (!players.length) return;
+    let cancelled = false;
+    players.forEach((p) => {
+      if (!hasPhotoField(p)) return;
+      const img = new Image();
+      img.onerror = () => {
+        if (cancelled) return;
+        setBrokenPhotos((prev) => {
+          const n = new Set(prev);
+          n.add(pKey(p));
+          return n;
+        });
+      };
+      img.src = getPhoto(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [players]);
+
+  useEffect(() => {
+    if (!cardEntry) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCardEntry(null);
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [cardEntry]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 4500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const todayStars = useMemo(() => entries.filter((e) => e.daysLeft === 0), [entries]);
   const isGroup = todayStars.length > 1;
@@ -553,11 +758,38 @@ export default function BirthdayPage() {
     [entries]
   );
 
+  const recent = useMemo(
+    () => entries.filter((e) => e.daysAgo >= 1 && e.daysAgo <= 15).sort((a, b) => a.daysAgo - b.daysAgo),
+    [entries]
+  );
+
   const monthCounts = useMemo(() => {
     const c = new Array(12).fill(0);
     entries.forEach((e) => c[e.month]++);
     return c as number[];
   }, [entries]);
+
+  const stats = useMemo(() => {
+    const total = players.length;
+    const missing = players.filter((p) => !playerHasPhoto(p, brokenPhotos));
+    const withPhoto = total - missing.length;
+    const pct = total ? Math.round((withPhoto / total) * 100) : 0;
+    const next7 = entries.filter((e) => e.daysLeft >= 1 && e.daysLeft <= 7).length;
+    const maxC = Math.max(...monthCounts, 0);
+    const busiest = maxC > 0 ? monthCounts.indexOf(maxC) : -1;
+    return {
+      total,
+      withPhoto,
+      missing,
+      pct,
+      bdayCount: entries.length,
+      noBirthday: total - entries.length,
+      thisMonth: monthCounts[new Date().getMonth()] || 0,
+      next7,
+      busiest,
+      maxC,
+    };
+  }, [players, entries, brokenPhotos, monthCounts]);
 
   const listToShow = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -585,11 +817,27 @@ export default function BirthdayPage() {
     setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
   };
 
-  const handleDownloadCard = async (player: Player) => {
-    if (!cardRef.current) return;
+  const openMessenger = (name?: string) => {
+    const text = name
+      ? `আসসালামু আলাইকুম ভাই, আমি ${name}। FCL বার্থডে হাবে আমার ছবি নেই। আমার ছবিটি পাঠালাম, দয়া করে আপডেট করে দিন।`
+      : `আসসালামু আলাইকুম ভাই, আমি FCL-এর একজন প্লেয়ার। আমার ছবি/তথ্য আপডেট করার জন্য মেসেজ দিচ্ছি।`;
+    window.open(MESSENGER_URL, "_blank", "noopener,noreferrer");
+    try {
+      navigator.clipboard?.writeText(text).catch(() => {});
+      setToast("📋 মেসেজ কপি হয়েছে — Messenger-এ পেস্ট করে ছবিসহ পাঠান");
+    } catch {
+      setToast("Messenger খোলা হচ্ছে...");
+    }
+  };
+
+  const handleDownloadCard = async (
+    player: Player,
+    ref: RefObject<HTMLDivElement | null> = cardRef
+  ) => {
+    if (!ref.current) return;
     setDownloading(true);
     try {
-      const dataUrl = await toPng(cardRef.current, {
+      const dataUrl = await toPng(ref.current, {
         cacheBust: true,
         pixelRatio: 3,
         backgroundColor: "transparent",
@@ -604,6 +852,11 @@ export default function BirthdayPage() {
       alert("কার্ড ডাউনলোড করতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।");
     }
     setDownloading(false);
+  };
+
+  const openProfileFromStudio = (p: Player) => {
+    setCardEntry(null);
+    setSelectedPlayerForModal(p);
   };
 
   const DownloadButtons = () =>
@@ -631,13 +884,13 @@ export default function BirthdayPage() {
       </div>
     ) : null;
 
+  const starHasPhoto = star ? playerHasPhoto(star, brokenPhotos) : true;
+
   return (
     <div className={`bd-root ${isDark ? "bd-dark" : "bd-light"} relative min-h-screen overflow-hidden pb-24 selection:bg-blue-500/30`}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@500;600;700;800&family=Hind+Siliguri:wght@500;600;700&display=swap');`}</style>
       <style>{`
-        /* ============ THEME TOKENS ============ */
         .bd-root {
-          /* LIGHT (default) */
           --bg: #f8fafc;
           --surface: #ffffff;
           --surface-2: #f1f5f9;
@@ -711,7 +964,6 @@ export default function BirthdayPage() {
           --btn-text: #0b2a6f;
         }
 
-        /* ============ THEMED UTILITIES ============ */
         .bd-root .bd-head { color: var(--head); }
         .bd-root .bd-text { color: var(--text); }
         .bd-root .bd-text2 { color: var(--text2); }
@@ -770,6 +1022,9 @@ export default function BirthdayPage() {
         .bd-root .bd-month { background: var(--surface); border-color: var(--line); color: var(--text2); }
         .bd-root .bd-side { color: var(--sub); }
         .bd-root .bd-side:hover { background: var(--hover); color: var(--head); }
+
+        .bd-root .bd-track { background: var(--chip-bg); }
+        .bd-root .bd-scroll { scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
       `}</style>
 
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(37,99,235,0.18),transparent_65%)]" />
@@ -778,7 +1033,6 @@ export default function BirthdayPage() {
 
       <audio ref={audioRef} src="https://actions.google.com/sounds/v1/ambiences/birthday_party.ogg" loop />
 
-      {/* ───────── টপ বার ───────── */}
       <header className="bd-header sticky top-0 z-30 border-b backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-2.5 sm:px-6">
           <Link href="/" className="bd-btn inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition">
@@ -806,7 +1060,6 @@ export default function BirthdayPage() {
           <div className="bd-sky2 flex h-64 items-center justify-center font-bold animate-pulse">বার্থডে ডেটা লোড হচ্ছে...</div>
         ) : (
           <div className="space-y-8 sm:space-y-12">
-            {/* ═════════ আজকের জন্মদিন ═════════ */}
             {todayStars.length === 0 ? (
               <section className="bd-panel-empty rounded-3xl border p-5 sm:p-10 lg:flex lg:items-center lg:justify-between lg:gap-10">
                 <div className="text-center lg:text-left">
@@ -831,7 +1084,6 @@ export default function BirthdayPage() {
               </section>
             ) : (
               <section className="space-y-6">
-                {/* ── একাধিক জন হলে: গ্রুপ ফোকাস প্যানেল ── */}
                 {isGroup && (
                   <div className="bd-panel relative overflow-hidden rounded-[2rem] border p-5 sm:p-8">
                     <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
@@ -888,7 +1140,6 @@ export default function BirthdayPage() {
                   </div>
                 )}
 
-                {/* ── উইশ কার্ড ডিটেইল ── */}
                 {star && (
                   <div
                     ref={detailRef}
@@ -897,7 +1148,6 @@ export default function BirthdayPage() {
                     <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
 
                     <div className="relative z-10 grid items-center gap-6 lg:grid-cols-12 lg:gap-12">
-                      {/* ইনফো */}
                       <div className="text-center lg:col-span-7 lg:text-left">
                         <span className="bd-em inline-flex items-center gap-2 rounded-full border border-emerald-400/50 bg-emerald-400/10 px-3 py-1 text-[11px] font-bold">
                           🏆 Happy Birthday Champion!
@@ -912,7 +1162,6 @@ export default function BirthdayPage() {
                           <span className="bd-gtext3">{star.name}</span> 🎉
                         </h2>
 
-                        {/* উইশ মেসেজ */}
                         <div className="bd-glass relative mx-auto mt-6 max-w-xl rounded-2xl border p-4 text-left backdrop-blur sm:p-5 lg:mx-0">
                           <span className="absolute -top-3 left-4 rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 px-3 py-0.5 text-[10px] font-black text-white">
                             💌 এফসিএল পরিবারের শুভেচ্ছা
@@ -921,7 +1170,21 @@ export default function BirthdayPage() {
                           <p className="bd-sky mt-2 text-right text-xs font-black sm:text-sm">— FCL Family</p>
                         </div>
 
-                        {/* পিসি: স্ট্যাট */}
+                        {!starHasPhoto && (
+                          <div className="bd-glass mx-auto mt-4 flex max-w-xl items-center gap-3 rounded-2xl border p-3 text-left lg:mx-0">
+                            <span className="text-2xl">📸</span>
+                            <p className="bd-text2 min-w-0 flex-1 text-[11px] leading-snug sm:text-xs">
+                              <b className="bd-head">{star.name}</b>-এর ছবি আমাদের কাছে নেই। ছবি দিলে কার্ডে বসিয়ে দেওয়া হবে — সরাসরি Messenger-এ পাঠান।
+                            </p>
+                            <button
+                              onClick={() => openMessenger(star.name)}
+                              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#0084ff] px-3 py-2 text-[11px] font-black text-white transition hover:brightness-110"
+                            >
+                              <MessengerIcon size={13} /> ছবি দিন
+                            </button>
+                          </div>
+                        )}
+
                         <div className="mt-6 hidden grid-cols-3 gap-4 lg:grid">
                           {[
                             { label: "ম্যাচ", value: star.matches, color: "bd-head" },
@@ -940,13 +1203,11 @@ export default function BirthdayPage() {
                         </div>
                       </div>
 
-                      {/* কার্ড */}
                       <div className="lg:col-span-5">
                         <ScaledCard cardRef={cardRef} onClick={() => setSelectedPlayerForModal(star)}>
                           <WishCard player={star} dateText={dateText} salt={wishSalt} />
                         </ScaledCard>
 
-                        {/* মোবাইল */}
                         <div className="mx-auto mt-5 max-w-[450px] space-y-3 lg:hidden">
                           <div className="bd-glass bd-divide grid grid-cols-3 rounded-2xl border py-2.5 text-center">
                             <div>
@@ -971,7 +1232,127 @@ export default function BirthdayPage() {
               </section>
             )}
 
-            {/* ═════════ আসন্ন জন্মদিন ═════════ */}
+            <section className="space-y-4">
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
+                {[
+                  { icon: "👥", label: "মোট প্লেয়ার", value: stats.total, color: "bd-head" },
+                  { icon: "🎂", label: "জন্মদিন নথিভুক্ত", value: stats.bdayCount, color: "bd-sky2" },
+                  { icon: "📸", label: "ছবি আছে", value: stats.withPhoto, color: "bd-em2" },
+                  { icon: "🙈", label: "ছবি নেই", value: stats.missing.length, color: "bd-amber", onClick: () => setShowMissing((v) => !v) },
+                  { icon: "🗓️", label: "এই মাসে জন্মদিন", value: stats.thisMonth, color: "bd-head" },
+                  { icon: "⏰", label: "আগামী ৭ দিনে", value: stats.next7, color: "bd-sky2" },
+                ].map((s) => {
+                  const Tag: any = s.onClick ? "button" : "div";
+                  return (
+                    <Tag
+                      key={s.label}
+                      onClick={s.onClick}
+                      className={`bd-glass rounded-2xl border p-3 text-center backdrop-blur transition ${s.onClick ? "cursor-pointer hover:brightness-110 active:scale-[0.98]" : ""}`}
+                    >
+                      <p className="text-lg">{s.icon}</p>
+                      <p className={`text-2xl font-black leading-tight sm:text-3xl ${s.color}`}>{s.value}</p>
+                      <p className="bd-sub mt-0.5 text-[10px] font-semibold sm:text-[11px]">{s.label}</p>
+                    </Tag>
+                  );
+                })}
+              </div>
+
+              <div className="bd-panel relative overflow-hidden rounded-[2rem] border p-4 sm:p-6">
+                <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-blue-500/15 blur-3xl" />
+                <div className="relative z-10">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="bd-head text-base font-black sm:text-xl">📸 ছবি সংগ্রহ অভিযান</h2>
+                      <p className="bd-text2 mt-1 text-xs leading-relaxed sm:text-sm">
+                        মোট <b className="bd-head">{stats.total}</b> জনের মধ্যে{" "}
+                        <b className="bd-em2">{stats.withPhoto} জনের</b> ছবি আছে,{" "}
+                        <b className="bd-amber">{stats.missing.length} জনের</b> ছবি নেই। ছবি না থাকলে নিচের বাটনে সরাসরি Messenger-এ পাঠিয়ে দিন — আমরা কার্ডে বসিয়ে দেব।
+                      </p>
+
+                      <div className="mt-3 flex items-center gap-3">
+                        <div className="bd-track h-2.5 flex-1 overflow-hidden rounded-full">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 transition-all duration-700"
+                            style={{ width: `${stats.pct}%` }}
+                          />
+                        </div>
+                        <span className="bd-head text-xs font-black">{stats.pct}%</span>
+                      </div>
+
+                      <p className="bd-faint mt-2 text-[11px]">
+                        {stats.busiest >= 0 && (
+                          <>
+                            📊 সবচেয়ে বেশি জন্মদিন: <b className="bd-text2">{MONTH_BN[stats.busiest]}</b> মাসে ({stats.maxC} জন)
+                          </>
+                        )}
+                        {stats.noBirthday > 0 && (
+                          <>
+                            {stats.busiest >= 0 ? " • " : ""}🎈 জন্মতারিখ নেই: <b className="bd-text2">{stats.noBirthday} জনের</b> — তারাও মেসেজ দিয়ে জানাতে পারেন
+                          </>
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="flex w-full flex-col gap-2.5 sm:flex-row lg:w-auto lg:flex-col">
+                      <button
+                        onClick={() => openMessenger()}
+                        className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#0084ff] to-[#a334fa] px-6 py-3 text-sm font-black text-white shadow-xl shadow-blue-600/30 transition hover:brightness-110 active:scale-[0.98]"
+                      >
+                        <MessengerIcon size={18} /> Messenger-এ ছবি পাঠান
+                      </button>
+                      <a
+                        href={FB_PROFILE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bd-sky-btn flex items-center justify-center gap-2 rounded-2xl border px-6 py-3 text-sm font-black transition active:scale-[0.98]"
+                      >
+                        👤 Facebook প্রোফাইল
+                      </a>
+                    </div>
+                  </div>
+
+                  {stats.missing.length > 0 && (
+                    <div className="mt-4">
+                      <button
+                        onClick={() => setShowMissing((v) => !v)}
+                        className="bd-btn inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition"
+                      >
+                        {showMissing ? "▲ তালিকা লুকান" : `▼ যাদের ছবি নেই (${stats.missing.length} জন) দেখুন`}
+                      </button>
+
+                      {showMissing && (
+                        <div className="bd-scroll mt-3 max-h-60 overflow-y-auto rounded-2xl pr-1">
+                          <div className="flex flex-wrap gap-2">
+                            {stats.missing.map((p, i) => (
+                              <div
+                                key={pKey(p) + i}
+                                className="bd-row flex items-center overflow-hidden rounded-full border text-[11px] font-bold"
+                              >
+                                <button
+                                  onClick={() => setSelectedPlayerForModal(p)}
+                                  title="প্লেয়ার কার্ড খুলুন"
+                                  className="bd-head max-w-[170px] truncate py-1.5 pl-3 pr-2 transition hover:opacity-80"
+                                >
+                                  {p.name}
+                                </button>
+                                <button
+                                  onClick={() => openMessenger(p.name)}
+                                  title="Messenger-এ ছবি পাঠান"
+                                  className="flex h-full items-center bg-[#0084ff] px-2.5 py-1.5 text-white transition hover:brightness-110"
+                                >
+                                  <MessengerIcon size={12} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
             {upcoming.length > 0 && (
               <section>
                 <div className="mb-3 flex items-end justify-between">
@@ -1009,12 +1390,62 @@ export default function BirthdayPage() {
               </section>
             )}
 
-            {/* ═════════ মাসভিত্তিক ডিরেক্টরি ═════════ */}
+            {recent.length > 0 && (
+              <section>
+                <div className="mb-3 flex items-end justify-between">
+                  <div>
+                    <h2 className="bd-head text-base font-black sm:text-xl">🕘 সদ্য পেরিয়ে যাওয়া জন্মদিন</h2>
+                    <p className="bd-sub mt-0.5 text-[11px]">মিস করে ফেলেছেন? এখনই কার্ড নামিয়ে নিন</p>
+                  </div>
+                  <span className="bd-faint text-[11px]">গত ১৫ দিনে {recent.length} জন</span>
+                </div>
+                <div className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0">
+                  {recent.map((e, i) => (
+                    <div
+                      key={e.player.name + i}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedPlayerForModal(e.player)}
+                      onKeyDown={(ev) => {
+                        if (ev.key === "Enter") setSelectedPlayerForModal(e.player);
+                      }}
+                      className="bd-row group w-[150px] shrink-0 cursor-pointer snap-start rounded-2xl border p-3 text-center transition sm:w-[170px]"
+                    >
+                      <div className="bd-avatar mx-auto h-16 w-16 overflow-hidden rounded-full border-2 sm:h-[72px] sm:w-[72px]">
+                        <img
+                          src={getPhoto(e.player)}
+                          alt={e.player.name}
+                          loading="lazy"
+                          className="h-full w-full object-cover transition group-hover:scale-110"
+                          onError={(ev) => {
+                            (ev.currentTarget as HTMLImageElement).src = FALLBACK_PHOTO;
+                          }}
+                        />
+                      </div>
+                      <p className="bd-head mt-2 truncate text-xs font-extrabold sm:text-sm">{e.player.name}</p>
+                      <p className="bd-sub mt-0.5 text-[11px]">
+                        {String(e.day).padStart(2, "0")} {MONTH_BN[e.month]} • {agoLabel(e.daysAgo)}
+                      </p>
+                      <button
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setCardEntry(e);
+                        }}
+                        className="mt-2 inline-block rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 px-3 py-1 text-[10px] font-black text-white transition hover:brightness-110"
+                      >
+                        🎁 কার্ড নামান
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <section>
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="bd-head text-lg font-black sm:text-2xl">📅 বার্থডে ক্যালেন্ডার</h2>
-                  <p className="bd-sub mt-0.5 text-xs">মাস বেছে নিন অথবা নাম লিখে খুঁজুন</p>
+                  <p className="bd-sub mt-0.5 text-xs">মাস বেছে নিন অথবা নাম লিখে খুঁজুন • যেকোনো প্লেয়ারের 🎁 কার্ড নামানো যাবে</p>
                 </div>
                 <div className="relative w-full sm:w-72">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm">🔍</span>
@@ -1036,7 +1467,6 @@ export default function BirthdayPage() {
                 </div>
               </div>
 
-              {/* 📱 মোবাইল: ৪×৩ প্রিমিয়াম মাস গ্রিড */}
               {!search && (
                 <div className="mb-4 grid grid-cols-4 gap-2 lg:hidden">
                   {MONTH_BN.map((m, i) => {
@@ -1069,7 +1499,6 @@ export default function BirthdayPage() {
               )}
 
               <div className="lg:grid lg:grid-cols-12 lg:gap-8">
-                {/* 💻 পিসি: সাইডবার */}
                 {!search && (
                   <aside className="hidden lg:col-span-3 lg:block">
                     <div className="bd-box sticky top-20 space-y-1.5 rounded-3xl border p-3">
@@ -1100,7 +1529,6 @@ export default function BirthdayPage() {
                   </aside>
                 )}
 
-                {/* তালিকা */}
                 <div className={search ? "lg:col-span-12" : "lg:col-span-9"}>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="bd-sky text-sm font-black sm:text-base">
@@ -1115,7 +1543,14 @@ export default function BirthdayPage() {
                   ) : (
                     <div className="grid grid-cols-1 gap-2.5 sm:gap-3 md:grid-cols-2">
                       {listToShow.map((e, i) => (
-                        <PlayerRow key={e.player.name + i} entry={e} onOpen={setSelectedPlayerForModal} />
+                        <PlayerRow
+                          key={e.player.name + i}
+                          entry={e}
+                          onOpen={setSelectedPlayerForModal}
+                          onCard={setCardEntry}
+                          hasPhoto={playerHasPhoto(e.player, brokenPhotos)}
+                          onMessenger={openMessenger}
+                        />
                       ))}
                     </div>
                   )}
@@ -1125,6 +1560,26 @@ export default function BirthdayPage() {
           </div>
         )}
       </main>
+
+      {cardEntry && (
+        <CardStudio
+          entry={cardEntry}
+          salt={wishSalt}
+          hasPhoto={playerHasPhoto(cardEntry.player, brokenPhotos)}
+          downloading={downloading}
+          onClose={() => setCardEntry(null)}
+          onNewWish={() => setWishSalt((s) => s + 1)}
+          onDownload={(p, r) => handleDownloadCard(p, r)}
+          onProfile={openProfileFromStudio}
+          onMessenger={openMessenger}
+        />
+      )}
+
+      {toast && (
+        <div className="pointer-events-none fixed bottom-6 left-1/2 z-[80] w-[92%] max-w-sm -translate-x-1/2 rounded-2xl bg-slate-900/95 px-4 py-3 text-center text-xs font-bold text-white shadow-2xl ring-1 ring-white/10">
+          {toast}
+        </div>
+      )}
 
       <PlayerCardModal
         selectedPlayer={selectedPlayerForModal}
