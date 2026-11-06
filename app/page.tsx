@@ -7,6 +7,7 @@ import {
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
 } from "react";
 import Link from "next/link";
 
@@ -175,6 +176,84 @@ const ALL_PORTALS = MENU_GROUPS.flatMap((group) =>
   }))
 );
 
+const ROT_WORDS = [
+  { t: "RANKINGS", c: "#f59e0b" },
+  { t: "RECORDS", c: "#3b82f6" },
+  { t: "MEMORIES", c: "#ec4899" },
+  { t: "THRILLERS", c: "#a855f7" },
+  { t: "LEGENDS", c: "#22d3ee" },
+  { t: "THE GAME", c: "#22c55e" },
+];
+
+/* ================================================================
+   LIVE MATCH SIMULATION (decorative)
+================================================================ */
+
+type Ball = number | "W";
+
+const BALLS: Ball[] = [1, 4, 6, 0, 2, "W", 4, 1, 6, 0, 1, 2, 6, 4, 0, 1, 6, "W", 2, 4, 6, 1, 6, 4];
+const START_RUNS = 14;
+const START_WKTS = 2;
+const TARGET = 70;
+
+const WIN_BALL = (() => {
+  let runs = START_RUNS;
+  for (let k = 0; k < BALLS.length; k++) {
+    const b = BALLS[k];
+    if (typeof b === "number") runs += b;
+    if (runs >= TARGET) return k + 1;
+  }
+  return BALLS.length;
+})();
+
+const CYCLE = WIN_BALL + 3;
+
+function useMatchSim(paused: boolean) {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    if (paused) return;
+    const id = setInterval(() => setStep((s) => s + 1), 1500);
+    return () => clearInterval(id);
+  }, [paused]);
+
+  const i = Math.min(step % CYCLE, WIN_BALL);
+  const played = BALLS.slice(0, i);
+
+  let runs = START_RUNS;
+  let wkts = START_WKTS;
+
+  played.forEach((b) => {
+    if (b === "W") wkts += 1;
+    else runs += b;
+  });
+
+  return {
+    i,
+    runs,
+    wkts,
+    last: played[i - 1] as Ball | undefined,
+    won: i === WIN_BALL,
+    need: Math.max(TARGET - runs, 0),
+    left: BALLS.length - i,
+    recent: played.slice(-6),
+    pct: Math.min(100, Math.round((runs / TARGET) * 100)),
+  };
+}
+
+function ballMeta(v: Ball | undefined) {
+  if (v === undefined) return { t: "·", label: "NEXT BALL", k: "next" };
+  if (v === "W") return { t: "W", label: "OUT!", k: "w" };
+  if (v === 6) return { t: "6", label: "SIX!", k: "six" };
+  if (v === 4) return { t: "4", label: "FOUR!", k: "four" };
+  if (v === 0) return { t: "•", label: "DOT BALL", k: "dot" };
+  return { t: String(v), label: `${v} RUN${v > 1 ? "S" : ""}`, k: "run" };
+}
+
+/* ================================================================
+   HOOKS
+================================================================ */
+
 function useIsDark() {
   const [isDark, setIsDark] = useState(true);
 
@@ -261,6 +340,10 @@ function useReducedMotion() {
   return reduced;
 }
 
+/* ================================================================
+   ICONS
+================================================================ */
+
 function SearchIcon() {
   return (
     <svg
@@ -301,6 +384,223 @@ function ArrowIcon({ back = false }: { back?: boolean }) {
     </svg>
   );
 }
+
+/* ================================================================
+   HERO PIECES
+================================================================ */
+
+function Words({
+  text,
+  base = 0,
+  className = "",
+}: {
+  text: string;
+  base?: number;
+  className?: string;
+}) {
+  return (
+    <>
+      {text.split(" ").map((word, i) => (
+        <span
+          key={i}
+          className={`fh-wd ${className}`}
+          style={{ "--i": base + i } as CSSVars}
+        >
+          {word}
+          {"\u00A0"}
+        </span>
+      ))}
+    </>
+  );
+}
+
+function Rotator({
+  small = false,
+  paused,
+}: {
+  small?: boolean;
+  paused: boolean;
+}) {
+  const [i, setI] = useState(0);
+
+  useEffect(() => {
+    if (paused) return;
+    const id = setInterval(() => setI((v) => (v + 1) % ROT_WORDS.length), 2200);
+    return () => clearInterval(id);
+  }, [paused]);
+
+  const word = ROT_WORDS[i];
+
+  return (
+    <div className={`fh-rotator ${small ? "is-small" : ""}`}>
+      <span>Dive into</span>
+      <span className="fh-rot" style={{ color: word.c }}>
+        <span key={i} className="fh-rot-w">
+          {word.t}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function Magnetic({
+  children,
+  disabled,
+}: {
+  children: ReactNode;
+  disabled: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  return (
+    <div
+      ref={ref}
+      className="fh-magnetic"
+      onPointerMove={(e) => {
+        if (disabled || e.pointerType !== "mouse" || !ref.current) return;
+        const r = ref.current.getBoundingClientRect();
+        const x = (e.clientX - r.left - r.width / 2) * 0.25;
+        const y = (e.clientY - r.top - r.height / 2) * 0.35;
+        ref.current.style.transform = `translate(${x}px, ${y}px)`;
+      }}
+      onPointerLeave={() => {
+        if (ref.current) ref.current.style.transform = "";
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function HeroArt({ reduced }: { reduced: boolean }) {
+  const tiltRef = useRef<HTMLDivElement>(null);
+  const sim = useMatchSim(reduced);
+  const meta = ballMeta(sim.last);
+
+  return (
+    <div
+      className="fh-stage"
+      onPointerMove={(e) => {
+        if (reduced || e.pointerType !== "mouse" || !tiltRef.current) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width - 0.5;
+        const y = (e.clientY - r.top) / r.height - 0.5;
+        tiltRef.current.style.setProperty("--rx", `${y * -9}deg`);
+        tiltRef.current.style.setProperty("--ry", `${x * 11}deg`);
+      }}
+      onPointerLeave={() => {
+        tiltRef.current?.style.setProperty("--rx", "0deg");
+        tiltRef.current?.style.setProperty("--ry", "0deg");
+      }}
+    >
+      <div ref={tiltRef} className="fh-tilt">
+        <div className="fh-ring">
+          <div className="fh-ring-in">
+            <img src="/fcl-room.png" alt="FCL Room" draggable={false} />
+          </div>
+        </div>
+
+        {/* live score */}
+        <div className="fh-z1 fh-c1">
+          <div className="fh-pill fh-float">
+            <span className="fh-live" />
+            <div>
+              <b>FCL LIVE</b>
+              <small className="fh-blue">
+                Phoenix ·{" "}
+                <span key={sim.runs} className="fh-pop">
+                  {sim.runs}/{sim.wkts}
+                </span>
+              </small>
+            </div>
+          </div>
+        </div>
+
+        {/* last ball */}
+        <div className="fh-z2 fh-c2">
+          <div className="fh-pill fh-float fh-delay">
+            <span key={sim.i} className={`fh-ball fh-pop k-${meta.k}`}>
+              {meta.t}
+            </span>
+            <div>
+              <b>{meta.label}</b>
+              <small>Ball {sim.i}</small>
+            </div>
+          </div>
+        </div>
+
+        {/* this over */}
+        <div className="fh-z2 fh-c3">
+          <div className="fh-pill fh-float fh-over">
+            <small className="fh-over-title">THIS OVER</small>
+            <div className="fh-over-balls">
+              {Array.from({ length: 6 }).map((_, k) => {
+                const v = sim.recent[k];
+                const m = ballMeta(v);
+
+                return v === undefined ? (
+                  <span key={k} className="fh-dash" />
+                ) : (
+                  <span
+                    key={`${sim.i}-${k}`}
+                    className={`fh-ball is-sm fh-pop k-${m.k}`}
+                  >
+                    {m.t}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* need */}
+        <div className="fh-z1 fh-c4">
+          <div className="fh-pill fh-float fh-delay fh-need">
+            <div className="fh-need-row">
+              <span>{sim.won ? "🏆" : "🎯"}</span>
+              <b className="fh-amber">
+                {sim.won ? "Phoenix won!" : `Need ${sim.need} off ${sim.left}`}
+              </b>
+            </div>
+            <div className="fh-need-track">
+              <div style={{ width: `${sim.pct}%` }} />
+            </div>
+            <small>Target {TARGET}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileLive({ reduced }: { reduced: boolean }) {
+  const sim = useMatchSim(reduced);
+  const meta = ballMeta(sim.last);
+
+  return (
+    <div className="fh-mlive">
+      <span className="fh-live" />
+      <div className="fh-mlive-copy">
+        <b>
+          FCL LIVE · Phoenix{" "}
+          <span key={sim.runs} className="fh-pop">
+            {sim.runs}/{sim.wkts}
+          </span>
+        </b>
+        <small className="fh-amber">
+          {sim.won ? "🏆 Phoenix won!" : `🎯 Need ${sim.need} off ${sim.left}`}
+        </small>
+      </div>
+      <span key={sim.i} className={`fh-ball fh-pop k-${meta.k}`}>
+        {meta.t}
+      </span>
+    </div>
+  );
+}
+
+/* ================================================================
+   HOME
+================================================================ */
 
 export default function Home() {
   const isDark = useIsDark();
@@ -431,6 +731,13 @@ export default function Home() {
     searchButtonRef.current?.focus({ preventScroll: true });
   }
 
+  function scrollToMenu() {
+    document.getElementById("fu-menu")?.scrollIntoView({
+      behavior: reducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }
+
   function createSpark(event: ReactPointerEvent<HTMLElement>) {
     if (reducedMotion || !event.isPrimary || event.button !== 0) return;
 
@@ -472,6 +779,21 @@ export default function Home() {
     );
   }
 
+  function heroParallax(event: ReactPointerEvent<HTMLElement>) {
+    if (reducedMotion || event.pointerType !== "mouse") return;
+
+    const r = event.currentTarget.getBoundingClientRect();
+
+    event.currentTarget.style.setProperty(
+      "--px",
+      String((event.clientX - r.left) / r.width - 0.5)
+    );
+    event.currentTarget.style.setProperty(
+      "--py",
+      String((event.clientY - r.top) / r.height - 0.5)
+    );
+  }
+
   return (
     <main
       ref={rootRef}
@@ -499,7 +821,7 @@ export default function Home() {
             <div>
               <span className="fu-eyebrow">FACEBOOK CRICKET LEAGUE</span>
               <h1>
-                FCL <span>Universe.</span>
+              
               </h1>
             </div>
           </div>
@@ -531,7 +853,142 @@ export default function Home() {
           </div>
         </header>
 
-        <section className="fu-dashboard" aria-label="FCL interactive navigation">
+        {/* ================================================================
+            HERO — DESKTOP / TABLET
+        ================================================================ */}
+        <section className="fh-hero fh-desk" onPointerMove={heroParallax} aria-label="FCL hero">
+          <div className="fh-orb fh-orb-a" aria-hidden="true" />
+          <div className="fh-orb fh-orb-b" aria-hidden="true" />
+
+          <div className="fh-desk-grid">
+            <div className="fh-copy">
+              <div className="fh-badge fh-wd" style={{ "--i": 0 } as CSSVars}>
+                <span className="fh-live" />
+                FCL • DIGITAL GATEWAY HUB
+              </div>
+
+              <h2 className="fh-title">
+                <span className="fh-line">
+                  <Words text="THE GAME LIVES" base={1} />
+                </span>
+                <span className="fh-line">
+                  <Words text="BEYOND THE FIELD." base={4} className="fh-grad" />
+                </span>
+                <span className="fh-tag">
+                  One Game. One Community. <span className="fh-zoom">FCL.</span>
+                </span>
+              </h2>
+
+              <Rotator paused={reducedMotion} />
+
+              <p className="fh-text">
+                Facebook Cricket League-এর অফিশিয়াল পোর্টাল — র‍্যাঙ্কিং, রেকর্ড, স্মৃতি আর
+                হাই-ভোল্টেজ ম্যাচের গল্প, সব এক জায়গায়।
+              </p>
+
+              <div className="fh-actions">
+                <Magnetic disabled={reducedMotion}>
+                  <button
+                    type="button"
+                    className="fh-btn-primary"
+                    data-accent="#1877F2"
+                    onClick={scrollToMenu}
+                  >
+                    <span className="fh-btn-shine" />
+                    <span className="fh-rel">Explore Menu ↓</span>
+                  </button>
+                </Magnetic>
+
+                <Magnetic disabled={reducedMotion}>
+                  <Link href="/play" className="fh-btn-play" data-accent="#22c55e">
+                    <span className="fh-live" />
+                    🎮 Play Now
+                  </Link>
+                </Magnetic>
+
+                <Magnetic disabled={reducedMotion}>
+                  <Link href="/bn" className="fh-btn-ghost" data-accent="#3b82f6">
+                    💙 বাংলা ভার্সন
+                  </Link>
+                </Magnetic>
+              </div>
+            </div>
+
+            <HeroArt reduced={reducedMotion} />
+          </div>
+
+          <div className="fh-marquee">
+            <div className="fh-marquee-track">
+              {[0, 1].map((copy) =>
+                ALL_PORTALS.map((portal) => (
+                  <Link
+                    key={`${copy}-${portal.href}`}
+                    href={portal.href}
+                    className="fh-marquee-item"
+                    data-accent={portal.color}
+                    style={{ "--item-color": portal.color } as CSSVars}
+                    tabIndex={copy ? -1 : 0}
+                    aria-hidden={copy ? true : undefined}
+                  >
+                    <span>{portal.icon}</span>
+                    {portal.english}
+                  </Link>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ================================================================
+            HERO — MOBILE (app style)
+        ================================================================ */}
+        <section className="fh-hero fh-mob" aria-label="FCL hero">
+          <div className="fh-badge fh-wd" style={{ "--i": 0 } as CSSVars}>
+            <span className="fh-live" />
+            FCL DIGITAL HUB
+          </div>
+
+          <h2 className="fh-title">
+            <span className="fh-line">
+              <Words text="THE GAME LIVES" base={1} />
+            </span>
+            <span className="fh-line">
+              <Words text="BEYOND THE FIELD." base={4} className="fh-grad" />
+            </span>
+          </h2>
+
+          <Rotator small paused={reducedMotion} />
+
+          <div className="fh-mob-art">
+            <div className="fh-ring" style={{ "--rr": "22px" } as CSSVars}>
+              <div className="fh-ring-in">
+                <img src="/fcl-room.png" alt="FCL Online" draggable={false} />
+              </div>
+            </div>
+            <MobileLive reduced={reducedMotion} />
+          </div>
+
+          <div className="fh-mob-actions">
+            <button
+              type="button"
+              className="fh-btn-primary"
+              data-accent="#1877F2"
+              onClick={scrollToMenu}
+            >
+              <span className="fh-btn-shine" />
+              <span className="fh-rel">Explore Menu ↓</span>
+            </button>
+            <Link href="/play" className="fh-btn-play" data-accent="#22c55e">
+              <span className="fh-live" />
+              🎮 Play
+            </Link>
+          </div>
+        </section>
+
+        {/* ================================================================
+            FLOWER MENU
+        ================================================================ */}
+        <section id="fu-menu" className="fu-dashboard" aria-label="FCL interactive navigation">
           <aside className="fu-wing fu-wing-left">
             <span className="fu-overline">
               <i />
@@ -539,7 +996,7 @@ export default function Home() {
             </span>
 
             <h2>
-              এক কেন্দ্র।
+              এক <span>এফসিএল,</span>
               <br />
               অসংখ্য <span>গল্প।</span>
             </h2>
@@ -966,6 +1423,10 @@ const UNIVERSE_STYLES = `
   --fu-shadow: 0 18px 50px -25px rgba(30, 58, 138, .24);
   --fu-grid: rgba(30, 64, 175, .055);
   --fu-accent: #60a5fa;
+  --fu-blue: #1d4ed8;
+  --fu-amber: #b45309;
+  --fu-pill: rgba(255, 255, 255, .96);
+  --fu-frame: #ffffff;
 
   position: relative;
   isolation: isolate;
@@ -988,6 +1449,10 @@ const UNIVERSE_STYLES = `
   --fu-field: rgba(9, 17, 32, .9);
   --fu-shadow: 0 25px 65px -25px rgba(0, 0, 0, .65);
   --fu-grid: rgba(148, 163, 184, .045);
+  --fu-blue: #93c5fd;
+  --fu-amber: #f59e0b;
+  --fu-pill: rgba(11, 18, 32, .9);
+  --fu-frame: #080d17;
 }
 
 .fcl-universe *,
@@ -1112,7 +1577,7 @@ const UNIVERSE_STYLES = `
 .fu-header {
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .fu-brand {
@@ -1195,11 +1660,531 @@ const UNIVERSE_STYLES = `
   color: var(--fu-muted);
 }
 
+/* ================================================================
+   HERO
+================================================================ */
+
+.fh-hero {
+  position: relative;
+  margin-bottom: 22px;
+}
+
+.fh-mob {
+  display: none;
+}
+
+.fh-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(70px);
+  transition: transform .4s ease-out;
+}
+
+.fh-orb-a {
+  width: 340px;
+  height: 340px;
+  right: -60px;
+  top: -80px;
+  background: #7c3aed;
+  opacity: .16;
+  transform: translate3d(calc(var(--px, 0) * -34px), calc(var(--py, 0) * -22px), 0);
+}
+
+.fh-orb-b {
+  width: 280px;
+  height: 280px;
+  left: -60px;
+  bottom: -40px;
+  background: #1877f2;
+  opacity: .16;
+  transform: translate3d(calc(var(--px, 0) * 28px), calc(var(--py, 0) * 20px), 0);
+}
+
+.fh-desk-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+  align-items: center;
+  gap: 34px;
+  padding: 6px 12px 0 0;
+}
+
+.fh-copy {
+  min-width: 0;
+}
+
+.fh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 1px solid #1877f24d;
+  border-radius: 999px;
+  background: #1877f21a;
+  color: var(--fu-blue);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .26em;
+  backdrop-filter: blur(12px);
+}
+
+.fh-title {
+  margin: 16px 0 0;
+  font-size: clamp(30px, 4.6vw, 60px);
+  line-height: .98;
+  letter-spacing: -.045em;
+  font-weight: 950;
+  color: var(--fu-text);
+}
+
+.fh-line {
+  display: block;
+}
+
+.fh-tag {
+  display: block;
+  margin-top: 12px;
+  font-size: .38em;
+  line-height: 1.3;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  color: var(--fu-amber);
+}
+
+.fh-zoom {
+  display: inline-block;
+  font-size: 1.45em;
+  font-weight: 950;
+  letter-spacing: -.04em;
+  background: linear-gradient(90deg, #1d4ed8, #0891b2, #d97706, #7c3aed, #1d4ed8);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: fh-color-shift 4s ease infinite, fh-zoom-pulse 2.5s ease-in-out infinite;
+}
+
+.fu-dark .fh-zoom {
+  background-image: linear-gradient(90deg, #60a5fa, #22d3ee, #f59e0b, #8b5cf6, #60a5fa);
+}
+
+.fh-wd {
+  display: inline-block;
+  opacity: 0;
+  animation: fh-wd .8s cubic-bezier(.2, .9, .2, 1) both;
+  animation-delay: calc(var(--i, 0) * 90ms + 150ms);
+}
+
+.fh-grad {
+  background: linear-gradient(90deg, #2563eb, #1877f2, #7c3aed, #06b6d4, #2563eb);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: fh-wd .8s cubic-bezier(.2, .9, .2, 1) both, fh-gshift 6s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 90ms + 150ms), 0s;
+}
+
+.fh-rotator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.fh-rotator > span:first-child {
+  color: var(--fu-muted);
+  font-weight: 700;
+}
+
+.fh-rotator.is-small {
+  margin-top: 10px;
+  font-size: 15px;
+}
+
+.fh-rot {
+  display: inline-block;
+  height: 1.35em;
+  min-width: 9.5ch;
+  overflow: hidden;
+  line-height: 1.35em;
+  vertical-align: bottom;
+  text-shadow: 0 0 22px currentColor;
+}
+
+.fh-rot-w {
+  display: inline-block;
+  animation: fh-rot 2200ms both;
+}
+
+.fh-text {
+  max-width: 480px;
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--fu-muted);
+}
+
+.fh-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.fh-magnetic {
+  transition: transform .25s cubic-bezier(.2, .8, .2, 1);
+}
+
+.fh-rel {
+  position: relative;
+}
+
+.fh-btn-primary {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 13px 24px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1877f2, #5b5bf0);
+  color: #fff !important;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 14px 40px -10px rgba(24, 119, 242, .6);
+  transition: filter .2s, box-shadow .2s, transform .2s;
+}
+
+.fh-btn-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 18px 48px -8px rgba(24, 119, 242, .75);
+}
+
+.fh-btn-shine {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: rgba(255, 255, 255, .28);
+  animation: fh-shine 3.2s ease-in-out infinite;
+}
+
+.fh-btn-play,
+.fh-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 22px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 800;
+  transition: background .2s, color .2s, transform .2s;
+}
+
+.fh-btn-play {
+  border: 1px solid rgba(34, 197, 94, .45);
+  background: rgba(34, 197, 94, .1);
+  color: var(--fu-text);
+}
+
+.fh-btn-play:hover {
+  background: rgba(34, 197, 94, .22);
+}
+
+.fh-btn-ghost {
+  border: 1px solid rgba(59, 130, 246, .4);
+  background: rgba(59, 130, 246, .1);
+  color: var(--fu-blue);
+}
+
+.fh-btn-ghost:hover {
+  background: #1877f2;
+  color: #fff;
+}
+
+.fh-btn-primary:active,
+.fh-btn-play:active,
+.fh-btn-ghost:active {
+  transform: scale(.96);
+}
+
+.fh-live {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: fh-live-ring 1.6s ease-out infinite;
+}
+
+/* hero art */
+
+.fh-stage {
+  position: relative;
+  height: 360px;
+  width: 100%;
+  perspective: 1100px;
+}
+
+.fh-tilt {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform .25s ease-out;
+}
+
+.fh-ring {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding: 2px;
+  border-radius: var(--rr, 2.2rem);
+  box-shadow: 0 30px 80px rgba(15, 23, 42, .16);
+}
+
+.fu-dark .fh-ring {
+  box-shadow: 0 40px 100px rgba(0, 0, 0, .6);
+}
+
+.fh-ring::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 220%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: conic-gradient(from 0deg, transparent 0 55%, #1877f2, #22d3ee, #a855f7, transparent 100%);
+  animation: fh-spin 6s linear infinite;
+}
+
+.fh-ring-in {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  padding: 12px;
+  border-radius: calc(var(--rr, 2.2rem) - 2px);
+  background: var(--fu-frame);
+}
+
+.fh-ring-in img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+}
+
+.fh-z1,
+.fh-z2 {
+  position: absolute;
+}
+
+.fh-z1 { transform: translateZ(46px); }
+.fh-z2 { transform: translateZ(76px); }
+
+.fh-c1 { left: -22px; top: 26px; }
+.fh-c2 { right: -18px; top: 96px; }
+.fh-c3 { left: -22px; bottom: 62px; }
+.fh-c4 { right: -14px; bottom: 20px; }
+
+.fh-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border: 1px solid var(--fu-line);
+  border-radius: 16px;
+  background: var(--fu-pill);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .12);
+  backdrop-filter: blur(14px);
+}
+
+.fu-dark .fh-pill {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .5);
+}
+
+.fh-pill b {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  color: var(--fu-text);
+}
+
+.fh-pill small {
+  display: block;
+  font-size: 10px;
+  color: var(--fu-muted);
+}
+
+.fh-pill small.fh-blue {
+  font-weight: 800;
+  color: var(--fu-blue);
+}
+
+.fh-amber {
+  color: var(--fu-amber) !important;
+}
+
+.fh-float {
+  animation: fh-chip-float 5s ease-in-out infinite;
+}
+
+.fh-delay {
+  animation-delay: 1.4s;
+}
+
+.fh-ball {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.fh-ball.is-sm {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 10px;
+}
+
+.fh-ball.k-next { background: #64748b99; }
+.fh-ball.k-w { background: #f43f5e; }
+.fh-ball.k-six { background: #f59e0b; }
+.fh-ball.k-four { background: #1877f2; }
+.fh-ball.k-dot { background: #64748b; }
+.fh-ball.k-run { background: #10b981; }
+
+.fh-pop {
+  display: inline-grid;
+  animation: fh-pop .45s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+
+.fh-over {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.fh-over-title {
+  font-size: 9px !important;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+
+.fh-over-balls {
+  display: flex;
+  gap: 6px;
+}
+
+.fh-dash {
+  width: 24px;
+  height: 24px;
+  border: 1px dashed rgba(100, 116, 139, .55);
+  border-radius: 50%;
+}
+
+.fh-need {
+  display: block;
+  min-width: 164px;
+  border-color: rgba(245, 158, 11, .4);
+}
+
+.fh-need-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fh-need-row > span {
+  font-size: 14px;
+}
+
+.fh-need-track {
+  height: 6px;
+  margin: 7px 0 5px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(100, 116, 139, .25);
+}
+
+.fh-need-track > div {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #fbbf24, #f43f5e);
+  transition: width .7s;
+}
+
+/* marquee */
+
+.fh-marquee {
+  position: relative;
+  margin-top: 22px;
+  padding: 11px 0 0;
+  overflow: hidden;
+  border-top: 1px solid var(--fu-line);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.fh-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: fh-marquee 55s linear infinite;
+}
+
+.fh-marquee:hover .fh-marquee-track {
+  animation-play-state: paused;
+}
+
+.fh-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 10px;
+  padding: 7px 14px;
+  border: 1px solid color-mix(in srgb, var(--item-color) 40%, var(--fu-line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--item-color) 8%, var(--fu-petal));
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: transform .2s, background .2s;
+}
+
+.fh-marquee-item:hover {
+  transform: translateY(-2px) scale(1.05);
+  background: color-mix(in srgb, var(--item-color) 22%, var(--fu-petal));
+}
+
+/* ================================================================
+   FLOWER MENU LAYOUT
+================================================================ */
+
 .fu-dashboard {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 520px) minmax(0, 1fr);
   align-items: center;
   gap: 26px;
+  scroll-margin-top: 12px;
 }
 
 .fu-wing {
@@ -1963,6 +2948,10 @@ const UNIVERSE_STYLES = `
   border: 0;
 }
 
+/* ================================================================
+   KEYFRAMES
+================================================================ */
+
 @keyframes fu-spin {
   to { transform: rotate(360deg); }
 }
@@ -2012,11 +3001,82 @@ const UNIVERSE_STYLES = `
   to { opacity: 0; transform: scale(3.2); }
 }
 
+@keyframes fh-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fh-wd {
+  from { opacity: 0; transform: translateY(46px) rotate(5deg); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+
+@keyframes fh-gshift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes fh-color-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes fh-zoom-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(34,211,238,.5)); }
+  50% { transform: scale(1.14); filter: drop-shadow(0 0 22px rgba(34,211,238,.9)); }
+}
+
+@keyframes fh-rot {
+  0% { opacity: 0; transform: translateY(100%); }
+  12%, 88% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-100%); }
+}
+
+@keyframes fh-pop {
+  0% { transform: scale(.4); opacity: 0; }
+  60% { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fh-chip-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+@keyframes fh-shine {
+  0% { transform: translateX(-130%) skewX(-15deg); }
+  55%, 100% { transform: translateX(380%) skewX(-15deg); }
+}
+
+@keyframes fh-live-ring {
+  0% { box-shadow: 0 0 0 0 rgba(34,197,94,.6); }
+  100% { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
+}
+
+@keyframes fh-marquee {
+  to { transform: translateX(-50%); }
+}
+
+/* ================================================================
+   TABLET
+================================================================ */
+
 @media (min-width: 761px) and (max-width: 1050px) {
   .fu-shell {
     max-width: 900px;
     padding: 18px;
   }
+
+  .fh-desk-grid {
+    gap: 24px;
+  }
+
+  .fh-stage {
+    height: 300px;
+  }
+
+  .fh-c1, .fh-c3 { left: -10px; }
+  .fh-c2, .fh-c4 { right: -8px; }
 
   .fu-dashboard {
     grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
@@ -2027,6 +3087,10 @@ const UNIVERSE_STYLES = `
     display: none;
   }
 }
+
+/* ================================================================
+   MOBILE APP LAYOUT
+================================================================ */
 
 @media (max-width: 760px) {
   .fu-shell {
@@ -2078,6 +3142,93 @@ const UNIVERSE_STYLES = `
   .fu-search-trigger span,
   .fu-search-trigger kbd {
     display: none;
+  }
+
+  .fh-desk {
+    display: none;
+  }
+
+  .fh-mob {
+    display: block;
+    margin-bottom: 14px;
+  }
+
+  .fh-badge {
+    padding: 6px 11px;
+    font-size: 8px;
+    letter-spacing: .2em;
+  }
+
+  .fh-title {
+    margin-top: 12px;
+    font-size: 30px;
+  }
+
+  .fh-mob-art {
+    position: relative;
+    margin-top: 14px;
+  }
+
+  .fh-mob-art .fh-ring {
+    height: auto;
+  }
+
+  .fh-mob-art .fh-ring-in {
+    padding: 0;
+  }
+
+  .fh-mob-art .fh-ring-in img {
+    height: 175px;
+    object-fit: cover;
+  }
+
+  .fh-mlive {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 11px;
+    border: 1px solid var(--fu-line);
+    border-radius: 16px;
+    background: var(--fu-pill);
+    backdrop-filter: blur(14px);
+  }
+
+  .fh-mlive-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .fh-mlive-copy b {
+    display: block;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.2;
+    color: var(--fu-text);
+  }
+
+  .fh-mlive-copy small {
+    display: block;
+    margin-top: 2px;
+    font-size: 9px;
+    font-weight: 800;
+  }
+
+  .fh-mob-actions {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 9px;
+    margin-top: 12px;
+  }
+
+  .fh-mob-actions .fh-btn-primary,
+  .fh-mob-actions .fh-btn-play {
+    padding: 12px 10px;
+    font-size: 13px;
   }
 
   .fu-dashboard {
@@ -2286,6 +3437,10 @@ const UNIVERSE_STYLES = `
     display: none;
   }
 
+  .fh-title {
+    font-size: 26px;
+  }
+
   .fu-petal strong {
     font-size: 9px;
   }
@@ -2306,6 +3461,11 @@ const UNIVERSE_STYLES = `
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
+  }
+
+  .fh-wd,
+  .fh-grad {
+    opacity: 1 !important;
   }
 
   .fu-spark-layer {
