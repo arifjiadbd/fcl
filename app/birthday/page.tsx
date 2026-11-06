@@ -213,12 +213,7 @@ function Balloon({ color, dark, w, style }: { color: string; dark: string; w: nu
 
 function RoseIcon({ style, size = 28, absolute = true }: { style?: React.CSSProperties; size?: number; absolute?: boolean }) {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 32 32"
-      style={{ ...(absolute ? { position: "absolute" } : { display: "block", flexShrink: 0 }), ...style }}
-    >
+    <svg width={size} height={size} viewBox="0 0 32 32" style={{ ...(absolute ? { position: "absolute" } : { display: "block", flexShrink: 0 }), ...style }}>
       <path d="M16 4c-3 0-6 2-6 5 0 2 1 4 3 5l-3 6h3l1.5-3h3L19 20h3l-3-6c2-1 3-3 3-5 0-3-3-5-6-5z" fill="#e11d48" />
       <path d="M16 9c-1 0-2 1-2 2s1 2 2 2 2-1 2-2-1-2-2-2z" fill="#fb7185" />
       <path d="M11 23c2 1 6 1 10 0" stroke="#15803d" strokeWidth="2" fill="none" strokeLinecap="round" />
@@ -264,14 +259,9 @@ function WishCard({ player, dateText, salt }: { player: Player; dateText: string
   return (
     <div
       style={{
-        width: 400,
-        height: 500,
-        position: "relative",
-        overflow: "hidden",
-        borderRadius: 28,
+        width: 400, height: 500, position: "relative", overflow: "hidden", borderRadius: 28,
         background: "linear-gradient(180deg,#ffffff 0%,#eaf2ff 45%,#cfe2ff 100%)",
-        fontFamily: "'Poppins','Hind Siliguri',sans-serif",
-        boxShadow: "0 0 0 4px rgba(255,255,255,.9)",
+        fontFamily: "'Poppins','Hind Siliguri',sans-serif", boxShadow: "0 0 0 4px rgba(255,255,255,.9)",
       }}
     >
       <svg width="400" height="500" viewBox="0 0 400 500" style={{ position: "absolute", inset: 0 }}>
@@ -668,6 +658,7 @@ export default function BirthdayPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const detailRef = useRef<HTMLDivElement | null>(null);
+  const calendarRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     fetch("/api/fcl-data")
@@ -812,6 +803,14 @@ export default function BirthdayPage() {
     }
   };
 
+  const scrollToCalendar = () => {
+    const el = calendarRef.current;
+    if (!el) return;
+    const yOffset = -80; // স্টিকি হেডারের উচ্চতা অনুযায়ী অফসেট
+    const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+    window.scrollTo({ top: y, behavior: "smooth" });
+  };
+
   const pickStar = (i: number) => {
     setActiveStar(i);
     setTimeout(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
@@ -867,7 +866,7 @@ export default function BirthdayPage() {
           disabled={downloading}
           className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-white/20 bg-gradient-to-r from-blue-600 to-emerald-500 px-6 py-3.5 text-sm font-black text-white shadow-xl shadow-blue-600/30 transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
         >
-          {downloading ? "⏳ কার্ড তৈরি হচ্ছে..." : "📥 কার্ড ডাউনলোড করুন (PNG)"}
+          {downloading ? "⏳ কার্ড তৈরি হচ্ছে..." : "📥 ডাউনলোড করুন (PNG)"}
         </button>
         <button
           onClick={() => setWishSalt((s) => s + 1)}
@@ -1033,6 +1032,7 @@ export default function BirthdayPage() {
 
       <audio ref={audioRef} src="https://actions.google.com/sounds/v1/ambiences/birthday_party.ogg" loop />
 
+      {/* স্টিকি হেডার */}
       <header className="bd-header sticky top-0 z-30 border-b backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-2.5 sm:px-6">
           <Link href="/" className="bd-btn inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition">
@@ -1042,20 +1042,29 @@ export default function BirthdayPage() {
             <span>🎂</span>
             <span className="bd-gtext">FCL বার্থডে হাব</span>
           </div>
-          <button
-            onClick={toggleMusic}
-            aria-label="মিউজিক চালু/বন্ধ"
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
-              isPlayingMusic ? "border-emerald-500/60 bg-emerald-400/15 bd-em" : "bd-btn"
-            }`}
-          >
-            {isPlayingMusic ? "🎵" : "🔇"}
-            <span className="hidden sm:inline">{isPlayingMusic ? "মিউজিক বাজছে" : "মিউজিক"}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleMusic}
+              aria-label="মিউজিক চালু/বন্ধ"
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+                isPlayingMusic ? "border-emerald-500/60 bg-emerald-400/15 bd-em" : "bd-btn"
+              }`}
+            >
+              {isPlayingMusic ? "🎵" : "🔇"}
+              <span className="hidden sm:inline">{isPlayingMusic ? "মিউজিক বাজছে" : "মিউজিক"}</span>
+            </button>
+            <Link
+              href="/bn"
+              className="bd-btn inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition"
+            >
+              বাংলা
+            </Link>
+          </div>
         </div>
       </header>
 
-      <main className="relative mx-auto max-w-7xl px-3 pt-5 sm:px-6 sm:pt-8">
+      {/* মূল কন্টেন্ট (উপরে pt-8 বা pt-10 দেওয়া হয়েছে যাতে হেডারের নিচে কন্টেন্ট ঢাকা না পড়ে) */}
+      <main className="relative mx-auto max-w-7xl px-3 pt-8 sm:px-6 sm:pt-12">
         {loading ? (
           <div className="bd-sky2 flex h-64 items-center justify-center font-bold animate-pulse">বার্থডে ডেটা লোড হচ্ছে...</div>
         ) : (
@@ -1143,7 +1152,7 @@ export default function BirthdayPage() {
                 {star && (
                   <div
                     ref={detailRef}
-                    className="bd-panel relative scroll-mt-20 overflow-hidden rounded-[2rem] border p-4 sm:p-8 lg:p-12"
+                    className="bd-panel relative scroll-mt-24 overflow-hidden rounded-[2rem] border p-4 sm:p-8 lg:p-12"
                   >
                     <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
 
@@ -1441,7 +1450,8 @@ export default function BirthdayPage() {
               </section>
             )}
 
-            <section>
+            {/* ক্যালেন্ডার সেকশন */}
+            <section ref={calendarRef} className="scroll-mt-24">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="bd-head text-lg font-black sm:text-2xl">📅 বার্থডে ক্যালেন্ডার</h2>
@@ -1560,6 +1570,17 @@ export default function BirthdayPage() {
           </div>
         )}
       </main>
+
+      {/* ফ্লোটিং ক্যালেন্ডার বাটন (Floating Action Button - ডান কোণায় ভাসমান) */}
+      <button
+        onClick={scrollToCalendar}
+        title="বার্থডে ক্যালেন্ডারে যান"
+        aria-label="বার্থডে ক্যালেন্ডারে যান"
+        className="fixed bottom-6 right-6 z-40 flex items-center gap-1.5 rounded-full border border-sky-400/50 bg-sky-500/90 px-4 py-2.5 text-xs font-black text-white shadow-2xl backdrop-blur transition hover:scale-110 hover:bg-sky-600 active:scale-95 sm:bottom-8 sm:right-8"
+      >
+        <span>📅 ক্যালেন্ডার</span>
+        <span className="animate-bounce">⬇</span>
+      </button>
 
       {cardEntry && (
         <CardStudio
