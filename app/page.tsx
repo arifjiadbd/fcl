@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -47,12 +48,12 @@ const MENU_GROUPS: MenuGroup[] = [
     title: "তারকাদের মঞ্চ",
     english: "STATS & LEGENDS",
     color: "#f59e0b",
-    description: "র‍্যাঙ্কিং, রেকর্ড আর আপনার প্রিয় ক্রিকেটারের পরিসংখ্যান।",
+    description: "র্যাঙ্কিং, রেকর্ড আর আপনার প্রিয় ক্রিকেটারের পরিসংখ্যান।",
     items: [
       {
         href: "/rankings",
         icon: "👑",
-        title: "র‍্যাঙ্কিং ও MVP",
+        title: "র্যাঙ্কিং ও MVP",
         english: "Rankings & MVP",
         description: "সেরা খেলোয়াড়, MVP রেটিং ও লিডারবোর্ড।",
       },
@@ -386,6 +387,123 @@ function ArrowIcon({ back = false }: { back?: boolean }) {
 }
 
 /* ================================================================
+   PRELOADER
+================================================================ */
+
+function Preloader({
+  onFinish,
+  isDark,
+}: {
+  onFinish: () => void;
+  isDark: boolean;
+}) {
+  const [fadeOut, setFadeOut] = useState(false);
+  const [pct, setPct] = useState(0);
+  const [logoError, setLogoError] = useState(false);
+
+  const finishRef = useRef(onFinish);
+  const doneRef = useRef(false);
+  const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    finishRef.current = onFinish;
+  });
+
+  const finish = useCallback(() => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    finishRef.current();
+  }, []);
+
+  useEffect(() => {
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const DURATION = reduced ? 900 : 3200;
+    const start = performance.now();
+    let raf = 0;
+
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / DURATION, 1);
+      setPct(Math.round(p * 100));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+
+    const t1 = setTimeout(() => setFadeOut(true), DURATION - 500);
+    const t2 = setTimeout(finish, DURATION);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      if (skipTimer.current) clearTimeout(skipTimer.current);
+    };
+  }, [finish]);
+
+  const skip = () => {
+    if (fadeOut) return;
+    setFadeOut(true);
+    skipTimer.current = setTimeout(finish, 350);
+  };
+
+  return (
+    <div
+      role="status"
+      aria-label="FCL লোড হচ্ছে"
+      onClick={skip}
+      className={`pl-root ${isDark ? "pl-dark" : "pl-light"} ${fadeOut ? "is-out" : ""}`}
+    >
+      <div className="pl-grid" aria-hidden="true" />
+      <div className="pl-glow pl-glow-a" aria-hidden="true" />
+      <div className="pl-glow pl-glow-b" aria-hidden="true" />
+
+      <div className="pl-center">
+        <div className="pl-logo-wrap">
+          <div className="pl-ring" />
+          <div className="pl-orbit">
+            <i />
+          </div>
+          <div className="pl-disc">
+            {logoError ? (
+              <strong className="pl-fallback">FCL</strong>
+            ) : (
+              <img
+                src="/fcl-logo.png"
+                alt="FCL Logo"
+                className="pl-logo"
+                draggable={false}
+                onError={() => setLogoError(true)}
+              />
+            )}
+          </div>
+        </div>
+
+        <h2 className="pl-title" aria-label="FCL CRICKET">
+          {"FCL CRICKET".split("").map((ch, i) => (
+            <span
+              key={i}
+              className={`pl-letter ${i >= 4 ? "is-amber" : ""}`}
+              style={{ "--i": i } as CSSVars}
+              aria-hidden="true"
+            >
+              {ch === " " ? "\u00A0" : ch}
+            </span>
+          ))}
+        </h2>
+
+        <p className="pl-sub">LOADING EXPERIENCE</p>
+
+        <div className="pl-bar">
+          <div style={{ width: `${pct}%` }} />
+        </div>
+        <span className="pl-pct">{pct}%</span>
+        <span className="pl-skip">Tap anywhere to skip</span>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
    HERO PIECES
 ================================================================ */
 
@@ -606,6 +724,12 @@ export default function Home() {
   const isDark = useIsDark();
   const reducedMotion = useReducedMotion();
 
+  /* check   → sessionStorage দেখা হচ্ছে (শুধু ব্যাকগ্রাউন্ড কাভার)
+     loading → প্রিলোডার চলছে
+     done    → হোম পেজ দেখা যাবে */
+  const [phase, setPhase] = useState<"check" | "loading" | "done">("check");
+  const ready = phase === "done";
+
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [directoryOpen, setDirectoryOpen] = useState(false);
@@ -650,6 +774,25 @@ export default function Home() {
     );
   }, [query]);
 
+  /* একই সেশনে আবার এলে প্রিলোডার স্কিপ হবে */
+  useEffect(() => {
+    let seen = false;
+
+    try {
+      seen = !!sessionStorage.getItem("fcl_visited");
+    } catch {}
+
+    setPhase(seen ? "done" : "loading");
+  }, []);
+
+  const handlePreloadFinish = useCallback(() => {
+    try {
+      sessionStorage.setItem("fcl_visited", "true");
+    } catch {}
+
+    setPhase("done");
+  }, []);
+
   useEffect(() => {
     const pendingTimers = timers.current;
 
@@ -670,6 +813,8 @@ export default function Home() {
   }, [directoryOpen]);
 
   useEffect(() => {
+    if (!ready) return;
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (
         event.ctrlKey ||
@@ -709,7 +854,7 @@ export default function Home() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [directoryOpen, activeGroupId]);
+  }, [ready, directoryOpen, activeGroupId]);
 
   function openGroup(group: MenuGroup) {
     setActiveGroupId(group.id);
@@ -795,622 +940,893 @@ export default function Home() {
   }
 
   return (
-    <main
-      ref={rootRef}
-      className={`fcl-universe ${isDark ? "fu-dark" : "fu-light"}`}
-      style={{ "--fu-accent": accent } as CSSVars}
-      onPointerDown={createSpark}
-    >
-      <style jsx global>{UNIVERSE_STYLES}</style>
+    <>
+      {/* স্টাইল সবসময় সবার আগে — তাই CSS লোড হওয়ার আগে কাঁচা টেক্সট ঝলকাবে না */}
+      <style dangerouslySetInnerHTML={{ __html: UNIVERSE_STYLES }} />
 
-      <div className="fu-background" aria-hidden="true">
-        <div className="fu-grid" />
-        <div className="fu-glow fu-glow-a" />
-        <div className="fu-glow fu-glow-b" />
-        <div className="fu-square fu-square-a" />
-        <div className="fu-square fu-square-b" />
-        <div className="fu-square fu-square-c" />
-      </div>
+      {/* চেক করার সময় শুধু ব্যাকগ্রাউন্ড কাভার, লোডিং-এর সময় প্রিলোডার */}
+      {phase === "check" && (
+        <div
+          className={`pl-root ${isDark ? "pl-dark" : "pl-light"}`}
+          aria-hidden="true"
+        />
+      )}
+      {phase === "loading" && (
+        <Preloader onFinish={handlePreloadFinish} isDark={isDark} />
+      )}
 
-      <div className="fu-shell">
-        <header className="fu-header">
-          <div className="fu-brand">
-            <span className="fu-brand-mark" aria-hidden="true">
-              F
-            </span>
-            <div>
-              <span className="fu-eyebrow">FACEBOOK CRICKET LEAGUE</span>
-              <h1>
-              
-              </h1>
-            </div>
-          </div>
+      <main
+        ref={rootRef}
+        className={`fcl-universe ${isDark ? "fu-dark" : "fu-light"} ${
+          ready ? "" : "fu-hidden"
+        }`}
+        style={{ "--fu-accent": accent } as CSSVars}
+        onPointerDown={createSpark}
+      >
+        <div className="fu-background" aria-hidden="true">
+          <div className="fu-grid" />
+          <div className="fu-glow fu-glow-a" />
+          <div className="fu-glow fu-glow-b" />
+          <div className="fu-square fu-square-a" />
+          <div className="fu-square fu-square-b" />
+          <div className="fu-square fu-square-c" />
+        </div>
 
-          <div className="fu-header-actions">
-            <Link href="/bn" className="fu-language" data-accent="#60a5fa">
-              বাংলা
-            </Link>
-
-            <button
-              ref={searchButtonRef}
-              type="button"
-              className={`fu-search-trigger ${directoryOpen ? "is-active" : ""}`}
-              aria-label={directoryOpen ? "মেনু তালিকা বন্ধ করুন" : "সব মেনু দেখুন ও খুঁজুন"}
-              aria-expanded={directoryOpen}
-              aria-controls="fu-menu-content"
-              onClick={() => {
-                if (directoryOpen) closeDirectory();
-                else {
-                  setQuery("");
-                  setDirectoryOpen(true);
-                }
-              }}
-            >
-              <SearchIcon />
-              <span>সব মেনু</span>
-              <kbd>/</kbd>
-            </button>
-          </div>
-        </header>
-
-        {/* ================================================================
-            HERO — DESKTOP / TABLET
-        ================================================================ */}
-        <section className="fh-hero fh-desk" onPointerMove={heroParallax} aria-label="FCL hero">
-          <div className="fh-orb fh-orb-a" aria-hidden="true" />
-          <div className="fh-orb fh-orb-b" aria-hidden="true" />
-
-          <div className="fh-desk-grid">
-            <div className="fh-copy">
-              <div className="fh-badge fh-wd" style={{ "--i": 0 } as CSSVars}>
-                <span className="fh-live" />
-                FCL • DIGITAL GATEWAY HUB
-              </div>
-
-              <h2 className="fh-title">
-                <span className="fh-line">
-                  <Words text="THE GAME LIVES" base={1} />
-                </span>
-                <span className="fh-line">
-                  <Words text="BEYOND THE FIELD." base={4} className="fh-grad" />
-                </span>
-                <span className="fh-tag">
-                  One Game. One Community. <span className="fh-zoom">FCL.</span>
-                </span>
-              </h2>
-
-              <Rotator paused={reducedMotion} />
-
-              <p className="fh-text">
-                Facebook Cricket League-এর অফিশিয়াল পোর্টাল — র‍্যাঙ্কিং, রেকর্ড, স্মৃতি আর
-                হাই-ভোল্টেজ ম্যাচের গল্প, সব এক জায়গায়।
-              </p>
-
-              <div className="fh-actions">
-                <Magnetic disabled={reducedMotion}>
-                  <button
-                    type="button"
-                    className="fh-btn-primary"
-                    data-accent="#1877F2"
-                    onClick={scrollToMenu}
-                  >
-                    <span className="fh-btn-shine" />
-                    <span className="fh-rel">Explore Menu ↓</span>
-                  </button>
-                </Magnetic>
-
-                <Magnetic disabled={reducedMotion}>
-                  <Link href="/play" className="fh-btn-play" data-accent="#22c55e">
-                    <span className="fh-live" />
-                    🎮 Play Now
-                  </Link>
-                </Magnetic>
-
-                <Magnetic disabled={reducedMotion}>
-                  <Link href="/bn" className="fh-btn-ghost" data-accent="#3b82f6">
-                    💙 বাংলা ভার্সন
-                  </Link>
-                </Magnetic>
-              </div>
-            </div>
-
-            <HeroArt reduced={reducedMotion} />
-          </div>
-
-          <div className="fh-marquee">
-            <div className="fh-marquee-track">
-              {[0, 1].map((copy) =>
-                ALL_PORTALS.map((portal) => (
-                  <Link
-                    key={`${copy}-${portal.href}`}
-                    href={portal.href}
-                    className="fh-marquee-item"
-                    data-accent={portal.color}
-                    style={{ "--item-color": portal.color } as CSSVars}
-                    tabIndex={copy ? -1 : 0}
-                    aria-hidden={copy ? true : undefined}
-                  >
-                    <span>{portal.icon}</span>
-                    {portal.english}
-                  </Link>
-                ))
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* ================================================================
-            HERO — MOBILE (app style)
-        ================================================================ */}
-        <section className="fh-hero fh-mob" aria-label="FCL hero">
-          <div className="fh-badge fh-wd" style={{ "--i": 0 } as CSSVars}>
-            <span className="fh-live" />
-            FCL DIGITAL HUB
-          </div>
-
-          <h2 className="fh-title">
-            <span className="fh-line">
-              <Words text="THE GAME LIVES" base={1} />
-            </span>
-            <span className="fh-line">
-              <Words text="BEYOND THE FIELD." base={4} className="fh-grad" />
-            </span>
-          </h2>
-
-          <Rotator small paused={reducedMotion} />
-
-          <div className="fh-mob-art">
-            <div className="fh-ring" style={{ "--rr": "22px" } as CSSVars}>
-              <div className="fh-ring-in">
-                <img src="/fcl-room.png" alt="FCL Online" draggable={false} />
-              </div>
-            </div>
-            <MobileLive reduced={reducedMotion} />
-          </div>
-
-          <div className="fh-mob-actions">
-            <button
-              type="button"
-              className="fh-btn-primary"
-              data-accent="#1877F2"
-              onClick={scrollToMenu}
-            >
-              <span className="fh-btn-shine" />
-              <span className="fh-rel">Explore Menu ↓</span>
-            </button>
-            <Link href="/play" className="fh-btn-play" data-accent="#22c55e">
-              <span className="fh-live" />
-              🎮 Play
-            </Link>
-          </div>
-        </section>
-
-        {/* ================================================================
-            FLOWER MENU
-        ================================================================ */}
-        <section id="fu-menu" className="fu-dashboard" aria-label="FCL interactive navigation">
-          <aside className="fu-wing fu-wing-left">
-            <span className="fu-overline">
-              <i />
-              YOUR CRICKET UNIVERSE
-            </span>
-
-            <h2>
-              এক <span>এফসিএল,</span>
-              <br />
-              অসংখ্য <span>গল্প।</span>
-            </h2>
-
-            <p>
-              আপনার FCL এখন হাতের মুঠোয়।
-              পছন্দের একটি পাপড়িতে ক্লিক করুন—খুলে যাবে নতুন দুনিয়া।
-            </p>
-
-            <div className="fu-counts">
-              <div>
-                <strong>{MENU_GROUPS.length.toString().padStart(2, "0")}</strong>
-                <span>ক্যাটেগরি</span>
-              </div>
-              <span className="fu-count-divider" />
-              <div>
-                <strong>{ALL_PORTALS.length}</strong>
-                <span>ডেস্টিনেশন</span>
-              </div>
-            </div>
-
-            <Link href="/play" className="fu-play-button" data-accent="#22d3ee">
-              <span aria-hidden="true">🎮</span>
-              মাঠে নামুন
-              <ArrowIcon />
-            </Link>
-          </aside>
-
-          <div className="fu-console">
-            <div className="fu-console-top">
-              <div className="fu-breadcrumb">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (directoryOpen) closeDirectory();
-                    goHome();
-                  }}
-                >
-                  FCL
-                </button>
-                <span>/</span>
-                <strong>
-                  {directoryOpen
-                    ? "সব ডেস্টিনেশন"
-                    : activeGroup?.title ?? "মূল মেনু"}
-                </strong>
-              </div>
-
-              <span className="fu-mode-label">
-                {directoryOpen ? "QUICK FIND" : "ORBIT MENU"}
+        <div className="fu-shell">
+          <header className="fu-header">
+            <div className="fu-brand">
+              <span className="fu-brand-mark" aria-hidden="true">
+                F
               </span>
+              <div>
+                <span className="fu-eyebrow">FACEBOOK CRICKET LEAGUE</span>
+                <h1>
+                
+                </h1>
+              </div>
             </div>
 
-            <div id="fu-menu-content" className="fu-menu-content">
-              {directoryOpen ? (
-                <div className="fu-directory">
-                  <div className="fu-search-field">
-                    <SearchIcon />
-                    <input
-                      ref={searchRef}
-                      value={query}
-                      onChange={(event) => setQuery(event.target.value)}
-                      placeholder="পেইজ খুঁজুন… rankings, ম্যাচ"
-                      aria-label="FCL পেইজ খুঁজুন"
-                      autoComplete="off"
-                      spellCheck={false}
-                    />
+            <div className="fu-header-actions">
+              <Link href="/bn" className="fu-language" data-accent="#60a5fa">
+                বাংলা
+              </Link>
+
+              <button
+                ref={searchButtonRef}
+                type="button"
+                className={`fu-search-trigger ${directoryOpen ? "is-active" : ""}`}
+                aria-label={directoryOpen ? "মেনু তালিকা বন্ধ করুন" : "সব মেনু দেখুন ও খুঁজুন"}
+                aria-expanded={directoryOpen}
+                aria-controls="fu-menu-content"
+                onClick={() => {
+                  if (directoryOpen) closeDirectory();
+                  else {
+                    setQuery("");
+                    setDirectoryOpen(true);
+                  }
+                }}
+              >
+                <SearchIcon />
+                <span>সব মেনু</span>
+                <kbd>/</kbd>
+              </button>
+            </div>
+          </header>
+
+          {/* ================================================================
+              HERO — DESKTOP / TABLET
+          ================================================================ */}
+          <section className="fh-hero fh-desk" onPointerMove={heroParallax} aria-label="FCL hero">
+            <div className="fh-orb fh-orb-a" aria-hidden="true" />
+            <div className="fh-orb fh-orb-b" aria-hidden="true" />
+
+            <div className="fh-desk-grid">
+              <div className="fh-copy">
+                <div className="fh-badge fh-wd" style={{ "--i": 0 } as CSSVars}>
+                  <span className="fh-live" />
+                  FCL • DIGITAL GATEWAY HUB
+                </div>
+
+                <h2 className="fh-title">
+                  <span className="fh-line">
+                    <Words text="THE GAME LIVES" base={1} />
+                  </span>
+                  <span className="fh-line">
+                    <Words text="BEYOND THE FIELD." base={4} className="fh-grad" />
+                  </span>
+                  <span className="fh-tag">
+                    One Game. One Community. <span className="fh-zoom">FCL.</span>
+                  </span>
+                </h2>
+
+                <Rotator paused={reducedMotion} />
+
+                <p className="fh-text">
+                  Facebook Cricket League-এর অফিশিয়াল পোর্টাল — র্যাঙ্কিং, রেকর্ড, স্মৃতি আর
+                  হাই-ভোল্টেজ ম্যাচের গল্প, সব এক জায়গায়।
+                </p>
+
+                <div className="fh-actions">
+                  <Magnetic disabled={reducedMotion}>
                     <button
                       type="button"
-                      onClick={closeDirectory}
-                      aria-label="ফুল মেনুতে ফিরুন"
+                      className="fh-btn-primary"
+                      data-accent="#1877F2"
+                      onClick={scrollToMenu}
                     >
-                      ✕
+                      <span className="fh-btn-shine" />
+                      <span className="fh-rel">Explore Menu ↓</span>
                     </button>
-                  </div>
+                  </Magnetic>
 
-                  <div className="fu-result-heading">
-                    <span>{results.length}টি ডেস্টিনেশন</span>
-                    <span>সরাসরি প্রবেশ করুন ↗</span>
-                  </div>
+                  <Magnetic disabled={reducedMotion}>
+                    <Link href="/play" className="fh-btn-play" data-accent="#22c55e">
+                      <span className="fh-live" />
+                      🎮 Play Now
+                    </Link>
+                  </Magnetic>
 
-                  <nav className="fu-results" aria-label="সব FCL পেইজ">
-                    {results.map((portal) => (
-                      <Link
-                        key={portal.href}
-                        href={portal.href}
-                        className="fu-result"
-                        data-accent={portal.color}
-                        style={{ "--item-color": portal.color } as CSSVars}
-                      >
-                        <span className="fu-result-icon" aria-hidden="true">
-                          {portal.icon}
-                        </span>
-                        <span className="fu-result-copy">
-                          <strong>{portal.title}</strong>
-                          <small>{portal.english}</small>
-                        </span>
-                        <span className="fu-result-arrow" aria-hidden="true">
-                          ↗
-                        </span>
-                      </Link>
-                    ))}
-                  </nav>
-
-                  {results.length === 0 && (
-                    <div className="fu-empty" role="status">
-                      <span aria-hidden="true">🔎</span>
-                      <strong>কোনো পেইজ পাওয়া যায়নি</strong>
-                      <button type="button" onClick={() => setQuery("")}>
-                        সব মেনু দেখুন
-                      </button>
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    className="fu-directory-back"
-                    onClick={closeDirectory}
-                  >
-                    <ArrowIcon back />
-                    ফুল মেনুতে ফিরুন
-                  </button>
+                  <Magnetic disabled={reducedMotion}>
+                    <Link href="/bn" className="fh-btn-ghost" data-accent="#3b82f6">
+                      💙 বাংলা ভার্সন
+                    </Link>
+                  </Magnetic>
                 </div>
-              ) : (
-                <div
-                  className="fu-flower"
-                  onPointerMove={followPointer}
-                  onPointerLeave={() => setPreviewId(null)}
-                >
-                  <div className="fu-cursor-light" aria-hidden="true" />
+              </div>
 
-                  <div className="fu-orbit fu-orbit-outer" aria-hidden="true" />
-                  <div className="fu-orbit fu-orbit-inner" aria-hidden="true" />
-                  <div className="fu-orbit-runner" aria-hidden="true">
-                    <i />
-                  </div>
-
-                  <svg
-                    className="fu-connectors"
-                    viewBox="0 0 500 500"
-                    aria-hidden="true"
-                  >
-                    <path d="M250 250V82 M250 250H418 M250 250V418 M250 250H82" />
-                    <circle cx="250" cy="250" r="84" />
-                  </svg>
-
-                  <button
-                    ref={centerRef}
-                    type="button"
-                    className={`fu-core ${activeGroup ? "fu-core-open" : ""}`}
-                    onClick={goHome}
-                    data-accent={accent}
-                    aria-label={
-                      activeGroup
-                        ? "মূল FCL মেনুতে ফিরুন"
-                        : "FCL মূল মেনু"
-                    }
-                  >
-                    <span className="fu-core-halo" aria-hidden="true" />
-                    <span className="fu-core-inner">
-                      {logoError ? (
-                        <strong className="fu-logo-fallback">FCL</strong>
-                      ) : (
-                        <img
-                          src="/fcl-logo.png"
-                          alt=""
-                          width={62}
-                          height={62}
-                          onError={() => setLogoError(true)}
-                          draggable={false}
-                        />
-                      )}
-                      <span>{activeGroup ? "↩ HOME" : "EXPLORE"}</span>
-                    </span>
-                  </button>
-
-                  <nav
-                    key={activeGroup?.id ?? "root"}
-                    className="fu-petals"
-                    aria-label={
-                      activeGroup
-                        ? `${activeGroup.title} সাবমেনু`
-                        : "FCL ক্যাটেগরি"
-                    }
-                  >
-                    {activeGroup
-                      ? activeGroup.items.map((item, index) => (
-                          <div
-                            key={item.href}
-                            className={`fu-petal-position fu-position-${index}`}
-                            style={
-                              {
-                                "--item-color": activeGroup.color,
-                                "--delay": `${index * 65}ms`,
-                              } as CSSVars
-                            }
-                          >
-                            <Link
-                              href={item.href}
-                              className="fu-petal fu-leaf"
-                              data-accent={activeGroup.color}
-                            >
-                              <span className="fu-petal-shine" />
-                              <span className="fu-petal-icon" aria-hidden="true">
-                                {item.icon}
-                              </span>
-                              <strong>{item.title}</strong>
-                              <small>প্রবেশ করুন ↗</small>
-                            </Link>
-                          </div>
-                        ))
-                      : MENU_GROUPS.map((group, index) => (
-                          <div
-                            key={group.id}
-                            className={`fu-petal-position fu-position-${index}`}
-                            style={
-                              {
-                                "--item-color": group.color,
-                                "--delay": `${index * 65}ms`,
-                              } as CSSVars
-                            }
-                          >
-                            <button
-                              type="button"
-                              className="fu-petal"
-                              data-accent={group.color}
-                              onClick={() => openGroup(group)}
-                              onPointerEnter={() => setPreviewId(group.id)}
-                              onFocus={() => setPreviewId(group.id)}
-                              onBlur={() => setPreviewId(null)}
-                            >
-                              <span className="fu-petal-shine" />
-                              <span className="fu-petal-icon" aria-hidden="true">
-                                {group.icon}
-                              </span>
-                              <strong>{group.title}</strong>
-                              <small>{group.items.length}টি অপশন · খুলুন</small>
-                            </button>
-                          </div>
-                        ))}
-
-                    {activeGroup && (
-                      <div
-                        className="fu-petal-position fu-position-3"
-                        style={
-                          {
-                            "--item-color": "#94a3b8",
-                            "--delay": "195ms",
-                          } as CSSVars
-                        }
-                      >
-                        <button
-                          type="button"
-                          className="fu-petal fu-back-petal"
-                          onClick={goHome}
-                          data-accent="#94a3b8"
-                        >
-                          <span className="fu-petal-icon" aria-hidden="true">
-                            <ArrowIcon back />
-                          </span>
-                          <strong>ফিরে যান</strong>
-                          <small>মূল মেনু</small>
-                        </button>
-                      </div>
-                    )}
-                  </nav>
-                </div>
-              )}
+              <HeroArt reduced={reducedMotion} />
             </div>
 
-            <div className="fu-console-bottom">
-              <span className="fu-instruction">
-                <span aria-hidden="true">{directoryOpen ? "⌕" : activeGroup ? "↗" : "✦"}</span>
-                {directoryOpen
-                  ? "এক ট্যাপে আপনার গন্তব্য"
-                  : activeGroup
-                    ? "অপশন বেছে নিন · মাঝখানে ট্যাপ করলে Home"
-                    : "পাপড়িতে ট্যাপ করুন · খুলবে নতুন অপশন"}
-              </span>
-              <span className="fu-step">
-                {directoryOpen ? "ALL" : activeGroup ? "02 / 02" : "01 / 02"}
-              </span>
-            </div>
-          </div>
-
-          <aside className="fu-wing fu-wing-right">
-            <div
-              key={previewGroup?.id ?? "welcome"}
-              className="fu-preview"
-            >
-              <span className="fu-preview-icon" aria-hidden="true">
-                {previewGroup?.icon ?? "✦"}
-              </span>
-
-              <span className="fu-overline">
-                {previewGroup?.english ?? "ONE GAME. ONE COMMUNITY."}
-              </span>
-
-              <h2>{previewGroup?.title ?? "আপনার পরের গন্তব্য?"}</h2>
-
-              <p>
-                {previewGroup?.description ??
-                  "মেনুর ওপর কার্সর রাখুন। ক্যাটেগরির ভেতরে কী আছে, এখানেই দেখে নিন।"}
-              </p>
-
-              <div className="fu-preview-list">
-                {previewGroup ? (
-                  previewGroup.items.map((item) => (
+            <div className="fh-marquee">
+              <div className="fh-marquee-track">
+                {[0, 1].map((copy) =>
+                  ALL_PORTALS.map((portal) => (
                     <Link
-                      key={item.href}
-                      href={item.href}
-                      data-accent={previewGroup.color}
+                      key={`${copy}-${portal.href}`}
+                      href={portal.href}
+                      className="fh-marquee-item"
+                      data-accent={portal.color}
+                      style={{ "--item-color": portal.color } as CSSVars}
+                      tabIndex={copy ? -1 : 0}
+                      aria-hidden={copy ? true : undefined}
                     >
-                      <span aria-hidden="true">{item.icon}</span>
-                      <span>{item.title}</span>
-                      <span aria-hidden="true">↗</span>
+                      <span>{portal.icon}</span>
+                      {portal.english}
                     </Link>
                   ))
-                ) : (
-                  <>
-                    <div><span>01</span> একটি ক্যাটেগরি বেছে নিন</div>
-                    <div><span>02</span> পছন্দের পেইজ খুলুন</div>
-                    <div><span>↩</span> FCL-এ ট্যাপ করে ফিরে আসুন</div>
-                  </>
                 )}
               </div>
             </div>
+          </section>
 
-            <span className="fu-key-hint">
-              <kbd>/</kbd> Search <span>·</span> <kbd>Esc</kbd> Back
-            </span>
-          </aside>
-        </section>
+          {/* ================================================================
+              HERO — MOBILE (app style)
+          ================================================================ */}
+          <section className="fh-hero fh-mob" aria-label="FCL hero">
+            <div className="fh-badge fh-wd" style={{ "--i": 0 } as CSSVars}>
+              <span className="fh-live" />
+              FCL DIGITAL HUB
+            </div>
 
-        <nav className="fu-dock" aria-label="দ্রুত ক্যাটেগরি পরিবর্তন">
-          {MENU_GROUPS.map((group) => (
-            <button
-              key={group.id}
-              type="button"
-              className={activeGroupId === group.id && !directoryOpen ? "is-active" : ""}
-              aria-pressed={activeGroupId === group.id && !directoryOpen}
-              data-accent={group.color}
-              style={{ "--item-color": group.color } as CSSVars}
-              onClick={() => {
-                setDirectoryOpen(false);
-                setQuery("");
-                setActiveGroupId(group.id);
-                setPreviewId(null);
-                setAnnouncement(`${group.title}: তিনটি অপশন খোলা হয়েছে।`);
-              }}
-            >
-              <span aria-hidden="true">{group.icon}</span>
-              <span>
-                {group.id === "legends"
-                  ? "স্ট্যাটস"
-                  : group.id === "arena"
-                    ? "ম্যাচ"
-                    : group.id === "community"
-                      ? "কমিউনিটি"
-                      : "এক্সপ্লোর"}
+            <h2 className="fh-title">
+              <span className="fh-line">
+                <Words text="THE GAME LIVES" base={1} />
               </span>
-            </button>
+              <span className="fh-line">
+                <Words text="BEYOND THE FIELD." base={4} className="fh-grad" />
+              </span>
+            </h2>
+
+            <Rotator small paused={reducedMotion} />
+
+            <div className="fh-mob-art">
+              <div className="fh-ring" style={{ "--rr": "22px" } as CSSVars}>
+                <div className="fh-ring-in">
+                  <img src="/fcl-room.png" alt="FCL Online" draggable={false} />
+                </div>
+              </div>
+              <MobileLive reduced={reducedMotion} />
+            </div>
+
+            <div className="fh-mob-actions">
+              <button
+                type="button"
+                className="fh-btn-primary"
+                data-accent="#1877F2"
+                onClick={scrollToMenu}
+              >
+                <span className="fh-btn-shine" />
+                <span className="fh-rel">Explore Menu ↓</span>
+              </button>
+              <Link href="/play" className="fh-btn-play" data-accent="#22c55e">
+                <span className="fh-live" />
+                🎮 Play
+              </Link>
+            </div>
+          </section>
+
+          {/* ================================================================
+              FLOWER MENU
+          ================================================================ */}
+          <section id="fu-menu" className="fu-dashboard" aria-label="FCL interactive navigation">
+            <aside className="fu-wing fu-wing-left">
+              <span className="fu-overline">
+                <i />
+                YOUR CRICKET UNIVERSE
+              </span>
+
+              <h2>
+                এক <span>এফসিএল,</span>
+                <br />
+                অসংখ্য <span>গল্প।</span>
+              </h2>
+
+              <p>
+                আপনার FCL এখন হাতের মুঠোয়।
+                পছন্দের একটি পাপড়িতে ক্লিক করুন—খুলে যাবে নতুন দুনিয়া।
+              </p>
+
+              <div className="fu-counts">
+                <div>
+                  <strong>{MENU_GROUPS.length.toString().padStart(2, "0")}</strong>
+                  <span>ক্যাটেগরি</span>
+                </div>
+                <span className="fu-count-divider" />
+                <div>
+                  <strong>{ALL_PORTALS.length}</strong>
+                  <span>ডেস্টিনেশন</span>
+                </div>
+              </div>
+
+              <Link href="/play" className="fu-play-button" data-accent="#22d3ee">
+                <span aria-hidden="true">🎮</span>
+                মাঠে নামুন
+                <ArrowIcon />
+              </Link>
+            </aside>
+
+            <div className="fu-console">
+              <div className="fu-console-top">
+                <div className="fu-breadcrumb">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (directoryOpen) closeDirectory();
+                      goHome();
+                    }}
+                  >
+                    FCL
+                  </button>
+                  <span>/</span>
+                  <strong>
+                    {directoryOpen
+                      ? "সব ডেস্টিনেশন"
+                      : activeGroup?.title ?? "মূল মেনু"}
+                  </strong>
+                </div>
+
+                <span className="fu-mode-label">
+                  {directoryOpen ? "QUICK FIND" : "ORBIT MENU"}
+                </span>
+              </div>
+
+              <div id="fu-menu-content" className="fu-menu-content">
+                {directoryOpen ? (
+                  <div className="fu-directory">
+                    <div className="fu-search-field">
+                      <SearchIcon />
+                      <input
+                        ref={searchRef}
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder="পেইজ খুঁজুন… rankings, ম্যাচ"
+                        aria-label="FCL পেইজ খুঁজুন"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                      <button
+                        type="button"
+                        onClick={closeDirectory}
+                        aria-label="ফুল মেনুতে ফিরুন"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="fu-result-heading">
+                      <span>{results.length}টি ডেস্টিনেশন</span>
+                      <span>সরাসরি প্রবেশ করুন ↗</span>
+                    </div>
+
+                    <nav className="fu-results" aria-label="সব FCL পেইজ">
+                      {results.map((portal) => (
+                        <Link
+                          key={portal.href}
+                          href={portal.href}
+                          className="fu-result"
+                          data-accent={portal.color}
+                          style={{ "--item-color": portal.color } as CSSVars}
+                        >
+                          <span className="fu-result-icon" aria-hidden="true">
+                            {portal.icon}
+                          </span>
+                          <span className="fu-result-copy">
+                            <strong>{portal.title}</strong>
+                            <small>{portal.english}</small>
+                          </span>
+                          <span className="fu-result-arrow" aria-hidden="true">
+                            ↗
+                          </span>
+                        </Link>
+                      ))}
+                    </nav>
+
+                    {results.length === 0 && (
+                      <div className="fu-empty" role="status">
+                        <span aria-hidden="true">🔎</span>
+                        <strong>কোনো পেইজ পাওয়া যায়নি</strong>
+                        <button type="button" onClick={() => setQuery("")}>
+                          সব মেনু দেখুন
+                        </button>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className="fu-directory-back"
+                      onClick={closeDirectory}
+                    >
+                      <ArrowIcon back />
+                      ফুল মেনুতে ফিরুন
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="fu-flower"
+                    onPointerMove={followPointer}
+                    onPointerLeave={() => setPreviewId(null)}
+                  >
+                    <div className="fu-cursor-light" aria-hidden="true" />
+
+                    <div className="fu-orbit fu-orbit-outer" aria-hidden="true" />
+                    <div className="fu-orbit fu-orbit-inner" aria-hidden="true" />
+                    <div className="fu-orbit-runner" aria-hidden="true">
+                      <i />
+                    </div>
+
+                    <svg
+                      className="fu-connectors"
+                      viewBox="0 0 500 500"
+                      aria-hidden="true"
+                    >
+                      <path d="M250 250V82 M250 250H418 M250 250V418 M250 250H82" />
+                      <circle cx="250" cy="250" r="84" />
+                    </svg>
+
+                    <button
+                      ref={centerRef}
+                      type="button"
+                      className={`fu-core ${activeGroup ? "fu-core-open" : ""}`}
+                      onClick={goHome}
+                      data-accent={accent}
+                      aria-label={
+                        activeGroup
+                          ? "মূল FCL মেনুতে ফিরুন"
+                          : "FCL মূল মেনু"
+                      }
+                    >
+                      <span className="fu-core-halo" aria-hidden="true" />
+                      <span className="fu-core-inner">
+                        {logoError ? (
+                          <strong className="fu-logo-fallback">FCL</strong>
+                        ) : (
+                          <img
+                            src="/fcl-logo.png"
+                            alt=""
+                            width={62}
+                            height={62}
+                            onError={() => setLogoError(true)}
+                            draggable={false}
+                          />
+                        )}
+                        <span>{activeGroup ? "↩ HOME" : "EXPLORE"}</span>
+                      </span>
+                    </button>
+
+                    <nav
+                      key={activeGroup?.id ?? "root"}
+                      className="fu-petals"
+                      aria-label={
+                        activeGroup
+                          ? `${activeGroup.title} সাবমেনু`
+                          : "FCL ক্যাটেগরি"
+                      }
+                    >
+                      {activeGroup
+                        ? activeGroup.items.map((item, index) => (
+                            <div
+                              key={item.href}
+                              className={`fu-petal-position fu-position-${index}`}
+                              style={
+                                {
+                                  "--item-color": activeGroup.color,
+                                  "--delay": `${index * 65}ms`,
+                                } as CSSVars
+                              }
+                            >
+                              <Link
+                                href={item.href}
+                                className="fu-petal fu-leaf"
+                                data-accent={activeGroup.color}
+                              >
+                                <span className="fu-petal-shine" />
+                                <span className="fu-petal-icon" aria-hidden="true">
+                                  {item.icon}
+                                </span>
+                                <strong>{item.title}</strong>
+                                <small>প্রবেশ করুন ↗</small>
+                              </Link>
+                            </div>
+                          ))
+                        : MENU_GROUPS.map((group, index) => (
+                            <div
+                              key={group.id}
+                              className={`fu-petal-position fu-position-${index}`}
+                              style={
+                                {
+                                  "--item-color": group.color,
+                                  "--delay": `${index * 65}ms`,
+                                } as CSSVars
+                              }
+                            >
+                              <button
+                                type="button"
+                                className="fu-petal"
+                                data-accent={group.color}
+                                onClick={() => openGroup(group)}
+                                onPointerEnter={() => setPreviewId(group.id)}
+                                onFocus={() => setPreviewId(group.id)}
+                                onBlur={() => setPreviewId(null)}
+                              >
+                                <span className="fu-petal-shine" />
+                                <span className="fu-petal-icon" aria-hidden="true">
+                                  {group.icon}
+                                </span>
+                                <strong>{group.title}</strong>
+                                <small>{group.items.length}টি অপশন · খুলুন</small>
+                              </button>
+                            </div>
+                          ))}
+
+                      {activeGroup && (
+                        <div
+                          className="fu-petal-position fu-position-3"
+                          style={
+                            {
+                              "--item-color": "#94a3b8",
+                              "--delay": "195ms",
+                            } as CSSVars
+                          }
+                        >
+                          <button
+                            type="button"
+                            className="fu-petal fu-back-petal"
+                            onClick={goHome}
+                            data-accent="#94a3b8"
+                          >
+                            <span className="fu-petal-icon" aria-hidden="true">
+                              <ArrowIcon back />
+                            </span>
+                            <strong>ফিরে যান</strong>
+                            <small>মূল মেনু</small>
+                          </button>
+                        </div>
+                      )}
+                    </nav>
+                  </div>
+                )}
+              </div>
+
+              <div className="fu-console-bottom">
+                <span className="fu-instruction">
+                  <span aria-hidden="true">{directoryOpen ? "⌕" : activeGroup ? "↗" : "✦"}</span>
+                  {directoryOpen
+                    ? "এক ট্যাপে আপনার গন্তব্য"
+                    : activeGroup
+                      ? "অপশন বেছে নিন · মাঝখানে ট্যাপ করলে Home"
+                      : "পাপড়িতে ট্যাপ করুন · খুলবে নতুন অপশন"}
+                </span>
+                <span className="fu-step">
+                  {directoryOpen ? "ALL" : activeGroup ? "02 / 02" : "01 / 02"}
+                </span>
+              </div>
+            </div>
+
+            <aside className="fu-wing fu-wing-right">
+              <div
+                key={previewGroup?.id ?? "welcome"}
+                className="fu-preview"
+              >
+                <span className="fu-preview-icon" aria-hidden="true">
+                  {previewGroup?.icon ?? "✦"}
+                </span>
+
+                <span className="fu-overline">
+                  {previewGroup?.english ?? "ONE GAME. ONE COMMUNITY."}
+                </span>
+
+                <h2>{previewGroup?.title ?? "আপনার পরের গন্তব্য?"}</h2>
+
+                <p>
+                  {previewGroup?.description ??
+                    "মেনুর ওপর কার্সর রাখুন। ক্যাটেগরির ভেতরে কী আছে, এখানেই দেখে নিন।"}
+                </p>
+
+                <div className="fu-preview-list">
+                  {previewGroup ? (
+                    previewGroup.items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        data-accent={previewGroup.color}
+                      >
+                        <span aria-hidden="true">{item.icon}</span>
+                        <span>{item.title}</span>
+                        <span aria-hidden="true">↗</span>
+                      </Link>
+                    ))
+                  ) : (
+                    <>
+                      <div><span>01</span> একটি ক্যাটেগরি বেছে নিন</div>
+                      <div><span>02</span> পছন্দের পেইজ খুলুন</div>
+                      <div><span>↩</span> FCL-এ ট্যাপ করে ফিরে আসুন</div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <span className="fu-key-hint">
+                <kbd>/</kbd> Search <span>·</span> <kbd>Esc</kbd> Back
+              </span>
+            </aside>
+          </section>
+
+          <nav className="fu-dock" aria-label="দ্রুত ক্যাটেগরি পরিবর্তন">
+            {MENU_GROUPS.map((group) => (
+              <button
+                key={group.id}
+                type="button"
+                className={activeGroupId === group.id && !directoryOpen ? "is-active" : ""}
+                aria-pressed={activeGroupId === group.id && !directoryOpen}
+                data-accent={group.color}
+                style={{ "--item-color": group.color } as CSSVars}
+                onClick={() => {
+                  setDirectoryOpen(false);
+                  setQuery("");
+                  setActiveGroupId(group.id);
+                  setPreviewId(null);
+                  setAnnouncement(`${group.title}: তিনটি অপশন খোলা হয়েছে।`);
+                }}
+              >
+                <span aria-hidden="true">{group.icon}</span>
+                <span>
+                  {group.id === "legends"
+                    ? "স্ট্যাটস"
+                    : group.id === "arena"
+                      ? "ম্যাচ"
+                      : group.id === "community"
+                        ? "কমিউনিটি"
+                        : "এক্সপ্লোর"}
+                </span>
+              </button>
+            ))}
+          </nav>
+
+          <footer className="fu-footer">
+            <span>ONE GAME. ONE COMMUNITY. <b>FCL.</b></span>
+            <span className="fu-footer-desktop">Built around your cricket story.</span>
+          </footer>
+        </div>
+
+        <div className="fu-sr-only" role="status" aria-live="polite">
+          {announcement}
+        </div>
+
+        <div className="fu-spark-layer" aria-hidden="true">
+          {bursts.map((burst) => (
+            <div
+              key={burst.id}
+              className="fu-burst"
+              style={
+                {
+                  left: burst.x,
+                  top: burst.y,
+                  "--spark-color": burst.color,
+                } as CSSVars
+              }
+            >
+              <span className="fu-spark-ring" />
+              {Array.from({ length: 12 }, (_, index) => {
+                const angle = (index / 12) * Math.PI * 2;
+                const distance = 30 + (index % 3) * 13;
+
+                return (
+                  <i
+                    key={index}
+                    style={
+                      {
+                        "--dx": `${Math.cos(angle) * distance}px`,
+                        "--dy": `${Math.sin(angle) * distance}px`,
+                        "--turn": `${index * 30}deg`,
+                      } as CSSVars
+                    }
+                  />
+                );
+              })}
+            </div>
           ))}
-        </nav>
-
-        <footer className="fu-footer">
-          <span>ONE GAME. ONE COMMUNITY. <b>FCL.</b></span>
-          <span className="fu-footer-desktop">Built around your cricket story.</span>
-        </footer>
-      </div>
-
-      <div className="fu-sr-only" role="status" aria-live="polite">
-        {announcement}
-      </div>
-
-      <div className="fu-spark-layer" aria-hidden="true">
-        {bursts.map((burst) => (
-          <div
-            key={burst.id}
-            className="fu-burst"
-            style={
-              {
-                left: burst.x,
-                top: burst.y,
-                "--spark-color": burst.color,
-              } as CSSVars
-            }
-          >
-            <span className="fu-spark-ring" />
-            {Array.from({ length: 12 }, (_, index) => {
-              const angle = (index / 12) * Math.PI * 2;
-              const distance = 30 + (index % 3) * 13;
-
-              return (
-                <i
-                  key={index}
-                  style={
-                    {
-                      "--dx": `${Math.cos(angle) * distance}px`,
-                      "--dy": `${Math.sin(angle) * distance}px`,
-                      "--turn": `${index * 30}deg`,
-                    } as CSSVars
-                  }
-                />
-              );
-            })}
-          </div>
-        ))}
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   );
 }
 
 const UNIVERSE_STYLES = `
+/* ================================================================
+   PRELOADER
+================================================================ */
+.pl-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #020617;
+  color: #fff;
+  cursor: pointer;
+  opacity: 1;
+  transition: opacity .5s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pl-root.pl-light {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.pl-root.is-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pl-root *,
+.pl-root *::before,
+.pl-root *::after {
+  box-sizing: border-box;
+}
+
+.pl-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, .07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, .07) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(circle at center, #000 20%, transparent 70%);
+  mask-image: radial-gradient(circle at center, #000 20%, transparent 70%);
+}
+
+.pl-light .pl-grid {
+  background-image:
+    linear-gradient(to right, rgba(100, 116, 139, .12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(100, 116, 139, .12) 1px, transparent 1px);
+}
+
+.pl-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.pl-glow-a {
+  width: 288px;
+  height: 288px;
+  background: rgba(37, 99, 235, .25);
+  filter: blur(110px);
+}
+
+.pl-glow-b {
+  width: 208px;
+  height: 208px;
+  right: -40px;
+  top: 40px;
+  background: rgba(147, 51, 234, .2);
+  filter: blur(100px);
+}
+
+.pl-light .pl-glow-a { background: rgba(96, 165, 250, .3); }
+.pl-light .pl-glow-b { background: rgba(167, 139, 250, .25); }
+
+.pl-center {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.pl-logo-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 112px;
+  height: 112px;
+}
+
+.pl-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent, #1877f2, #22d3ee, #f59e0b, transparent);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  animation: fu-spin 1.6s linear infinite;
+}
+
+.pl-orbit {
+  position: absolute;
+  inset: -24px;
+  animation: fu-spin 2.4s linear infinite;
+}
+
+.pl-orbit i {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 14px #f59e0b;
+}
+
+.pl-disc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 1px solid rgba(59, 130, 246, .3);
+  background: #0b1220;
+  box-shadow: 0 0 40px rgba(37, 99, 235, .45);
+}
+
+.pl-light .pl-disc {
+  background: #ffffff;
+  border-color: rgba(59, 130, 246, .35);
+  box-shadow: 0 0 30px rgba(37, 99, 235, .22);
+}
+
+.pl-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 12px rgba(255, 255, 255, .6));
+  animation: pl-logo-float 2.2s ease-in-out infinite;
+}
+
+.pl-light .pl-logo {
+  filter: drop-shadow(0 4px 10px rgba(37, 99, 235, .3));
+}
+
+.pl-fallback {
+  font-size: 28px;
+  font-style: italic;
+  color: #3b82f6;
+}
+
+.pl-title {
+  display: flex;
+  margin: 32px 0 0;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: .2em;
+  color: #fff;
+}
+
+.pl-light .pl-title {
+  color: #0f172a;
+}
+
+.pl-letter {
+  display: inline-block;
+  opacity: 0;
+  animation: pl-letter .5s ease-out both;
+  animation-delay: calc(var(--i, 0) * 70ms + 200ms);
+}
+
+.pl-letter.is-amber {
+  color: #f59e0b;
+}
+
+.pl-sub {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  color: #94a3b8;
+}
+
+.pl-light .pl-sub {
+  color: #64748b;
+}
+
+.pl-bar {
+  width: 208px;
+  height: 6px;
+  margin-top: 24px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #1e293b;
+}
+
+.pl-light .pl-bar {
+  background: #e2e8f0;
+}
+
+.pl-bar > div {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #3b82f6, #34d399, #fbbf24);
+}
+
+.pl-pct {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: #cbd5e1;
+}
+
+.pl-light .pl-pct {
+  color: #475569;
+}
+
+.pl-skip {
+  margin-top: 16px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.pl-light .pl-skip {
+  color: #94a3b8;
+}
+
+@keyframes pl-letter {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes pl-logo-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-5px) scale(1.06); }
+}
+
+/* ================================================================
+   HOME ROOT
+================================================================ */
+.fcl-universe.fu-hidden {
+  display: none;
+}
+
 .fcl-universe {
   --fu-bg: #f4f7fc;
   --fu-text: #14213b;
@@ -3093,6 +3509,10 @@ const UNIVERSE_STYLES = `
 ================================================================ */
 
 @media (max-width: 760px) {
+  .pl-title {
+    font-size: 21px;
+  }
+
   .fu-shell {
     max-width: 460px;
     padding: 13px 12px max(12px, env(safe-area-inset-bottom));
@@ -3457,14 +3877,18 @@ const UNIVERSE_STYLES = `
 @media (prefers-reduced-motion: reduce) {
   .fcl-universe *,
   .fcl-universe *::before,
-  .fcl-universe *::after {
+  .fcl-universe *::after,
+  .pl-root *,
+  .pl-root *::before,
+  .pl-root *::after {
     animation: none !important;
     transition: none !important;
     scroll-behavior: auto !important;
   }
 
   .fh-wd,
-  .fh-grad {
+  .fh-grad,
+  .pl-letter {
     opacity: 1 !important;
   }
 

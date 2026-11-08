@@ -267,25 +267,29 @@ function parseMatchDate(
 function formatExcelDate(val: unknown): string {
   if (!val) return "";
 
-  const num = Number(val);
+  const strVal = String(val).trim();
 
-  if (isExcelSerial(val)) {
-    const utcDays = Math.floor(num - 25569);
-
-    const dateInfo = new Date(
-      utcDays * 86400 * 1000
-    );
-
-    const day = String(
-      dateInfo.getUTCDate()
-    ).padStart(2, "0");
-
-    return `${day} ${
-      MONTHS[dateInfo.getUTCMonth()]
-    } ${dateInfo.getUTCFullYear()}`;
+  // যদি ISO Date string বা সাধারণ ডেট স্ট্রিং হয় (যেমন: 2026-10-29T18:00:00.000Z)
+  if (strVal.includes("T") || !Number.isNaN(Date.parse(strVal))) {
+    const d = new Date(strVal);
+    if (!isNaN(d.getTime())) {
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      const month = MONTHS[d.getUTCMonth()];
+      const year = d.getUTCFullYear();
+      return `${day} ${month} ${year}`;
+    }
   }
 
-  return String(val).trim();
+  // যদি এক্সেল সিরিয়াল নম্বর হয়
+  const num = Number(val);
+  if (isExcelSerial(val)) {
+    const utcDays = Math.floor(num - 25569);
+    const dateInfo = new Date(utcDays * 86400 * 1000);
+    const day = String(dateInfo.getUTCDate()).padStart(2, "0");
+    return `${day} ${MONTHS[dateInfo.getUTCMonth()]} ${dateInfo.getUTCFullYear()}`;
+  }
+
+  return strVal;
 }
 
 function getDateParts(

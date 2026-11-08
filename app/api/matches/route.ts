@@ -1,38 +1,39 @@
 import { NextResponse } from "next/server";
-import path from "path";
-import fs from "fs";
-import * as XLSX from "xlsx";
+
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwn6-BfO0b2jxco5csvSx7ymSafVPmvbhwKP-2Uh2-COdCDNMNl1VLloEZjR3uh7fonvw/exec";
 
 export async function GET() {
   try {
-    const filePath = path.join(process.cwd(), "public", "fcl-matches.xlsx");
+    const response = await fetch(GOOGLE_SCRIPT_URL, {
+      redirect: "follow",
+      cache: "no-store",
+    });
 
-    if (!fs.existsSync(filePath)) {
-      return NextResponse.json({ error: "fcl-matches.xlsx file not found" }, { status: 404 });
+    const text = await response.text();
+
+    // যদি রেসপন্স খালি বা HTML হয়
+    if (!text || text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html")) {
+      return NextResponse.json({ matches: [] }, { status: 200 });
     }
 
-    const fileBuffer = fs.readFileSync(filePath);
-    const workbook = XLSX.read(fileBuffer, { type: "buffer" });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const rawData: any[] = XLSX.utils.sheet_to_json(sheet);
+    const data = JSON.parse(text);
 
-    const matches = rawData.map((row, index) => ({
+    const matches = (data.matches || data.data || []).map((item: any, index: number) => ({
       id: index + 1,
-      rowIndex: index + 2, // গুগলের শিট বা এক্সেলের রো ইনডেক্স ট্র্যাক করার জন্য
-      date: String(row["Date"] || "").trim(),
-      year: String(row["Year"] || "").trim(),
-      month: String(row["Month"] || "").trim(),
-      matchTitle: String(row["Match Title"] || "").trim(),
-      title: String(row["Match Title"] || "").trim(), // ব্যাকওয়ার্ড কম্প্যাটিবিলিটির জন্য
-      category: String(row["Category"] || "").trim(),
-      summary: String(row["Summary"] || "").trim(),
-      link: String(row["Link"] || "").trim(),
-    })).filter(m => m.matchTitle !== "");
+      rowIndex: item.rowIndex || index + 2,
+      date: String(item.Date || item.date || "").trim(),
+      year: String(item.Year || item.year || "").trim(),
+      month: String(item.Month || item.month || "").trim(),
+      matchTitle: String(item["Match Title"] || item.matchTitle || "").trim(),
+      title: String(item["Match Title"] || item.matchTitle || "").trim(), // ব্যাকওয়ার্ড কম্প্যাটিবিলিটির জন্য
+      category: String(item.Category || item.category || "").trim(),
+      summary: String(item.Summary || item.summary || "").trim(),
+      link: String(item.Link || item.link || "").trim(),
+    })).filter((m: any) => m.matchTitle !== "");
 
     return NextResponse.json({ matches }, { status: 200 });
   } catch (error: any) {
-    console.error("Error reading fcl-matches.xlsx:", error);
-    return NextResponse.json({ error: "Failed to parse matches excel file" }, { status: 500 });
+    console.error("Error fetching from Google Sheet:", error);
+    return NextResponse.json({ matches: [] }, { status: 200 });
   }
 }

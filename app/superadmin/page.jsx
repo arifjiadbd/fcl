@@ -8,7 +8,7 @@ export default function SuperAdminHub() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [status, setStatus] = useState('idle'); // idle | success | error
   const [rotation, setRotation] = useState(0);
-  const [mounted, setMounted] = useState(false); // ✅ Hydration ফিক্স
+  const [mounted, setMounted] = useState(false); // ✅ হাইড্রেশন ফিক্স
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -63,6 +63,26 @@ export default function SuperAdminHub() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
+  // 🌟 ডেট সুন্দরভাবে ফরম্যাট করার হেল্পার ফাংশন
+  const formatDateDisplay = (dateString) => {
+    if (!dateString) return '';
+    if (!dateString.includes('T')) return dateString;
+    
+    try {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return dateString;
+      
+      const day = d.getUTCDate();
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const month = months[d.getUTCMonth()];
+      const year = String(d.getUTCFullYear()).slice(-2);
+      
+      return `${day}-${month}-${year}`;
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   const [memoriesData, setMemoriesData] = useState({
     sheetType: 'Memories',
     category: 'স্মৃতিচারণ (Memories / Nostalgia)',
@@ -79,7 +99,7 @@ export default function SuperAdminHub() {
     matchTitle: '', tournament: '', date: '', description: '', facebookLink: '', thumbnail: ''
   });
 
-  // 🌟 FCL Overall Players Data
+  // 🌟 FCL Overall Players Data (ইনঅ্যাক্টিভ হিসেবে কোডে রাখা হলো)
   const [fclOverallData, setFclOverallData] = useState({
     sheetType: 'Overall',
     'FCL Player Nick Name': '',
@@ -112,7 +132,7 @@ export default function SuperAdminHub() {
     'Birthday': ''
   });
 
-  // 🌟 FCL Tournaments Data
+  // 🌟 FCL Tournaments Data (ইনঅ্যাক্টিভ হিসেবে কোডে রাখা হলো)
   const [fclTourData, setFclTourData] = useState({
     sheetType: 'Tournaments',
     'Name': '',
@@ -164,18 +184,22 @@ export default function SuperAdminHub() {
       fetch(url)
         .then(res => res.json())
         .then(data => {
-          if (selectedForm === 'memories') setExistingRecords(data.memories || []);
-          if (selectedForm === 'extraordinary') setExistingRecords(data.extraordinary || []);
-          if (selectedForm === 'hvm') setExistingRecords(data.highVoltage || []);
-          if (selectedForm === 'fcl_overall') setExistingRecords(data.players || []);
-          if (selectedForm === 'fcl_tournaments') setExistingRecords(data.tournaments || []);
-          if (selectedForm === 'fcl_matches') setExistingRecords(data.matches || []);
+          let fetched = [];
+          if (selectedForm === 'memories') fetched = data.memories || [];
+          if (selectedForm === 'extraordinary') fetched = data.extraordinary || [];
+          if (selectedForm === 'hvm') fetched = data.highVoltage || [];
+          if (selectedForm === 'fcl_overall') fetched = data.players || [];
+          if (selectedForm === 'fcl_tournaments') fetched = data.tournaments || [];
+          if (selectedForm === 'fcl_matches') fetched = data.matches || [];
+
+          // 🌟 লেটেস্ট রেকর্ড সবার উপরে দেখানোর জন্য রিভার্স করা হলো
+          setExistingRecords([...fetched].reverse());
         })
         .catch(err => console.error("Error fetching sheet data:", err));
     }
   }, [isAuthenticated, selectedForm, message]);
 
-  // 🌟 ফিল্টার করা রেকর্ডস (সার্চ কুয়েরি ফিল্টারিং)
+  // 🌟 ফিল্টার করা রেকর্ডস (সার্চ কুয়েরির জন্য)
   const filteredRecords = existingRecords.filter((rec) => {
     const titleText = rec['title'] || rec['Performance Title'] || rec['Match Title'] || rec['Full Name'] || rec['name'] || rec['PLAYERS'] || rec['matchTitle'] || '';
     const authorText = rec['author'] || rec['Player Name'] || rec['Tournament'] || rec['summary'] || '';
@@ -201,7 +225,7 @@ export default function SuperAdminHub() {
           category: record['category'] || categoriesList[0],
           title: record['title'] || '',
           author: record['author'] || '',
-          date: record['date'] || '',
+          date: formatDateDisplay(record['date'] || ''),
           fbPostUrl: record['fbPostUrl'] || '',
           content: record['content'] || ''
         });
@@ -222,7 +246,7 @@ export default function SuperAdminHub() {
           sheetType: 'High Voltage Matches',
           matchTitle: record['Match Title'] || '',
           tournament: record['Tournament'] || '',
-          date: record['Date'] || '',
+          date: formatDateDisplay(record['Date'] || ''),
           description: record['Description'] || '',
           facebookLink: record['Facebook Link'] || '',
           thumbnail: record['Thumbnail / Photo'] || ''
@@ -284,7 +308,7 @@ export default function SuperAdminHub() {
         });
       } else if (selectedForm === 'fcl_matches') {
         setFclMatchesData({
-          date: record['date'] || '',
+          date: formatDateDisplay(record['date'] || ''),
           year: record['year'] || '',
           month: record['month'] || '',
           matchTitle: record['matchTitle'] || '',
@@ -414,7 +438,7 @@ export default function SuperAdminHub() {
   const ringColor = status === 'success' ? '#22c55e' : status === 'error' ? '#ef4444' : '#2563eb';
   const lastDigit = enteredPin.length > 0 ? parseInt(enteredPin[enteredPin.length - 1], 10) : null;
 
-  let statusText = 'কীবোর্ড দিয়ে ৬-ডিজিটের পিন দিন';
+  let statusText = 'কীবোর্ড দিয়ে ৬-ডিজিটের পিন দিন';
   let statusColor = '#64748b';
   if (status === 'success') { statusText = '✅ সঠিক পিন! প্রবেশ করানো হচ্ছে...'; statusColor = '#16a34a'; }
   if (status === 'error') { statusText = '❌ ভুল পিন! আবার চেষ্টা করুন'; statusColor = '#dc2626'; }
@@ -439,7 +463,7 @@ export default function SuperAdminHub() {
       <div style={{ width: '100%', maxWidth: '420px', margin: '60px auto', padding: '35px 25px', background: '#ffffff', borderRadius: '20px', boxShadow: '0 10px 40px rgba(37,99,235,0.12)', border: '1px solid #dbeafe', textAlign: 'center', boxSizing: 'border-box' }}>
 
         <h2 style={{ marginBottom: '6px', color: '#1d4ed8', fontSize: '22px', fontWeight: 800, letterSpacing: '0.5px' }}>🔐 Super Admin Access</h2>
-        <p style={{ marginBottom: '25px', fontSize: '13px', color: '#64748b' }}>নিরাপত্তা যাচাইয়ের জন্য ৬-ডিজিটের পিন দিন</p>
+        <p style={{ marginBottom: '25px', fontSize: '13px', color: '#64748b' }}>নিরাপত্তা যাচাইয়ের জন্য ৬-ডিজিটের পিন দিন</p>
 
         {/* Dial */}
         <div
@@ -601,8 +625,9 @@ export default function SuperAdminHub() {
             <option value="memories">📝 Memories & Literary Archive</option>
             <option value="extraordinary">🔥 Extraordinary Performance Form</option>
             <option value="hvm">⚡ High Voltage Match Form</option>
-            <option value="fcl_overall">🏏 FCL Overall Players Data</option>
-            <option value="fcl_tournaments">🏆 FCL Tournaments Data</option>
+            {/* 🌟 fcl_overall এবং fcl_tournaments অপশন দুটি সাময়িকভাবে ড্রপডাউন থেকে হাইড করা হলো */}
+            {/* <option value="fcl_overall">🏏 FCL Overall Players Data</option> */}
+            {/* <option value="fcl_tournaments">🏆 FCL Tournaments Data</option> */}
             <option value="fcl_matches">🏟️ FCL Matches Archive</option>
           </select>
         </div>
@@ -614,7 +639,7 @@ export default function SuperAdminHub() {
           <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold', fontSize: '13px', color: '#334155' }}>নাম বা তারিখ দিয়ে খুঁজুন (Search Record):</label>
           <input
             type="text"
-            placeholder="এখানে তারিখ (যেমন: 7-Oct-26) লিখে খুঁজুন..."
+            placeholder="এখানে নাম বা তারিখ লিখে খুঁজুন..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', boxSizing: 'border-box' }}
@@ -626,18 +651,25 @@ export default function SuperAdminHub() {
           <select onChange={handleRecordSelect} value={selectedRowIndex !== null ? selectedRowIndex : "add"} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#0f172a', fontWeight: '600' }}>
             <option value="add">➕ নতুন রেকর্ড যোগ করুন (Add New)</option>
             {filteredRecords.map((rec, i) => {
-              const dateVal = rec['date'] || '';
+              const dateVal = formatDateDisplay(rec['date'] || rec['Date'] || '');
               const yearVal = rec['year'] || '';
-              const titleVal = rec['matchTitle'] || rec['title'] || '';
+              const titleVal = rec['matchTitle'] || rec['title'] || rec['Performance Title'] || rec['Match Title'] || rec['Full Name'] || rec['Name'] || '';
+              const authorVal = rec['author'] || rec['Player Name'] || rec['Tournament'] || rec['PLAYERS'] || '';
 
-              let displayLabel = `Record #${i + 1}`;
+              let displayLabel = `Record #${existingRecords.length - i}`;
               if (selectedForm === 'fcl_matches') {
                 const datePart = dateVal ? `📅 [${dateVal}${yearVal ? `, ${yearVal}` : ''}]` : '';
-                displayLabel = `${datePart}`;
+                displayLabel = `${datePart} - ${titleVal}`;
+              } else if (selectedForm === 'fcl_overall') {
+                const fullName = rec['Full Name'] || rec['name'] || '';
+                const nickName = rec['FCL Player Nick Name'] || rec['nickName'] || '';
+                displayLabel = nickName ? `${fullName} [নিকনেম: ${nickName}]` : fullName;
+              } else if (selectedForm === 'fcl_tournaments') {
+                const tourName = rec['Name'] || rec['TOURNAMENT'] || '';
+                const playerName = rec['PLAYERS'] || '';
+                displayLabel = `${tourName} — [প্লেয়ার: ${playerName}]`;
               } else {
-                const title = titleVal || rec['Performance Title'] || rec['Match Title'] || rec['Full Name'] || rec['name'] || rec['PLAYERS'] || '';
-                const author = rec['author'] || rec['Player Name'] || rec['Tournament'] || '';
-                displayLabel = author ? `${title} — [লেখক/প্লেয়ার: ${author}]` : title;
+                displayLabel = authorVal ? `${titleVal} — [লেখক/প্লেয়ার: ${authorVal}]` : titleVal;
               }
 
               return (
@@ -674,27 +706,27 @@ export default function SuperAdminHub() {
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Title:</label>
-            <input type="text" value={memoriesData.title} onChange={(e) => setMemoriesData({ ...memoriesData, title: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            <input type="text" placeholder="যেমন: আমার স্মৃতির পাতা" value={memoriesData.title} onChange={(e) => setMemoriesData({ ...memoriesData, title: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Author:</label>
-            <input type="text" value={memoriesData.author} onChange={(e) => setMemoriesData({ ...memoriesData, author: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            <input type="text" placeholder="যেমন: Arif Ziad" value={memoriesData.author} onChange={(e) => setMemoriesData({ ...memoriesData, author: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Date:</label>
-            <input type="text" value={memoriesData.date} onChange={(e) => setMemoriesData({ ...memoriesData, date: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            <input type="text" placeholder="যেমন: 7-Oct-26" value={memoriesData.date} onChange={(e) => setMemoriesData({ ...memoriesData, date: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Facebook Post URL:</label>
-            <input type="url" value={memoriesData.fbPostUrl} onChange={(e) => setMemoriesData({ ...memoriesData, fbPostUrl: e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            <input type="url" placeholder="যেমন: https://www.facebook.com/share/p/..." value={memoriesData.fbPostUrl} onChange={(e) => setMemoriesData({ ...memoriesData, fbPostUrl: e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Content:</label>
-            <textarea value={memoriesData.content} onChange={(e) => setMemoriesData({ ...memoriesData, content: e.target.value })} rows={5} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box' }}></textarea>
+            <textarea placeholder="এখানে বিস্তারিত স্মৃতিচারণ বা লেখা লিখুন..." value={memoriesData.content} onChange={(e) => setMemoriesData({ ...memoriesData, content: e.target.value })} rows={5} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box' }}></textarea>
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -715,37 +747,37 @@ export default function SuperAdminHub() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Part:</label>
-              <input type="text" value={extraData.part} onChange={(e) => setExtraData({ ...extraData, part: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+              <input type="text" placeholder="যেমন: Part 01" value={extraData.part} onChange={(e) => setExtraData({ ...extraData, part: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Match Year:</label>
-              <input type="text" value={extraData.matchYear} onChange={(e) => setExtraData({ ...extraData, matchYear: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+              <input type="text" placeholder="যেমন: 2026" value={extraData.matchYear} onChange={(e) => setExtraData({ ...extraData, matchYear: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
             </div>
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Player Name:</label>
-            <input type="text" value={extraData.playerName} onChange={(e) => setExtraData({ ...extraData, playerName: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            <input type="text" placeholder="যেমন: মো: আশিকুর রহমান তন্ময়" value={extraData.playerName} onChange={(e) => setExtraData({ ...extraData, playerName: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Performance Title:</label>
-            <input type="text" value={extraData.performanceTitle} onChange={(e) => setExtraData({ ...extraData, performanceTitle: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            <input type="text" placeholder="যেমন: Brilliant Hat-Trick & 4 Wickets" value={extraData.performanceTitle} onChange={(e) => setExtraData({ ...extraData, performanceTitle: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Tournament & Match:</label>
-            <input type="text" value={extraData.tournamentMatch} onChange={(e) => setExtraData({ ...extraData, tournamentMatch: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            <input type="text" placeholder="যেমন: FCL Special Friendly Match" value={extraData.tournamentMatch} onChange={(e) => setExtraData({ ...extraData, tournamentMatch: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Description:</label>
-            <textarea value={extraData.description} onChange={(e) => setExtraData({ ...extraData, description: e.target.value })} rows={4} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box' }}></textarea>
+            <textarea placeholder="এখানে পারফরম্যান্সের বিস্তারিত বিবরণ লিখুন..." value={extraData.description} onChange={(e) => setExtraData({ ...extraData, description: e.target.value })} rows={4} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box' }}></textarea>
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Facebook Link:</label>
-            <input type="url" value={extraData.facebookLink} onChange={(e) => setExtraData({ ...extraData, facebookLink: e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            <input type="url" placeholder="যেমন: https://www.facebook.com/share/p/..." value={extraData.facebookLink} onChange={(e) => setExtraData({ ...extraData, facebookLink: e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -765,28 +797,28 @@ export default function SuperAdminHub() {
         <form onSubmit={(e) => handleSubmit(e, hvmData)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Match Title:</label>
-            <input type="text" value={hvmData.matchTitle} onChange={(e) => setHvmData({ ...hvmData, matchTitle: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            <input type="text" placeholder="যেমন: The 1-Wicket Thriller" value={hvmData.matchTitle} onChange={(e) => setHvmData({ ...hvmData, matchTitle: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Tournament:</label>
-              <input type="text" value={hvmData.tournament} onChange={(e) => setHvmData({ ...hvmData, tournament: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+              <input type="text" placeholder="যেমন: Facebook Cricket League" value={hvmData.tournament} onChange={(e) => setHvmData({ ...hvmData, tournament: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Date:</label>
-              <input type="text" value={hvmData.date} onChange={(e) => setHvmData({ ...hvmData, date: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+              <input type="text" placeholder="যেমন: 25-Feb-15" value={hvmData.date} onChange={(e) => setHvmData({ ...hvmData, date: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
             </div>
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Description:</label>
-            <textarea value={hvmData.description} onChange={(e) => setHvmData({ ...hvmData, description: e.target.value })} rows={4} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box' }}></textarea>
+            <textarea placeholder="🔥 ম্যাচের রোমাঞ্চকর বিবরণ এখানে লিখুন..." value={hvmData.description} onChange={(e) => setHvmData({ ...hvmData, description: e.target.value })} rows={4} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box' }}></textarea>
           </div>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Facebook Link:</label>
-            <input type="url" value={hvmData.facebookLink} onChange={(e) => setHvmData({ ...hvmData, facebookLink: e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            <input type="url" placeholder="যেমন: https://www.facebook.com/share/p/..." value={hvmData.facebookLink} onChange={(e) => setHvmData({ ...hvmData, facebookLink: e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -802,68 +834,7 @@ export default function SuperAdminHub() {
         </form>
       )}
 
-      {selectedForm === 'fcl_overall' && (
-        <form onSubmit={(e) => handleSubmit(e, fclOverallData)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Full Name:</label>
-            <input type="text" value={fclOverallData['Full Name']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Full Name': e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>FCL Player Nick Name:</label>
-            <input type="text" value={fclOverallData['FCL Player Nick Name']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'FCL Player Nick Name': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Total Tournament:</label>
-              <input type="number" value={fclOverallData['Total Tournament']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Total Tournament': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Total Match:</label>
-              <input type="number" value={fclOverallData['Total Match']} onChange={(e) => setFclOverallData({ ...fclOverallData, 'Total Match': e.target.value })} style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="submit" disabled={loading} style={{ background: mode === 'edit' ? '#d97706' : '#059669', color: '#fff', padding: '12px', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer', flex: 1 }}>
-              {loading ? 'Processing...' : mode === 'edit' ? 'Update Record' : 'Add New Record'}
-            </button>
-            {mode === 'edit' && (
-              <button type="button" onClick={handleDelete} disabled={loading} style={{ background: '#dc2626', color: '#fff', padding: '12px', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}>
-                Delete
-              </button>
-            )}
-          </div>
-        </form>
-      )}
-
-      {selectedForm === 'fcl_tournaments' && (
-        <form onSubmit={(e) => handleSubmit(e, fclTourData)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Name (Tournament Name):</label>
-            <input type="text" value={fclTourData['Name']} onChange={(e) => setFclTourData({ ...fclTourData, 'Name': e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Player Name (PLAYERS):</label>
-            <input type="text" value={fclTourData['PLAYERS']} onChange={(e) => setFclTourData({ ...fclTourData, 'PLAYERS': e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="submit" disabled={loading} style={{ background: mode === 'edit' ? '#d97706' : '#059669', color: '#fff', padding: '12px', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer', flex: 1 }}>
-              {loading ? 'Processing...' : mode === 'edit' ? 'Update Record' : 'Add New Record'}
-            </button>
-            {mode === 'edit' && (
-              <button type="button" onClick={handleDelete} disabled={loading} style={{ background: '#dc2626', color: '#fff', padding: '12px', border: 'none', borderRadius: '6px', fontSize: '15px', fontWeight: 'bold', cursor: 'pointer' }}>
-                Delete
-              </button>
-            )}
-          </div>
-        </form>
-      )}
-
-      {/* 🌟 FCL Matches Form with Fixed Category Dropdown */}
+      {/* 🌟 FCL Matches Form with Textarea for Summary */}
       {selectedForm === 'fcl_matches' && (
         <form onSubmit={(e) => handleSubmit(e, fclMatchesData)} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
@@ -903,7 +874,14 @@ export default function SuperAdminHub() {
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '13px' }}>Summary (Description / Emojis):</label>
-            <input type="text" placeholder="যেমন: 🌟 OFFICIAL FRIENDLY MATCH" value={fclMatchesData.summary} onChange={(e) => setFclMatchesData({ ...fclMatchesData, summary: e.target.value })} required style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+            <textarea
+              placeholder="যেমন: 🌟 OFFICIAL FRIENDLY MATCH"
+              value={fclMatchesData.summary}
+              onChange={(e) => setFclMatchesData({ ...fclMatchesData, summary: e.target.value })}
+              rows={4}
+              required
+              style={{ width: '100%', padding: '10px', background: '#fff', color: '#000', border: '1px solid #cbd5e1', borderRadius: '6px', resize: 'vertical', boxSizing: 'border-box' }}
+            ></textarea>
           </div>
 
           <div>
