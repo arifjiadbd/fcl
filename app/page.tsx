@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -344,26 +343,6 @@ function useReducedMotion() {
 /* ================================================================
    ICONS
 ================================================================ */
-
-function SearchIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.8" />
-      <path
-        d="m16 16 4.5 4.5"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
 
 function ArrowIcon({ back = false }: { back?: boolean }) {
   return (
@@ -724,24 +703,17 @@ export default function Home() {
   const isDark = useIsDark();
   const reducedMotion = useReducedMotion();
 
-  /* check   → sessionStorage দেখা হচ্ছে (শুধু ব্যাকগ্রাউন্ড কাভার)
-     loading → প্রিলোডার চলছে
-     done    → হোম পেজ দেখা যাবে */
   const [phase, setPhase] = useState<"check" | "loading" | "done">("check");
   const ready = phase === "done";
 
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
-  const [directoryOpen, setDirectoryOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const [logoError, setLogoError] = useState(false);
   const [bursts, setBursts] = useState<SparkBurst[]>([]);
   const [announcement, setAnnouncement] = useState("");
 
   const rootRef = useRef<HTMLElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
   const centerRef = useRef<HTMLButtonElement>(null);
-  const searchButtonRef = useRef<HTMLButtonElement>(null);
 
   const burstId = useRef(0);
   const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
@@ -756,25 +728,6 @@ export default function Home() {
 
   const accent = previewGroup?.color ?? "#60a5fa";
 
-  const results = useMemo(() => {
-    const value = query.trim().toLocaleLowerCase();
-
-    if (!value) return ALL_PORTALS;
-
-    return ALL_PORTALS.filter((portal) =>
-      [
-        portal.title,
-        portal.english,
-        portal.description,
-        portal.groupTitle,
-      ]
-        .join(" ")
-        .toLocaleLowerCase()
-        .includes(value)
-    );
-  }, [query]);
-
-  /* একই সেশনে আবার এলে প্রিলোডার স্কিপ হবে */
   useEffect(() => {
     let seen = false;
 
@@ -806,11 +759,12 @@ export default function Home() {
     if (reducedMotion) setBursts([]);
   }, [reducedMotion]);
 
-  useEffect(() => {
-    if (directoryOpen) {
-      searchRef.current?.focus({ preventScroll: true });
-    }
-  }, [directoryOpen]);
+  function scrollToMenu() {
+    document.getElementById("fu-menu")?.scrollIntoView({
+      behavior: reducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }
 
   useEffect(() => {
     if (!ready) return;
@@ -825,24 +779,8 @@ export default function Home() {
         return;
       }
 
-      const target = event.target as HTMLElement | null;
-      const typing =
-        target?.isContentEditable ||
-        /INPUT|TEXTAREA|SELECT/.test(target?.tagName ?? "");
-
-      if (event.key === "/" && !typing) {
-        event.preventDefault();
-        setDirectoryOpen(true);
-        setQuery("");
-      }
-
       if (event.key === "Escape") {
-        if (directoryOpen) {
-          event.preventDefault();
-          setDirectoryOpen(false);
-          setQuery("");
-          searchButtonRef.current?.focus({ preventScroll: true });
-        } else if (activeGroupId) {
+        if (activeGroupId) {
           event.preventDefault();
           setActiveGroupId(null);
           setPreviewId(null);
@@ -854,7 +792,7 @@ export default function Home() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [ready, directoryOpen, activeGroupId]);
+  }, [ready, activeGroupId]);
 
   function openGroup(group: MenuGroup) {
     setActiveGroupId(group.id);
@@ -868,19 +806,6 @@ export default function Home() {
     setPreviewId(null);
     setAnnouncement("মূল মেনুতে ফিরে এসেছেন।");
     centerRef.current?.focus({ preventScroll: true });
-  }
-
-  function closeDirectory() {
-    setDirectoryOpen(false);
-    setQuery("");
-    searchButtonRef.current?.focus({ preventScroll: true });
-  }
-
-  function scrollToMenu() {
-    document.getElementById("fu-menu")?.scrollIntoView({
-      behavior: reducedMotion ? "auto" : "smooth",
-      block: "start",
-    });
   }
 
   function createSpark(event: ReactPointerEvent<HTMLElement>) {
@@ -941,10 +866,8 @@ export default function Home() {
 
   return (
     <>
-      {/* স্টাইল সবসময় সবার আগে — তাই CSS লোড হওয়ার আগে কাঁচা টেক্সট ঝলকাবে না */}
       <style dangerouslySetInnerHTML={{ __html: UNIVERSE_STYLES }} />
 
-      {/* চেক করার সময় শুধু ব্যাকগ্রাউন্ড কাভার, লোডিং-এর সময় প্রিলোডার */}
       {phase === "check" && (
         <div
           className={`pl-root ${isDark ? "pl-dark" : "pl-light"}`}
@@ -973,46 +896,6 @@ export default function Home() {
         </div>
 
         <div className="fu-shell">
-          <header className="fu-header">
-            <div className="fu-brand">
-              <span className="fu-brand-mark" aria-hidden="true">
-                F
-              </span>
-              <div>
-                <span className="fu-eyebrow">FACEBOOK CRICKET LEAGUE</span>
-                <h1>
-                
-                </h1>
-              </div>
-            </div>
-
-            <div className="fu-header-actions">
-              <Link href="/bn" className="fu-language" data-accent="#60a5fa">
-                বাংলা
-              </Link>
-
-              <button
-                ref={searchButtonRef}
-                type="button"
-                className={`fu-search-trigger ${directoryOpen ? "is-active" : ""}`}
-                aria-label={directoryOpen ? "মেনু তালিকা বন্ধ করুন" : "সব মেনু দেখুন ও খুঁজুন"}
-                aria-expanded={directoryOpen}
-                aria-controls="fu-menu-content"
-                onClick={() => {
-                  if (directoryOpen) closeDirectory();
-                  else {
-                    setQuery("");
-                    setDirectoryOpen(true);
-                  }
-                }}
-              >
-                <SearchIcon />
-                <span>সব মেনু</span>
-                <kbd>/</kbd>
-              </button>
-            </div>
-          </header>
-
           {/* ================================================================
               HERO — DESKTOP / TABLET
           ================================================================ */}
@@ -1065,12 +948,6 @@ export default function Home() {
                       🎮 Play Now
                     </Link>
                   </Magnetic>
-
-                  <Magnetic disabled={reducedMotion}>
-                    <Link href="/bn" className="fh-btn-ghost" data-accent="#3b82f6">
-                      💙 বাংলা ভার্সন
-                    </Link>
-                  </Magnetic>
                 </div>
               </div>
 
@@ -1105,7 +982,7 @@ export default function Home() {
           <section className="fh-hero fh-mob" aria-label="FCL hero">
             <div className="fh-badge fh-wd" style={{ "--i": 0 } as CSSVars}>
               <span className="fh-live" />
-              FCL DIGITAL HUB
+              FCL • DIGITAL GATEWAY HUB
             </div>
 
             <h2 className="fh-title">
@@ -1191,7 +1068,6 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => {
-                      if (directoryOpen) closeDirectory();
                       goHome();
                     }}
                   >
@@ -1199,245 +1075,170 @@ export default function Home() {
                   </button>
                   <span>/</span>
                   <strong>
-                    {directoryOpen
-                      ? "সব ডেস্টিনেশন"
-                      : activeGroup?.title ?? "মূল মেনু"}
+                    {activeGroup?.title ?? "মূল মেনু"}
                   </strong>
                 </div>
 
                 <span className="fu-mode-label">
-                  {directoryOpen ? "QUICK FIND" : "ORBIT MENU"}
+                  ORBIT MENU
                 </span>
               </div>
 
               <div id="fu-menu-content" className="fu-menu-content">
-                {directoryOpen ? (
-                  <div className="fu-directory">
-                    <div className="fu-search-field">
-                      <SearchIcon />
-                      <input
-                        ref={searchRef}
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                        placeholder="পেইজ খুঁজুন… rankings, ম্যাচ"
-                        aria-label="FCL পেইজ খুঁজুন"
-                        autoComplete="off"
-                        spellCheck={false}
-                      />
-                      <button
-                        type="button"
-                        onClick={closeDirectory}
-                        aria-label="ফুল মেনুতে ফিরুন"
+                <div
+                  className="fu-flower"
+                  onPointerMove={followPointer}
+                  onPointerLeave={() => setPreviewId(null)}
+                >
+                  <div className="fu-cursor-light" aria-hidden="true" />
+
+                  <div className="fu-orbit fu-orbit-outer" aria-hidden="true" />
+                  <div className="fu-orbit fu-orbit-inner" aria-hidden="true" />
+                  <div className="fu-orbit-runner" aria-hidden="true">
+                    <i />
+                  </div>
+
+                  <svg
+                    className="fu-connectors"
+                    viewBox="0 0 500 500"
+                    aria-hidden="true"
+                  >
+                    <path d="M250 250V82 M250 250H418 M250 250V418 M250 250H82" />
+                    <circle cx="250" cy="250" r="84" />
+                  </svg>
+
+                  <button
+                    ref={centerRef}
+                    type="button"
+                    className={`fu-core ${activeGroup ? "fu-core-open" : ""}`}
+                    onClick={goHome}
+                    data-accent={accent}
+                    aria-label={
+                      activeGroup
+                        ? "মূল FCL মেনুতে ফিরুন"
+                        : "FCL মূল মেনু"
+                    }
+                  >
+                    <span className="fu-core-halo" aria-hidden="true" />
+                    <span className="fu-core-inner">
+                      {logoError ? (
+                        <strong className="fu-logo-fallback">FCL</strong>
+                      ) : (
+                        <img
+                          src="/fcl-logo.png"
+                          alt=""
+                          width={62}
+                          height={62}
+                          onError={() => setLogoError(true)}
+                          draggable={false}
+                        />
+                      )}
+                      <span>{activeGroup ? "↩ HOME" : "EXPLORE"}</span>
+                    </span>
+                  </button>
+
+                  <nav
+                    key={activeGroup?.id ?? "root"}
+                    className="fu-petals"
+                    aria-label={
+                      activeGroup
+                        ? `${activeGroup.title} সাবমেনু`
+                        : "FCL ক্যাটেগরি"
+                    }
+                  >
+                    {activeGroup
+                      ? activeGroup.items.map((item, index) => (
+                          <div
+                            key={item.href}
+                            className={`fu-petal-position fu-position-${index}`}
+                            style={
+                              {
+                                "--item-color": activeGroup.color,
+                                "--delay": `${index * 65}ms`,
+                              } as CSSVars
+                            }
+                          >
+                            <Link
+                              href={item.href}
+                              className="fu-petal fu-leaf"
+                              data-accent={activeGroup.color}
+                            >
+                              <span className="fu-petal-shine" />
+                              <span className="fu-petal-icon" aria-hidden="true">
+                                {item.icon}
+                              </span>
+                              <strong>{item.title}</strong>
+                              <small>প্রবেশ করুন ↗</small>
+                            </Link>
+                          </div>
+                        ))
+                      : MENU_GROUPS.map((group, index) => (
+                          <div
+                            key={group.id}
+                            className={`fu-petal-position fu-position-${index}`}
+                            style={
+                              {
+                                "--item-color": group.color,
+                                "--delay": `${index * 65}ms`,
+                              } as CSSVars
+                            }
+                          >
+                            <button
+                              type="button"
+                              className="fu-petal"
+                              data-accent={group.color}
+                              onClick={() => openGroup(group)}
+                              onPointerEnter={() => setPreviewId(group.id)}
+                              onFocus={() => setPreviewId(group.id)}
+                              onBlur={() => setPreviewId(null)}
+                            >
+                              <span className="fu-petal-shine" />
+                              <span className="fu-petal-icon" aria-hidden="true">
+                                {group.icon}
+                              </span>
+                              <strong>{group.title}</strong>
+                              <small>{group.items.length}টি অপশন · খুলুন</small>
+                            </button>
+                          </div>
+                        ))}
+
+                    {activeGroup && (
+                      <div
+                        className="fu-petal-position fu-position-3"
+                        style={
+                          {
+                            "--item-color": "#94a3b8",
+                            "--delay": "195ms",
+                          } as CSSVars
+                        }
                       >
-                        ✕
-                      </button>
-                    </div>
-
-                    <div className="fu-result-heading">
-                      <span>{results.length}টি ডেস্টিনেশন</span>
-                      <span>সরাসরি প্রবেশ করুন ↗</span>
-                    </div>
-
-                    <nav className="fu-results" aria-label="সব FCL পেইজ">
-                      {results.map((portal) => (
-                        <Link
-                          key={portal.href}
-                          href={portal.href}
-                          className="fu-result"
-                          data-accent={portal.color}
-                          style={{ "--item-color": portal.color } as CSSVars}
+                        <button
+                          type="button"
+                          className="fu-petal fu-back-petal"
+                          onClick={goHome}
+                          data-accent="#94a3b8"
                         >
-                          <span className="fu-result-icon" aria-hidden="true">
-                            {portal.icon}
+                          <span className="fu-petal-icon" aria-hidden="true">
+                            <ArrowIcon back />
                           </span>
-                          <span className="fu-result-copy">
-                            <strong>{portal.title}</strong>
-                            <small>{portal.english}</small>
-                          </span>
-                          <span className="fu-result-arrow" aria-hidden="true">
-                            ↗
-                          </span>
-                        </Link>
-                      ))}
-                    </nav>
-
-                    {results.length === 0 && (
-                      <div className="fu-empty" role="status">
-                        <span aria-hidden="true">🔎</span>
-                        <strong>কোনো পেইজ পাওয়া যায়নি</strong>
-                        <button type="button" onClick={() => setQuery("")}>
-                          সব মেনু দেখুন
+                          <strong>ফিরে যান</strong>
+                          <small>মূল মেনু</small>
                         </button>
                       </div>
                     )}
-
-                    <button
-                      type="button"
-                      className="fu-directory-back"
-                      onClick={closeDirectory}
-                    >
-                      <ArrowIcon back />
-                      ফুল মেনুতে ফিরুন
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    className="fu-flower"
-                    onPointerMove={followPointer}
-                    onPointerLeave={() => setPreviewId(null)}
-                  >
-                    <div className="fu-cursor-light" aria-hidden="true" />
-
-                    <div className="fu-orbit fu-orbit-outer" aria-hidden="true" />
-                    <div className="fu-orbit fu-orbit-inner" aria-hidden="true" />
-                    <div className="fu-orbit-runner" aria-hidden="true">
-                      <i />
-                    </div>
-
-                    <svg
-                      className="fu-connectors"
-                      viewBox="0 0 500 500"
-                      aria-hidden="true"
-                    >
-                      <path d="M250 250V82 M250 250H418 M250 250V418 M250 250H82" />
-                      <circle cx="250" cy="250" r="84" />
-                    </svg>
-
-                    <button
-                      ref={centerRef}
-                      type="button"
-                      className={`fu-core ${activeGroup ? "fu-core-open" : ""}`}
-                      onClick={goHome}
-                      data-accent={accent}
-                      aria-label={
-                        activeGroup
-                          ? "মূল FCL মেনুতে ফিরুন"
-                          : "FCL মূল মেনু"
-                      }
-                    >
-                      <span className="fu-core-halo" aria-hidden="true" />
-                      <span className="fu-core-inner">
-                        {logoError ? (
-                          <strong className="fu-logo-fallback">FCL</strong>
-                        ) : (
-                          <img
-                            src="/fcl-logo.png"
-                            alt=""
-                            width={62}
-                            height={62}
-                            onError={() => setLogoError(true)}
-                            draggable={false}
-                          />
-                        )}
-                        <span>{activeGroup ? "↩ HOME" : "EXPLORE"}</span>
-                      </span>
-                    </button>
-
-                    <nav
-                      key={activeGroup?.id ?? "root"}
-                      className="fu-petals"
-                      aria-label={
-                        activeGroup
-                          ? `${activeGroup.title} সাবমেনু`
-                          : "FCL ক্যাটেগরি"
-                      }
-                    >
-                      {activeGroup
-                        ? activeGroup.items.map((item, index) => (
-                            <div
-                              key={item.href}
-                              className={`fu-petal-position fu-position-${index}`}
-                              style={
-                                {
-                                  "--item-color": activeGroup.color,
-                                  "--delay": `${index * 65}ms`,
-                                } as CSSVars
-                              }
-                            >
-                              <Link
-                                href={item.href}
-                                className="fu-petal fu-leaf"
-                                data-accent={activeGroup.color}
-                              >
-                                <span className="fu-petal-shine" />
-                                <span className="fu-petal-icon" aria-hidden="true">
-                                  {item.icon}
-                                </span>
-                                <strong>{item.title}</strong>
-                                <small>প্রবেশ করুন ↗</small>
-                              </Link>
-                            </div>
-                          ))
-                        : MENU_GROUPS.map((group, index) => (
-                            <div
-                              key={group.id}
-                              className={`fu-petal-position fu-position-${index}`}
-                              style={
-                                {
-                                  "--item-color": group.color,
-                                  "--delay": `${index * 65}ms`,
-                                } as CSSVars
-                              }
-                            >
-                              <button
-                                type="button"
-                                className="fu-petal"
-                                data-accent={group.color}
-                                onClick={() => openGroup(group)}
-                                onPointerEnter={() => setPreviewId(group.id)}
-                                onFocus={() => setPreviewId(group.id)}
-                                onBlur={() => setPreviewId(null)}
-                              >
-                                <span className="fu-petal-shine" />
-                                <span className="fu-petal-icon" aria-hidden="true">
-                                  {group.icon}
-                                </span>
-                                <strong>{group.title}</strong>
-                                <small>{group.items.length}টি অপশন · খুলুন</small>
-                              </button>
-                            </div>
-                          ))}
-
-                      {activeGroup && (
-                        <div
-                          className="fu-petal-position fu-position-3"
-                          style={
-                            {
-                              "--item-color": "#94a3b8",
-                              "--delay": "195ms",
-                            } as CSSVars
-                          }
-                        >
-                          <button
-                            type="button"
-                            className="fu-petal fu-back-petal"
-                            onClick={goHome}
-                            data-accent="#94a3b8"
-                          >
-                            <span className="fu-petal-icon" aria-hidden="true">
-                              <ArrowIcon back />
-                            </span>
-                            <strong>ফিরে যান</strong>
-                            <small>মূল মেনু</small>
-                          </button>
-                        </div>
-                      )}
-                    </nav>
-                  </div>
-                )}
+                  </nav>
+                </div>
               </div>
 
               <div className="fu-console-bottom">
                 <span className="fu-instruction">
-                  <span aria-hidden="true">{directoryOpen ? "⌕" : activeGroup ? "↗" : "✦"}</span>
-                  {directoryOpen
-                    ? "এক ট্যাপে আপনার গন্তব্য"
-                    : activeGroup
-                      ? "অপশন বেছে নিন · মাঝখানে ট্যাপ করলে Home"
-                      : "পাপড়িতে ট্যাপ করুন · খুলবে নতুন অপশন"}
+                  <span aria-hidden="true">{activeGroup ? "↗" : "✦"}</span>
+                  {activeGroup
+                    ? "অপশন বেছে নিন · মাঝখানে ট্যাপ করলে Home"
+                    : "পাপড়িতে ট্যাপ করুন · খুলবে নতুন অপশন"}
                 </span>
                 <span className="fu-step">
-                  {directoryOpen ? "ALL" : activeGroup ? "02 / 02" : "01 / 02"}
+                  {activeGroup ? "02 / 02" : "01 / 02"}
                 </span>
               </div>
             </div>
@@ -1484,10 +1285,6 @@ export default function Home() {
                   )}
                 </div>
               </div>
-
-              <span className="fu-key-hint">
-                <kbd>/</kbd> Search <span>·</span> <kbd>Esc</kbd> Back
-              </span>
             </aside>
           </section>
 
@@ -1496,13 +1293,11 @@ export default function Home() {
               <button
                 key={group.id}
                 type="button"
-                className={activeGroupId === group.id && !directoryOpen ? "is-active" : ""}
-                aria-pressed={activeGroupId === group.id && !directoryOpen}
+                className={activeGroupId === group.id ? "is-active" : ""}
+                aria-pressed={activeGroupId === group.id}
                 data-accent={group.color}
                 style={{ "--item-color": group.color } as CSSVars}
                 onClick={() => {
-                  setDirectoryOpen(false);
-                  setQuery("");
                   setActiveGroupId(group.id);
                   setPreviewId(null);
                   setAnnouncement(`${group.title}: তিনটি অপশন খোলা হয়েছে।`);
@@ -1828,6 +1623,7 @@ const UNIVERSE_STYLES = `
 }
 
 .fcl-universe {
+  --site-nav-h: 76px;
   --fu-bg: #f4f7fc;
   --fu-text: #14213b;
   --fu-muted: #64748b;
@@ -1980,91 +1776,7 @@ const UNIVERSE_STYLES = `
 .fu-shell {
   width: min(1220px, 100%);
   margin: 0 auto;
-  padding: 20px 26px 12px;
-}
-
-.fu-header,
-.fu-header-actions,
-.fu-brand {
-  display: flex;
-  align-items: center;
-}
-
-.fu-header {
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.fu-brand {
-  gap: 11px;
-  min-width: 0;
-}
-
-.fu-brand-mark {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 13px;
-  background: linear-gradient(135deg, #1877f2, #7c3aed);
-  color: white;
-  font-size: 24px;
-  font-weight: 950;
-  font-style: italic;
-  box-shadow: 0 8px 25px #1877f230;
-}
-
-.fu-eyebrow {
-  display: block;
-  color: var(--fu-muted);
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: .18em;
-}
-
-.fu-brand h1 {
-  margin: 3px 0 0;
-  font-size: 25px;
-  font-weight: 950;
-  line-height: 1;
-  letter-spacing: -1px;
-}
-
-.fu-brand h1 span {
-  font-weight: 600;
-  color: var(--fu-muted);
-}
-
-.fu-header-actions {
-  gap: 10px;
-}
-
-.fu-language {
-  font-size: 12px;
-  font-weight: 800;
-  padding: 8px 4px;
-}
-
-.fu-search-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 38px;
-  padding: 8px 12px;
-  border: 1px solid var(--fu-line);
-  border-radius: 13px;
-  background: var(--fu-panel);
-  color: var(--fu-text);
-  font-size: 12px !important;
-  font-weight: 750 !important;
-  transition: border-color .2s, background .2s;
-}
-
-.fu-search-trigger:hover,
-.fu-search-trigger.is-active {
-  border-color: #3b82f6;
-  background: #3b82f615;
+  padding: calc(var(--site-nav-h) + 16px) 26px 12px;
 }
 
 .fcl-universe kbd {
@@ -2290,8 +2002,7 @@ const UNIVERSE_STYLES = `
   animation: fh-shine 3.2s ease-in-out infinite;
 }
 
-.fh-btn-play,
-.fh-btn-ghost {
+.fh-btn-play {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2301,9 +2012,6 @@ const UNIVERSE_STYLES = `
   font-size: 13px;
   font-weight: 800;
   transition: background .2s, color .2s, transform .2s;
-}
-
-.fh-btn-play {
   border: 1px solid rgba(34, 197, 94, .45);
   background: rgba(34, 197, 94, .1);
   color: var(--fu-text);
@@ -2313,20 +2021,8 @@ const UNIVERSE_STYLES = `
   background: rgba(34, 197, 94, .22);
 }
 
-.fh-btn-ghost {
-  border: 1px solid rgba(59, 130, 246, .4);
-  background: rgba(59, 130, 246, .1);
-  color: var(--fu-blue);
-}
-
-.fh-btn-ghost:hover {
-  background: #1877f2;
-  color: #fff;
-}
-
 .fh-btn-primary:active,
-.fh-btn-play:active,
-.fh-btn-ghost:active {
+.fh-btn-play:active {
   transform: scale(.96);
 }
 
@@ -2600,7 +2296,7 @@ const UNIVERSE_STYLES = `
   grid-template-columns: minmax(0, 1fr) minmax(0, 520px) minmax(0, 1fr);
   align-items: center;
   gap: 26px;
-  scroll-margin-top: 12px;
+  scroll-margin-top: calc(var(--site-nav-h) + 8px);
 }
 
 .fu-wing {
@@ -3133,167 +2829,6 @@ const UNIVERSE_STYLES = `
   font-size: 9px;
 }
 
-.fu-directory {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 15px;
-  animation: fu-preview-in .25s ease-out;
-}
-
-.fu-search-field {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  gap: 8px;
-  padding: 7px 10px;
-  border: 1px solid #3b82f655;
-  background: var(--fu-field);
-  border-radius: 12px;
-  color: var(--fu-muted);
-}
-
-.fu-search-field input {
-  width: 100%;
-  min-width: 0;
-  padding: 5px 0;
-  border: 0;
-  background: transparent;
-  color: var(--fu-text);
-  font-size: 13px;
-  outline: none;
-}
-
-.fu-search-field input::placeholder {
-  color: var(--fu-muted);
-  opacity: .8;
-}
-
-.fu-search-field button {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 27px;
-  height: 27px;
-  padding: 0;
-  border: 1px solid var(--fu-line);
-  border-radius: 8px;
-  background: var(--fu-panel);
-  color: var(--fu-muted);
-  font-size: 11px;
-}
-
-.fu-result-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 12px 1px 9px;
-  font-size: 9px;
-  color: var(--fu-muted);
-}
-
-.fu-results {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: start;
-  gap: 7px;
-  overflow-y: auto;
-  padding: 3px;
-  scrollbar-width: thin;
-  scrollbar-color: #3b82f655 transparent;
-}
-
-.fu-result {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  min-height: 50px;
-  padding: 9px;
-  background: var(--fu-field);
-  border: 1px solid var(--fu-line);
-  border-radius: 12px;
-  transition: border-color .2s, background .2s;
-}
-
-.fu-result:hover {
-  border-color: var(--item-color);
-  background: color-mix(in srgb, var(--item-color) 9%, var(--fu-field));
-}
-
-.fu-result-icon {
-  font-size: 22px;
-  flex-shrink: 0;
-}
-
-.fu-result-copy {
-  min-width: 0;
-}
-
-.fu-result-copy strong {
-  display: block;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.fu-result-copy small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 8px;
-  margin-top: 2px;
-  color: var(--fu-muted);
-}
-
-.fu-result-arrow {
-  margin-left: auto;
-  color: var(--fu-muted);
-  font-size: 12px;
-}
-
-.fu-directory-back {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: auto;
-  padding: 10px 4px 0;
-  flex-shrink: 0;
-  border: 0;
-  background: transparent;
-  color: var(--fu-muted);
-  font-size: 11px !important;
-}
-
-.fu-empty {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 13px;
-  margin: auto;
-  padding: 15px;
-  text-align: center;
-}
-
-.fu-empty > span {
-  font-size: 30px;
-}
-
-.fu-empty strong {
-  font-size: 13px;
-}
-
-.fu-empty button {
-  padding: 7px 14px;
-  border: 1px solid #3b82f655;
-  border-radius: 9px;
-  background: #3b82f612;
-  color: var(--fu-text);
-  font-size: 11px;
-}
-
 .fu-dock {
   display: none;
 }
@@ -3480,7 +3015,7 @@ const UNIVERSE_STYLES = `
 @media (min-width: 761px) and (max-width: 1050px) {
   .fu-shell {
     max-width: 900px;
-    padding: 18px;
+    padding: calc(var(--site-nav-h) + 16px) 18px 18px;
   }
 
   .fh-desk-grid {
@@ -3509,59 +3044,17 @@ const UNIVERSE_STYLES = `
 ================================================================ */
 
 @media (max-width: 760px) {
+  .fcl-universe {
+    --site-nav-h: 64px;
+  }
+
   .pl-title {
     font-size: 21px;
   }
 
   .fu-shell {
     max-width: 460px;
-    padding: 13px 12px max(12px, env(safe-area-inset-bottom));
-  }
-
-  .fu-header {
-    margin-bottom: 12px;
-    gap: 8px;
-  }
-
-  .fu-brand {
-    gap: 8px;
-  }
-
-  .fu-brand-mark {
-    width: 34px;
-    height: 34px;
-    border-radius: 11px;
-    font-size: 21px;
-  }
-
-  .fu-eyebrow {
-    font-size: 6px;
-    letter-spacing: .1em;
-  }
-
-  .fu-brand h1 {
-    font-size: 21px;
-    letter-spacing: -.7px;
-  }
-
-  .fu-header-actions {
-    gap: 7px;
-  }
-
-  .fu-language {
-    font-size: 10px;
-  }
-
-  .fu-search-trigger {
-    min-height: 35px;
-    padding: 8px 9px;
-    gap: 5px;
-    border-radius: 11px;
-  }
-
-  .fu-search-trigger span,
-  .fu-search-trigger kbd {
-    display: none;
+    padding: calc(var(--site-nav-h) + 12px) 12px max(12px, env(safe-area-inset-bottom));
   }
 
   .fh-desk {
@@ -3653,6 +3146,7 @@ const UNIVERSE_STYLES = `
 
   .fu-dashboard {
     display: block;
+    scroll-margin-top: calc(var(--site-nav-h) + 4px);
   }
 
   .fu-wing {
@@ -3780,56 +3274,6 @@ const UNIVERSE_STYLES = `
     display: none;
   }
 
-  .fu-directory {
-    padding: 10px;
-  }
-
-  .fu-search-field {
-    padding: 5px 8px;
-  }
-
-  .fu-search-field input {
-    font-size: 16px;
-  }
-
-  .fu-result-heading {
-    padding: 9px 2px 5px;
-    font-size: 8px;
-  }
-
-  .fu-results {
-    gap: 5px;
-  }
-
-  .fu-result {
-    gap: 6px;
-    min-height: 43px;
-    padding: 7px;
-    border-radius: 10px;
-  }
-
-  .fu-result-icon {
-    font-size: 18px;
-  }
-
-  .fu-result-copy strong {
-    font-size: 10px;
-  }
-
-  .fu-result-copy small {
-    font-size: 7px;
-    margin-top: 1px;
-  }
-
-  .fu-result-arrow {
-    display: none;
-  }
-
-  .fu-directory-back {
-    font-size: 9px !important;
-    padding-top: 7px;
-  }
-
   .fu-square-a {
     width: 80px;
     height: 80px;
@@ -3851,10 +3295,6 @@ const UNIVERSE_STYLES = `
   .fu-shell {
     padding-left: 8px;
     padding-right: 8px;
-  }
-
-  .fu-language {
-    display: none;
   }
 
   .fh-title {

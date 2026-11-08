@@ -4,10 +4,12 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
+import GlobalSearch from "./GlobalSearch";
 
 export default function Navbar() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -28,9 +30,9 @@ export default function Navbar() {
   useEffect(() => {
     setMobileMenuOpen(false);
     setActiveDropdown(null);
+    setSearchOpen(false);
   }, [pathname]);
 
-  const isBanglaPage = pathname === "/bn";
   const isDark = mounted && resolvedTheme === "dark";
 
   // থিম অনুযায়ী কালার (dark: ভ্যারিয়েন্টের উপর নির্ভর না করে সরাসরি থিম স্টেট থেকে)
@@ -62,9 +64,6 @@ export default function Navbar() {
     admin: isDark
       ? "border-amber-500/50 bg-amber-500/15 !text-amber-300 hover:bg-amber-500/25"
       : "border-amber-500 bg-amber-50 !text-amber-900 hover:bg-amber-100",
-    lang: isDark
-      ? "bg-blue-600/30 border border-blue-500/50 !text-sky-200 hover:bg-blue-600 hover:!text-white"
-      : "bg-blue-600 hover:bg-blue-700 !text-white",
   };
 
   const categories = [
@@ -109,9 +108,9 @@ export default function Navbar() {
       ref={dropdownRef}
       className={`fixed top-0 left-0 right-0 z-[9999] w-full border-b shadow-sm transition-colors duration-300 ${t.header}`}
     >
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2 sm:px-6">
         {/* লোগো ও ব্র্যান্ড নাম */}
-        <Link href={isBanglaPage ? "/bn" : "/"} className="flex items-center gap-2.5 group">
+        <Link href="/" className="group flex shrink-0 items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 border border-blue-200 dark:bg-blue-600/15 dark:border-blue-500/30 p-1 shadow-sm transition-transform group-hover:scale-105">
             <img src="/fcl-logo.png" alt="FCL Logo" className="h-full w-full object-contain" />
           </div>
@@ -128,15 +127,13 @@ export default function Navbar() {
         {/* 💻 মেনু বাটনসমূহ */}
         <nav className="hidden lg:flex items-center gap-1.5">
           <Link
-            href={isBanglaPage ? "/bn" : "/"}
+            href="/"
             className={`rounded-lg px-3 py-1.5 text-xs font-bold transition flex items-center gap-1.5 ${
-              pathname === "/" || pathname === "/bn"
-                ? "bg-blue-600 !text-white shadow-sm"
-                : t.navIdle
+              pathname === "/" ? "bg-blue-600 !text-white shadow-sm" : t.navIdle
             }`}
           >
             <span>🏠</span>
-            <span>{isBanglaPage ? "হোম" : "Home"}</span>
+            <span>Home</span>
           </Link>
 
           {categories.map((cat) => {
@@ -198,6 +195,26 @@ export default function Navbar() {
 
         {/* ডানপাশের কন্ট্রোল বাটন */}
         <div className="flex items-center gap-2">
+          {/* বড় স্ক্রিনে (xl+) সরাসরি সার্চ বক্স */}
+          <div className="hidden w-56 xl:block 2xl:w-64">
+            <GlobalSearch isDark={isDark} hotkey />
+          </div>
+
+          {/* ছোট স্ক্রিনে সার্চ আইকন */}
+          <button
+            onClick={() => {
+              setSearchOpen((v) => !v);
+              setMobileMenuOpen(false);
+            }}
+            aria-label="Search"
+            aria-expanded={searchOpen}
+            className={`flex h-8 w-8 items-center justify-center rounded-lg border text-sm shadow-sm transition xl:hidden ${t.iconBtn} ${
+              searchOpen ? "ring-2 ring-blue-500" : ""
+            }`}
+          >
+            {searchOpen ? "✕" : "🔍"}
+          </button>
+
           {/* থিম টগল */}
           {mounted && (
             <button
@@ -210,18 +227,12 @@ export default function Navbar() {
             </button>
           )}
 
-          {/* ভাষা পরিবর্তন বাটন */}
-          <Link
-            href={isBanglaPage ? "/" : "/bn"}
-            className={`rounded-lg px-3 py-1.5 text-xs font-bold shadow-sm transition flex items-center gap-1.5 ${t.lang}`}
-          >
-            <span>{isBanglaPage ? "🇬🇧" : "💙"}</span>
-            <span>{isBanglaPage ? "English" : "বাংলা"}</span>
-          </Link>
-
           {/* মোবাইল মেনু বাটন */}
           <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            onClick={() => {
+              setMobileMenuOpen(!mobileMenuOpen);
+              setSearchOpen(false);
+            }}
             className={`flex h-8 w-8 items-center justify-center rounded-lg border lg:hidden text-sm transition ${t.iconBtn} ${t.text}`}
             aria-label="Toggle Menu"
           >
@@ -230,19 +241,28 @@ export default function Navbar() {
         </div>
       </div>
 
+      {/* 🔍 ছোট স্ক্রিনের সার্চ বার */}
+      {searchOpen && (
+        <div className={`border-t px-4 py-3 xl:hidden ${t.header}`}>
+          <GlobalSearch
+            isDark={isDark}
+            autoFocus
+            onNavigate={() => setSearchOpen(false)}
+          />
+        </div>
+      )}
+
       {/* 📱 মোবাইল মেনু */}
       {mobileMenuOpen && (
         <div className={`border-t px-4 py-4 lg:hidden max-h-[80vh] overflow-y-auto space-y-4 shadow-xl ${t.header}`}>
           <Link
-            href={isBanglaPage ? "/bn" : "/"}
+            href="/"
             className={`flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-bold ${
-              pathname === "/" || pathname === "/bn"
-                ? "bg-blue-600 !text-white shadow-sm"
-                : t.mobileHome
+              pathname === "/" ? "bg-blue-600 !text-white shadow-sm" : t.mobileHome
             }`}
           >
             <span>🏠</span>
-            <span>{isBanglaPage ? "হোম" : "Home"}</span>
+            <span>Home</span>
           </Link>
 
           {categories.map((cat) => (
