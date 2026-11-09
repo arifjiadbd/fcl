@@ -680,6 +680,13 @@ export default function Home() {
     });
   }
 
+  function scrollToCalendar() {
+    document.getElementById("birthday-calendar-section")?.scrollIntoView({
+      behavior: reducedMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }
+
   useEffect(() => {
     if (!ready) return;
 
@@ -1205,9 +1212,9 @@ export default function Home() {
             </aside>
           </section>
 
+          {/* 🌟 এখানে ফুটারের অতিরিক্ত কপিরাইট অংশটি পিসি থেকে বাদ দেওয়া হয়েছে এবং শুধু মোবাইলে রাখা হয়েছে */}
           <footer className="fu-footer">
             <span>ONE GAME. ONE COMMUNITY. <b>FCL.</b></span>
-            {/* 🌟 এখানে ফুটারের কপিরাইট লাইনটি উভয় ভিউতেই রাখা হয়েছে */}
             <span className="fu-footer-desktop">© 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.</span>
           </footer>
         </div>
@@ -2883,7 +2890,6 @@ const UNIVERSE_STYLES = `
   display: none;
 }
 
-/* 🌟 ফুটার ও ওপরের গ্যাপ জিরো বা ন্যূনতম করার জন্য আপডেট করা স্টাইল */
 .fu-footer {
   display: flex;
   align-items: center;
@@ -2900,6 +2906,13 @@ const UNIVERSE_STYLES = `
 
 .fu-footer b {
   color: #3b82f6;
+}
+
+/* 🌟 পিসি ভিউতে অতিরিক্ত কপিরাইট লাইনটি হাইড করার জন্য স্টাইল (মোবাইলে দেখাবে) */
+@media (min-width: 761px) {
+  .fu-footer-desktop {
+    display: none !important;
+  }
 }
 
 .fu-spark-layer {
@@ -3312,7 +3325,7 @@ const UNIVERSE_STYLES = `
   .fu-dock button.is-active {
     border-color: color-mix(in srgb, var(--item-color) 35%, transparent);
     background: color-mix(in srgb, var(--item-color) 10%, transparent);
-    color: var(--fu-text);
+    border-radius: 12px;
   }
 
   .fu-footer {

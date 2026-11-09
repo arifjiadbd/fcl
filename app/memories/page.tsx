@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -11,11 +12,7 @@ import {
 } from "react";
 
 import Link from "next/link";
-
-/* =========================================================
-   FCL MEMORY BOOK
-   PREMIUM INTERACTIVE ARCHIVE
-   ========================================================= */
+import { useSearchParams } from "next/navigation";
 
 interface Memory {
   id: number;
@@ -712,7 +709,7 @@ function BookReader({
   );
 }
 
-export default function MemoriesPage() {
+function MemoriesPageInner() {
   const isDark = useIsDark();
 
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -736,6 +733,17 @@ export default function MemoriesPage() {
   const contentRef = useRef<HTMLElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchParams = useSearchParams();
+  const memoryParam = searchParams.get("memory");
+  const categoryParam = searchParams.get("category");
+  const stampParam = searchParams.get("s");
+
+  const [pendingTarget, setPendingTarget] = useState<{
+    kind: "memory" | "episode";
+    value: string;
+  } | null>(null);
+  const handledLinkRef = useRef("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1037,6 +1045,100 @@ export default function MemoriesPage() {
     });
   }, []);
 
+  useEffect(() => {
+    if (loading) return;
+    if (!memoryParam && !categoryParam) return;
+
+    const token = `${memoryParam ?? ""}|${categoryParam ?? ""}|${stampParam ?? ""}`;
+    if (handledLinkRef.current === token) return;
+    handledLinkRef.current = token;
+
+    setSearchQuery("");
+    setSelectedItemKey(null);
+    setReadingProgress(0);
+    setVisibleCount(LIST_PAGE_SIZE);
+
+    if (memoryParam) {
+      const id = Number(memoryParam);
+      if (!Number.isFinite(id)) return;
+
+      if (id >= 900000) {
+        const episode = seriesData[id - 900000];
+        if (!episode) return;
+
+        const name = normalize(episode.series_name) || "ধারাবাহিক গল্প";
+        const group = seriesGroups.find((g) => g.name === name);
+        const epIndex = group ? group.episodes.indexOf(episode) : -1;
+        if (!group || epIndex < 0) return;
+
+        setSelectedCategory("ধারাবাহিক সিরিজ");
+        setSelectedSeriesName(name);
+        setPendingTarget({ kind: "episode", value: `episode-${name}-${epIndex}` });
+        return;
+      }
+
+      const memory = memories.find((m) => m.id === id);
+      if (!memory) return;
+
+      setSelectedCategory(memory.category || "All");
+      setSelectedSeriesName(null);
+      setPendingTarget({ kind: "memory", value: String(memory.id) });
+      return;
+    }
+
+    if (categoryParam) {
+      const exists = categoryParam === "All" || categories.includes(categoryParam);
+      setSelectedCategory(exists ? categoryParam : "All");
+      setSelectedSeriesName(null);
+      setMobileReaderOpen(false);
+      window.setTimeout(scrollToContent, 150);
+    }
+  }, [
+    loading,
+    memoryParam,
+    categoryParam,
+    stampParam,
+    memories,
+    seriesData,
+    seriesGroups,
+    categories,
+    scrollToContent,
+  ]);
+
+  useEffect(() => {
+    if (!pendingTarget) return;
+
+    const index = readerItems.findIndex((item) =>
+      pendingTarget.kind === "memory"
+        ? item.key.startsWith(`memory-${pendingTarget.value}-`)
+        : item.key === pendingTarget.value
+    );
+
+    setPendingTarget(null);
+    if (index < 0) return;
+
+    const item = readerItems[index];
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+
+    setSelectedItemKey(item.key);
+    setReadingProgress(0);
+    setVisibleCount((prev) => Math.max(prev, index + 1));
+    setMobileReaderOpen(isMobile);
+    scrollToContent();
+
+    window.setTimeout(() => {
+      const list = listRef.current;
+      const el = list?.querySelector<HTMLElement>(".fcl-library-item.active");
+      if (list && el) {
+        list.scrollTop +=
+          el.getBoundingClientRect().top -
+          list.getBoundingClientRect().top -
+          list.clientHeight / 2 +
+          el.clientHeight / 2;
+      }
+    }, 350);
+  }, [pendingTarget, readerItems, scrollToContent]);
+
   const resetSelection = () => {
     setSelectedItemKey(null);
     setVisibleCount(LIST_PAGE_SIZE);
@@ -1176,9 +1278,6 @@ export default function MemoriesPage() {
       className={`fcl-memory-book-page ${isDark ? "fcl-memory-dark" : "fcl-memory-light"}`}
       style={themeStyle}
     >
-      {/* ===================================================
-          HERO SECTION (নেভবারের নিচ থেকে পর্যাপ্ত স্পেস সহ)
-          =================================================== */}
       <header className="fcl-book-hero">
         <div className="fcl-book-hero-grid" />
         <div className="fcl-book-hero-glow glow-one" />
@@ -1243,7 +1342,6 @@ export default function MemoriesPage() {
         </div>
       </header>
 
-      {/* COMPACT STATS */}
       <section className="fcl-book-stats-section">
         <div className="fcl-book-container">
           <div className="fcl-book-stats">
@@ -1290,7 +1388,6 @@ export default function MemoriesPage() {
         </div>
       </section>
 
-      {/* ARCHIVE WORKSPACE */}
       <section ref={contentRef} id="fcl-memory-workspace" className="fcl-book-workspace-section">
         <div className="fcl-book-container">
           <div className="fcl-book-section-heading">
@@ -1307,7 +1404,6 @@ export default function MemoriesPage() {
             </div>
           </div>
 
-          {/* FILTER PANEL */}
           <div className="fcl-book-filter-panel">
             <div className="fcl-book-category-scroll">
               {categories.map((category) => {
@@ -1562,12 +1658,15 @@ export default function MemoriesPage() {
   );
 }
 
-/* =========================================================
-   UPDATED DESIGN SYSTEM WITH INCREASED HERO TOP PADDING
-   ========================================================= */
+export default function MemoriesPage() {
+  return (
+    <Suspense fallback={null}>
+      <MemoriesPageInner />
+    </Suspense>
+  );
+}
 
 const MEMORY_BOOK_STYLES = `
-
 .fcl-memory-book-page {
   min-height: 100vh;
   width: 100%;
@@ -1658,16 +1757,12 @@ const MEMORY_BOOK_STYLES = `
   color: #1877F2;
 }
 
-/* =========================================================
-   HERO SECTION (টপ স্পেসিং বাড়ানো হয়েছে)
-   ========================================================= */
-
 .fcl-book-hero {
   position: relative;
   overflow: hidden;
   background: var(--mem-secondary);
   border-bottom: 1px solid var(--mem-border);
-  padding-top: 76px; /* ফিক্সড নেভবারের নিচে নামিয়ে আনার জন্য */
+  padding-top: 76px;
 }
 
 .fcl-book-hero-grid {
@@ -1748,7 +1843,7 @@ const MEMORY_BOOK_STYLES = `
   align-items: center;
   gap: 32px;
   min-height: 300px;
-  padding: 56px 0 46px; /* উপর-নিচে আরামদায়ক ফাঁকা জায়গা */
+  padding: 56px 0 46px;
 }
 
 .fcl-book-hero-content {
@@ -3457,7 +3552,6 @@ const MEMORY_BOOK_STYLES = `
     width: min(100% - 24px, 1320px);
   }
 
-  /* মোবাইলেও টপ স্পেস ঠিক রাখা হয়েছে */
   .fcl-book-hero {
     padding-top: 64px;
   }
@@ -3914,17 +4008,6 @@ const MEMORY_BOOK_STYLES = `
   }
   .fcl-book-series-card {
     padding: 11px;
-  }
-}
-
-@keyframes fclMobileReaderEnter {
-  from {
-    opacity: 0;
-    transform: translateY(35px) scale(.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 

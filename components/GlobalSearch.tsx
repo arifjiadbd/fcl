@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import PlayerCardModal from "@/components/PlayerCardModal";
 
@@ -35,7 +36,13 @@ interface Entry {
   bNorm: string;
   words: string[];
   boost: number;
-  rawPlayer?: any; 
+  full: string;
+  links: string[];
+  locate: string;
+  category?: string;
+  seriesName?: string;
+  epNo?: number;
+  rawPlayer?: any;
 }
 
 interface Hit {
@@ -44,6 +51,23 @@ interface Hit {
 }
 
 const PLACEHOLDER = "/FCL Cricket Avatar Placeholder.jpg";
+
+const POPUP_DELAY_MS = 2500;
+const LOCATE_KINDS: Kind[] = ["thriller", "extra", "tour"];
+
+function needsLocate(e: Entry): boolean {
+  return LOCATE_KINDS.includes(e.kind);
+}
+
+const KIND_PAGE: Record<Kind, { href: string; label: string }> = {
+  player: { href: "/players", label: "🏏 সব প্লেয়ার" },
+  match: { href: "/matches", label: "🏟️ সব ম্যাচ" },
+  story: { href: "/memories", label: "🎞️ স্মৃতি ও সাহিত্য সংগ্রহ" },
+  thriller: { href: "/thrillers", label: "⚡ সব হাই ভোল্টেজ ম্যাচ" },
+  extra: { href: "/extraordinary", label: "💎 সব অসাধারণ নৈপুণ্য" },
+  tour: { href: "/records", label: "🏆 রেকর্ডবুক" },
+  page: { href: "/", label: "হোম" },
+};
 
 const KIND_LABEL: Record<Kind, string> = {
   player: "প্লেয়ার",
@@ -54,8 +78,6 @@ const KIND_LABEL: Record<Kind, string> = {
   tour: "টুর্নামেন্ট",
   page: "পেইজ",
 };
-
-/* ---------- নরমালাইজ ---------- */
 
 const BN_DIGITS = "০১২৩৪৫৬৭৮৯";
 
@@ -111,8 +133,6 @@ const GENERIC: Record<string, Kind> = {
   পারফরম্যান্স: "extra",
 };
 
-/* ---------- তারিখ ---------- */
-
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -144,10 +164,129 @@ function photoPath(raw?: string): string {
   return `/players/${raw}`;
 }
 
-/* ---------- ইনডেক্স তৈরি ---------- */
+const URL_RE = /(https?:\/\/[^\s<>"')\]]+)/g;
+
+function cleanUrl(u: string): string {
+  return u.replace(/[.,;:!?।]+$/, "");
+}
+
+function extractLinks(raw: any, bodyText: string): string[] {
+  const found = new Set<string>();
+  const scan = (s: string) => {
+    const m = s.match(URL_RE);
+    if (m) m.forEach((u) => found.add(cleanUrl(u)));
+  };
+  if (raw && typeof raw === "object") {
+    Object.values(raw).forEach((v) => {
+      if (typeof v === "string") scan(v);
+    });
+  }
+  scan(bodyText);
+  return Array.from(found);
+}
+
+function linkLabel(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    if (/facebook\.com|fb\.com|fb\.watch/.test(host)) return "ফেসবুক পোস্ট";
+    if (/youtube\.com|youtu\.be/.test(host)) return "ইউটিউব ভিডিও";
+    return host;
+  } catch {
+    return "লিঙ্ক";
+  }
+}
+
+function renderWithLinks(text: string, linkClass: string) {
+  const parts = text.split(URL_RE);
+  return parts.map((part, i) => {
+    if (/^https?:\/\//.test(part)) {
+      const url = cleanUrl(part);
+      const tail = part.slice(url.length);
+      return (
+        <span key={i}>
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`break-all underline ${linkClass}`}
+          >
+            {url}
+          </a>
+          {tail}
+        </span>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+function findNodeByText(keys: string[]): HTMLElement | null {
+  for (const key of keys) {
+    if (!key) continue;
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      const text = node.textContent || "";
+      if (text.length < 2) continue;
+      const el = node.parentElement;
+      if (!el) continue;
+      if (/^(SCRIPT|STYLE|NOSCRIPT|TEXTAREA|INPUT)$/.test(el.tagName)) continue;
+      if (el.closest("[data-fcl-search], nav, header")) continue;
+      if (!norm(text).includes(key)) continue;
+      if (el.getClientRects().length === 0) continue;
+      return el;
+    }
+  }
+  return null;
+}
+
+function findClickable(el: HTMLElement): HTMLElement {
+  let cur: HTMLElement | null = el;
+  for (let i = 0; i < 10 && cur && cur !== document.body; i++) {
+    if (
+      cur.tagName === "BUTTON" ||
+      cur.tagName === "A" ||
+      cur.getAttribute("role") === "button" ||
+      window.getComputedStyle(cur).cursor === "pointer"
+    ) {
+      return cur;
+    }
+    cur = cur.parentElement;
+  }
+  return el;
+}
+
+function highlight(el: HTMLElement) {
+  const prevOutline = el.style.outline;
+  const prevOffset = el.style.outlineOffset;
+  const prevTransition = el.style.transition;
+  el.style.transition = "outline-color 0.3s";
+  el.style.outline = "3px solid #facc15";
+  el.style.outlineOffset = "3px";
+  setTimeout(() => {
+    el.style.outline = prevOutline;
+    el.style.outlineOffset = prevOffset;
+    el.style.transition = prevTransition;
+  }, 2500);
+}
+
+function findTab(label: string): HTMLElement | null {
+  const key = norm(label);
+  if (!key) return null;
+  const nodes = document.querySelectorAll<HTMLElement>(
+    "button, [role='tab'], [role='button'], a"
+  );
+  for (const el of Array.from(nodes)) {
+    if (el.closest("[data-fcl-search], nav, header")) continue;
+    if (el.getClientRects().length === 0) continue;
+    const t = norm(el.textContent || "");
+    if (t.includes(key) && t.length <= key.length + 10) return el;
+  }
+  return null;
+}
 
 const PAGES: { href: string; title: string; en: string; icon: string }[] = [
-  { href: "/rankings", title: "র্যাঙ্কিং ও MVP", en: "Rankings Leaderboard MVP", icon: "👑" },
+  { href: "/rankings", title: "র‍্যাঙ্কিং ও MVP", en: "Rankings Leaderboard MVP", icon: "👑" },
   { href: "/records", title: "রেকর্ডবুক", en: "Records Hall of Fame", icon: "🏆" },
   { href: "/players", title: "প্লেয়ার প্রোফাইল", en: "Players Squad Stat Cards", icon: "🏏" },
   { href: "/matches", title: "ম্যাচ আর্কাইভ", en: "Matches Directory History", icon: "🏟️" },
@@ -162,18 +301,24 @@ const PAGES: { href: string; title: string; en: string; icon: string }[] = [
 ];
 
 function mk(
-  partial: Omit<Entry, "tNorm" | "bNorm" | "words"> & {
+  partial: Omit<Entry, "tNorm" | "bNorm" | "words" | "full" | "links" | "locate"> & {
     titleText: string;
     bodyText?: string;
+    raw?: any;
+    locate?: string;
   }
 ): Entry {
-  const { titleText, bodyText, ...rest } = partial;
+  const { titleText, bodyText, raw, locate, ...rest } = partial;
   const tNorm = norm(titleText);
+  const body = String(bodyText || "");
   return {
     ...rest,
     tNorm,
-    bNorm: norm((bodyText || "").slice(0, 3000)),
+    bNorm: norm(body.slice(0, 3000)),
     words: tNorm.split(" ").filter(Boolean),
+    full: body.trim(),
+    links: extractLinks(raw, body),
+    locate: locate ?? rest.title,
   };
 }
 
@@ -268,6 +413,7 @@ function loadIndex(): Promise<Entry[]> {
           href: `/records?tour=${encodeURIComponent(name)}`,
           titleText: name,
           boost: 2,
+          raw: t,
         })
       );
     });
@@ -285,6 +431,8 @@ function loadIndex(): Promise<Entry[]> {
           titleText: String(m.title),
           bodyText: String(m.summary || ""),
           boost: 6,
+          raw: m,
+          category: m.category ? String(m.category) : undefined,
         })
       );
     });
@@ -302,8 +450,10 @@ function loadIndex(): Promise<Entry[]> {
           icon: "🎞️",
           href: `/memories?memory=${id}`,
           titleText: `${title} ${m.category || ""}`,
-          bodyText: `${m.author || ""} ${m.summary || ""} ${m.content || ""}`,
+          bodyText: `${m.summary || ""}\n\n${m.content || ""}`,
           boost: 4,
+          raw: m,
+          category: m.category ? String(m.category) : undefined,
         })
       );
     });
@@ -320,8 +470,12 @@ function loadIndex(): Promise<Entry[]> {
           icon: "📚",
           href: `/memories?memory=${900000 + i}`,
           titleText: `${name} ${ep} সিরিজ`,
-          bodyText: `${e.Author || ""} ${e.summary || ""} ${e.Content || ""}`,
+          bodyText: `${e.summary || ""}\n\n${e.Content || ""}`,
           boost: 4,
+          seriesName: name,
+          epNo: Number(e?.episode_no) || i + 1,
+          raw: e,
+          category: "ধারাবাহিক সিরিজ",
         })
       );
     });
@@ -336,10 +490,13 @@ function loadIndex(): Promise<Entry[]> {
           title,
           sub: m.tournament || "হাই ভোল্টেজ ম্যাচ",
           icon: "⚡",
-          href: `/thrillers?item=${i}`,
+          href: `/thrillers?item=${i}&q=${encodeURIComponent(title)}`,
           titleText: `${title} ${m.tournament || ""}`,
           bodyText: String(m.description || ""),
           boost: 3,
+          raw: m,
+          locate: title,
+          category: m.tournament ? String(m.tournament) : undefined,
         })
       );
     });
@@ -355,10 +512,12 @@ function loadIndex(): Promise<Entry[]> {
           title: title || player,
           sub: [player, m.tournamentMatch].filter(Boolean).join(" • "),
           icon: "💎",
-          href: `/extraordinary?item=${i}`,
+          href: `/extraordinary?item=${i}&q=${encodeURIComponent(title || player)}`,
           titleText: `${title} ${player} ${m.tournamentMatch || ""}`,
           bodyText: String(m.description || ""),
           boost: 3,
+          raw: m,
+          locate: title || player,
         })
       );
     });
@@ -368,8 +527,6 @@ function loadIndex(): Promise<Entry[]> {
 
   return indexPromise;
 }
-
-/* ---------- সার্চ ---------- */
 
 function runSearch(entries: Entry[], query: string): Hit[] {
   const nq = norm(query);
@@ -436,10 +593,6 @@ function runSearch(entries: Entry[], query: string): Hit[] {
   return final;
 }
 
-/* =========================================================
-   COMPONENT
-========================================================= */
-
 export default function GlobalSearch({
   isDark,
   autoFocus = false,
@@ -461,14 +614,24 @@ export default function GlobalSearch({
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState(0);
 
-  // ১. সার্চ পপআপ মডালের স্টেট (ছোট পপআপ)
   const [popupPlayer, setPopupPlayer] = useState<any | null>(null);
-
-  // ২. ফুল প্লেয়ার কার্ড মডালের স্টেট (PlayerCardModal)
   const [fullModalPlayer, setFullModalPlayer] = useState<any | null>(null);
+
+  const [detailEntry, setDetailEntry] = useState<Entry | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const popupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const locateTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => {
+      if (popupTimer.current) clearTimeout(popupTimer.current);
+      if (locateTimer.current) clearInterval(locateTimer.current);
+    };
+  }, []);
 
   const ensureLoaded = useCallback(() => {
     if (entries.length > 0) return;
@@ -520,27 +683,146 @@ export default function GlobalSearch({
     };
   }, []);
 
+  useEffect(() => {
+    if (!detailEntry) return;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDetailEntry(null);
+    };
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [detailEntry]);
+
   const hits = useMemo(() => runSearch(entries, query), [entries, query]);
 
   useEffect(() => {
     setActive(0);
   }, [query]);
 
+  const seriesEpisodes = useMemo(() => {
+    if (!detailEntry?.seriesName) return [];
+    return entries
+      .filter((e) => e.seriesName === detailEntry.seriesName)
+      .sort((a, b) => (a.epNo ?? 0) - (b.epNo ?? 0));
+  }, [entries, detailEntry]);
+
+  const withStamp = (href: string) => {
+    const sep = href.includes("?") ? "&" : "?";
+    return `${href}${sep}s=${Date.now()}`;
+  };
+
+  const poll = useCallback((step: () => boolean, maxTries = 25) => {
+    if (locateTimer.current) clearInterval(locateTimer.current);
+    let tries = 0;
+    locateTimer.current = setInterval(() => {
+      tries++;
+      let done = false;
+      try {
+        done = step();
+      } catch {
+        done = true;
+      }
+      if ((done || tries >= maxTries) && locateTimer.current) {
+        clearInterval(locateTimer.current);
+        locateTimer.current = null;
+      }
+    }, 400);
+  }, []);
+
+  const startLocate = useCallback(
+    (entry: Entry) => {
+      const full = norm(entry.locate);
+      const short = full.split(" ").slice(0, 3).join(" ");
+      const keys = short && short !== full ? [full, short] : [full];
+
+      poll(() => {
+        const el = findNodeByText(keys);
+        if (!el) return false;
+
+        const target = findClickable(el);
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        highlight(target);
+        setTimeout(() => target.click(), 600);
+        return true;
+      });
+    },
+    [poll]
+  );
+
   const go = useCallback(
     (entry: Entry) => {
-      const sep = entry.href.includes("?") ? "&" : "?";
-      const url =
-        entry.kind === "page"
-          ? entry.href
-          : `${entry.href}${sep}s=${Date.now()}`;
+      const url = entry.kind === "page" ? entry.href : withStamp(entry.href);
 
       setOpen(false);
       setQuery("");
       inputRef.current?.blur();
       onNavigate?.();
+
+      if (popupTimer.current) clearTimeout(popupTimer.current);
+      if (locateTimer.current) clearInterval(locateTimer.current);
+      setDetailEntry(null);
+
       router.push(url);
+
+      if (entry.kind !== "page" && entry.kind !== "player") {
+        popupTimer.current = setTimeout(() => {
+          setDetailEntry(entry);
+        }, POPUP_DELAY_MS);
+      }
     },
     [router, onNavigate]
+  );
+
+  const openOriginal = useCallback(
+    (entry: Entry) => {
+      if (popupTimer.current) clearTimeout(popupTimer.current);
+      if (locateTimer.current) clearInterval(locateTimer.current);
+      setDetailEntry(null);
+
+      if (needsLocate(entry)) {
+        const path = entry.href.split("?")[0];
+        const alreadyThere =
+          typeof window !== "undefined" && window.location.pathname === path;
+        if (!alreadyThere) router.push(withStamp(entry.href));
+        startLocate(entry);
+      } else {
+        router.push(withStamp(entry.href));
+      }
+    },
+    [router, startLocate]
+  );
+
+  const openCategory = useCallback(
+    (entry: Entry, pageOnly = false) => {
+      if (popupTimer.current) clearTimeout(popupTimer.current);
+      if (locateTimer.current) clearInterval(locateTimer.current);
+      setDetailEntry(null);
+
+      if (entry.kind === "story") {
+        const cat = pageOnly || !entry.category ? "All" : entry.category;
+        router.push(withStamp(`/memories?category=${encodeURIComponent(cat)}`));
+        return;
+      }
+
+      const page = KIND_PAGE[entry.kind];
+      const alreadyThere =
+        typeof window !== "undefined" && window.location.pathname === page.href;
+
+      if (!alreadyThere) router.push(withStamp(page.href));
+
+      if (pageOnly || !entry.category) {
+        if (alreadyThere) window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+
+      poll(() => {
+        const tab = findTab(entry.category!);
+        if (!tab) return false;
+        tab.scrollIntoView({ behavior: "smooth", block: "center" });
+        tab.click();
+        return true;
+      });
+    },
+    [router, poll]
   );
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -580,6 +862,12 @@ export default function GlobalSearch({
         empty: "!text-slate-400",
         cardBtn: "bg-sky-500/20 text-sky-300 border-sky-500/40 hover:bg-sky-500 hover:text-white",
         popupBg: "bg-[#0f172a] border-slate-700 text-white shadow-2xl",
+        detailBody: "text-slate-200",
+        detailBox: "border-white/10 bg-white/5",
+        link: "text-sky-300 hover:text-sky-200",
+        linkBtn: "border-sky-500/40 bg-sky-500/15 text-sky-200 hover:bg-sky-500/30",
+        epRow: "border-white/10 bg-white/5 hover:bg-white/10 text-slate-100",
+        epActive: "border-sky-400 bg-sky-500/20 text-white",
       }
     : {
         input:
@@ -595,10 +883,20 @@ export default function GlobalSearch({
         empty: "!text-slate-500",
         cardBtn: "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-600 hover:text-white",
         popupBg: "bg-white border-slate-200 text-slate-900 shadow-2xl",
+        detailBody: "text-slate-700",
+        detailBox: "border-slate-200 bg-slate-50",
+        link: "text-blue-600 hover:text-blue-800",
+        linkBtn: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100",
+        epRow: "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800",
+        epActive: "border-blue-500 bg-blue-50 text-blue-900",
       };
 
   return (
-    <div ref={wrapRef} className={`relative w-full ${className}`}>
+    <div
+      ref={wrapRef}
+      data-fcl-search
+      className={`relative w-full ${className}`}
+    >
       <div className="relative">
         <span
           aria-hidden="true"
@@ -719,7 +1017,6 @@ export default function GlobalSearch({
                     </span>
                   </div>
 
-                  {/* কার্ড বাটনে ক্লিক করলে ছোট পপআপ ওপেন হবে */}
                   {isPlayer && (
                     <button
                       type="button"
@@ -756,7 +1053,6 @@ export default function GlobalSearch({
         </div>
       )}
 
-      {/* ১. ছোট পপআপ মডাল (আপনার দেওয়া স্ক্রিনশটের ডিজাইনের মতো, ছবি ডাউনলোড বাটনসহ) */}
       {popupPlayer && !fullModalPlayer && (
         <div
           className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-in fade-in duration-200"
@@ -774,7 +1070,6 @@ export default function GlobalSearch({
               ✕
             </button>
 
-            {/* প্লেয়ার ছবি */}
             <div className="mx-auto mb-3.5 relative h-28 w-28 overflow-hidden rounded-2xl border-2 border-sky-400 shadow-lg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -797,7 +1092,6 @@ export default function GlobalSearch({
               {popupPlayer.role || "VIP All-Rounder"}
             </div>
 
-            {/* ম্যাচ ও রান/উইকেট বক্স */}
             <div className="mt-5 grid grid-cols-2 gap-3 text-left">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
                 <span className="block text-[10px] font-semibold text-slate-400">ম্যাচ</span>
@@ -809,7 +1103,6 @@ export default function GlobalSearch({
               </div>
             </div>
 
-            {/* বাটনসমূহ: ছবি ডাউনলোড এবং পূর্ণ প্রোফাইল (কার্ড) */}
             <div className="mt-5 flex flex-col gap-2.5">
               <button
                 type="button"
@@ -841,7 +1134,7 @@ export default function GlobalSearch({
                 onClick={() => {
                   const playerObj = popupPlayer;
                   setPopupPlayer(null);
-                  setFullModalPlayer(playerObj); // সরাসরি মূল ফুল কার্ড মডাল ওপেন হবে
+                  setFullModalPlayer(playerObj);
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0095f6] py-3 text-xs font-black text-white shadow-lg hover:opacity-90 transition"
               >
@@ -852,7 +1145,6 @@ export default function GlobalSearch({
         </div>
       )}
 
-      {/* ২. মূল ফুল প্লেয়ার কার্ড মডাল (PlayerCardModal) */}
       {fullModalPlayer && (
         <PlayerCardModal
           selectedPlayer={fullModalPlayer}
@@ -861,6 +1153,135 @@ export default function GlobalSearch({
           allPlayers={cachedAllPlayers}
         />
       )}
+
+      {mounted &&
+        detailEntry &&
+        createPortal(
+          <div
+            data-fcl-search
+            className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setDetailEntry(null)}
+          >
+            <div
+              className={`relative flex max-h-[88vh] w-full max-w-lg flex-col rounded-[28px] border p-6 ${t.popupBg}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                aria-label="বন্ধ করুন"
+                onClick={() => setDetailEntry(null)}
+                className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-white transition hover:bg-slate-700"
+              >
+                ✕
+              </button>
+
+              <div className="pr-10">
+                <span
+                  className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-black ${t.chip}`}
+                >
+                  {detailEntry.icon} {KIND_LABEL[detailEntry.kind]}
+                </span>
+                <h3 className="mt-3 text-lg font-black leading-snug">
+                  {detailEntry.title}
+                </h3>
+                {detailEntry.sub && (
+                  <p className="mt-1 text-xs font-bold text-sky-400">
+                    {detailEntry.sub}
+                  </p>
+                )}
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {detailEntry.category && (
+                    <button
+                      type="button"
+                      onClick={() => openCategory(detailEntry)}
+                      className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-extrabold transition ${t.linkBtn}`}
+                      title="এই ক্যাটেগরিতে যান"
+                    >
+                      📂 {detailEntry.category} ↗
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => openCategory(detailEntry, true)}
+                    className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[11px] font-extrabold transition ${t.linkBtn}`}
+                  >
+                    {KIND_PAGE[detailEntry.kind].label} ↗
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+                {detailEntry.links.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {detailEntry.links.map((url, i) => (
+                      <a
+                        key={`${url}-${i}`}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[11px] font-extrabold transition ${t.linkBtn}`}
+                      >
+                        🔗 {linkLabel(url)}
+                        {detailEntry.links.length > 1 ? ` (${i + 1})` : ""} ↗
+                      </a>
+                    ))}
+                  </div>
+                )}
+
+                <div
+                  className={`rounded-2xl border p-4 text-sm leading-relaxed whitespace-pre-line ${t.detailBox} ${t.detailBody}`}
+                >
+                  {detailEntry.full
+                    ? renderWithLinks(detailEntry.full, t.link)
+                    : "এই আইটেমের বিস্তারিত তথ্য পেইজে দেখুন।"}
+                </div>
+
+                {seriesEpisodes.length > 1 && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-black">
+                      📚 {detailEntry.seriesName} — সব পর্ব ({seriesEpisodes.length})
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {seriesEpisodes.map((ep) => (
+                        <button
+                          key={ep.key}
+                          type="button"
+                          onClick={() => openOriginal(ep)}
+                          className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs font-bold transition ${
+                            ep.key === detailEntry.key ? t.epActive : t.epRow
+                          }`}
+                        >
+                          <span className="min-w-0 flex-1 truncate">
+                            {ep.title.split(" — ").slice(1).join(" — ") || ep.title}
+                          </span>
+                          <span className="shrink-0 text-[10px] opacity-70">
+                            {ep.key === detailEntry.key ? "এখন দেখছেন" : "পড়ুন ↗"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const target =
+                    seriesEpisodes.length > 1 ? seriesEpisodes[0] : detailEntry;
+                  openOriginal(target);
+                }}
+                className="mt-4 flex w-full items-center justify-center rounded-2xl bg-[#0095f6] py-3 text-xs font-black text-white shadow-lg transition hover:opacity-90"
+              >
+                {seriesEpisodes.length > 1
+                  ? "📚 পুরো সিরিজ দেখুন ↗"
+                  : "পুরোটা দেখুন ↗"}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
