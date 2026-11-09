@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -10,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type CSSVars = CSSProperties & {
   [key: `--${string}`]: string | number;
@@ -47,29 +49,11 @@ const MENU_GROUPS: MenuGroup[] = [
     title: "তারকাদের মঞ্চ",
     english: "STATS & LEGENDS",
     color: "#f59e0b",
-    description: "র্যাঙ্কিং, রেকর্ড আর আপনার প্রিয় ক্রিকেটারের পরিসংখ্যান।",
+    description: "র‍্যাঙ্কিং, রেকর্ড আর আপনার প্রিয় ক্রিকেটারের পরিসংখ্যান।",
     items: [
-      {
-        href: "/rankings",
-        icon: "👑",
-        title: "র্যাঙ্কিং ও MVP",
-        english: "Rankings & MVP",
-        description: "সেরা খেলোয়াড়, MVP রেটিং ও লিডারবোর্ড।",
-      },
-      {
-        href: "/records",
-        icon: "🏆",
-        title: "রেকর্ডবুক",
-        english: "Hall of Fame & Records",
-        description: "সেঞ্চুরি, হ্যাটট্রিক আর ইতিহাস গড়া সব অর্জন।",
-      },
-      {
-        href: "/players",
-        icon: "🏏",
-        title: "প্লেয়ার প্রোফাইল",
-        english: "Players & Stat Cards",
-        description: "খেলোয়াড়দের পরিচিতি ও অফিসিয়াল স্ট্যাট কার্ড।",
-      },
+      { href: "/rankings", icon: "👑", title: "র‍্যাঙ্কিং ও MVP", english: "Rankings & MVP", description: "সেরা খেলোয়াড়, MVP রেটিং ও লিডারবোর্ড।" },
+      { href: "/records", icon: "🏆", title: "রেকর্ডবুক", english: "Hall of Fame & Records", description: "সেঞ্চুরি, হ্যাটট্রিক আর ইতিহাস গড়া সব অর্জন।" },
+      { href: "/players", icon: "🏏", title: "প্লেয়ার প্রোফাইল", english: "Players & Stat Cards", description: "খেলোয়াড়দের পরিচিতি ও অফিসিয়াল স্ট্যাট কার্ড।" },
     ],
   },
   {
@@ -80,27 +64,9 @@ const MENU_GROUPS: MenuGroup[] = [
     color: "#a78bfa",
     description: "পুরোনো ম্যাচ থেকে শেষ বলের রোমাঞ্চ—সব এক জায়গায়।",
     items: [
-      {
-        href: "/matches",
-        icon: "🏟️",
-        title: "ম্যাচ আর্কাইভ",
-        english: "Match Directory & History",
-        description: "টুর্নামেন্ট, সিরিজ ও ঐতিহাসিক ম্যাচের সংগ্রহ।",
-      },
-      {
-        href: "/thrillers",
-        icon: "⚡",
-        title: "হাই ভোল্টেজ",
-        english: "High Voltage Matches",
-        description: "শেষ মুহূর্তের উত্তেজনা আর অবিশ্বাস্য সব ফিনিশ।",
-      },
-      {
-        href: "/extraordinary",
-        icon: "💎",
-        title: "অসাধারণ নৈপুণ্য",
-        english: "Extraordinary Performance",
-        description: "ম্যাচজয়ী ইনিংস ও অবিস্মরণীয় ব্যক্তিগত পারফরম্যান্স।",
-      },
+      { href: "/matches", icon: "🏟️", title: "ম্যাচ আর্কাইভ", english: "Match Directory & History", description: "টুর্নামেন্ট, সিরিজ ও ঐতিহাসিক ম্যাচের সংগ্রহ।" },
+      { href: "/thrillers", icon: "⚡", title: "হাই ভোল্টেজ", english: "High Voltage Matches", description: "শেষ মুহূর্তের উত্তেজনা আর অবিশ্বাস্য সব ফিনিশ।" },
+      { href: "/extraordinary", icon: "💎", title: "অসাধারণ নৈপুণ্য", english: "Extraordinary Performance", description: "ম্যাচজয়ী ইনিংস ও অবিস্মরণীয় ব্যক্তিগত পারফরম্যান্স।" },
     ],
   },
   {
@@ -111,27 +77,9 @@ const MENU_GROUPS: MenuGroup[] = [
     color: "#f472b6",
     description: "খবর, জন্মদিন আর একসঙ্গে কাটানো প্রিয় মুহূর্তগুলো।",
     items: [
-      {
-        href: "/news",
-        icon: "📰",
-        title: "FCL সংবাদ",
-        english: "FCL News Portal",
-        description: "টুর্নামেন্ট আপডেট, কমিউনিটি সংবাদ ও বিশেষ প্রতিবেদন।",
-      },
-      {
-        href: "/memories",
-        icon: "🎞️",
-        title: "স্মৃতি ও আড্ডা",
-        english: "FCL Memories & Adda",
-        description: "পুরোনো দিনের গল্প, হাসি আর জমে থাকা স্মৃতি।",
-      },
-      {
-        href: "/birthday",
-        icon: "🎂",
-        title: "জন্মদিনের উৎসব",
-        english: "Birthday Celebration",
-        description: "FCL তারকাদের জন্মদিন ও শুভেচ্ছা কার্ড।",
-      },
+      { href: "/news", icon: "📰", title: "FCL সংবাদ", english: "FCL News Portal", description: "টুর্নামেন্ট আপডেট, কমিউনিটি সংবাদ ও বিশেষ প্রতিবেদন।" },
+      { href: "/memories", icon: "🎞️", title: "স্মৃতি ও আড্ডা", english: "FCL Memories & Adda", description: "পুরোনো দিনের গল্প, হাসি আর জমে থাকা স্মৃতি।" },
+      { href: "/birthday", icon: "🎂", title: "জন্মদিনের উৎসব", english: "Birthday Celebration", description: "FCL তারকাদের জন্মদিন ও শুভেচ্ছা কার্ড।" },
     ],
   },
   {
@@ -142,27 +90,9 @@ const MENU_GROUPS: MenuGroup[] = [
     color: "#22d3ee",
     description: "মাঠে নামুন, নিয়ম জানুন অথবা ঘুরে দেখুন ফটো গ্যালারি।",
     items: [
-      {
-        href: "/play",
-        icon: "🎮",
-        title: "খেলা শুরু করুন",
-        english: "Play FCL Online",
-        description: "মূল Facebook Cricket League গেমে প্রবেশ করুন।",
-      },
-      {
-        href: "/gallery",
-        icon: "📸",
-        title: "ফটো গ্যালারি",
-        english: "Player Photo Gallery",
-        description: "খেলোয়াড়দের ছবি দেখুন ও ডাউনলোড করুন।",
-      },
-      {
-        href: "/rules",
-        icon: "📜",
-        title: "খেলার নিয়ম",
-        english: "Rules & Match Formats",
-        description: "অফিসিয়াল গাইডলাইন ও বিভিন্ন ম্যাচ ফরম্যাট।",
-      },
+      { href: "/play", icon: "🎮", title: "খেলা শুরু করুন", english: "Play FCL Online", description: "মূল Facebook Cricket League গেমে প্রবেশ করুন।" },
+      { href: "/gallery", icon: "📸", title: "ফটো গ্যালারি", english: "Player Photo Gallery", description: "খেলোয়াড়দের ছবি দেখুন ও ডাউনলোড করুন।" },
+      { href: "/rules", icon: "📜", title: "খেলার নিয়ম", english: "Rules & Match Formats", description: "অফিসিয়াল গাইডলাইন ও বিভিন্ন ম্যাচ ফরম্যাট।" },
     ],
   },
 ];
@@ -185,27 +115,20 @@ const ROT_WORDS = [
   { t: "THE GAME", c: "#22c55e" },
 ];
 
-/* ================================================================
-   LIVE MATCH SIMULATION (decorative)
-================================================================ */
-
 type Ball = number | "W";
-
 const BALLS: Ball[] = [1, 4, 6, 0, 2, "W", 4, 1, 6, 0, 1, 2, 6, 4, 0, 1, 6, "W", 2, 4, 6, 1, 6, 4];
 const START_RUNS = 14;
 const START_WKTS = 2;
 const TARGET = 70;
-
 const WIN_BALL = (() => {
-  let runs = START_RUNS;
+  let r = START_RUNS;
   for (let k = 0; k < BALLS.length; k++) {
     const b = BALLS[k];
-    if (typeof b === "number") runs += b;
-    if (runs >= TARGET) return k + 1;
+    if (typeof b === "number") r += b;
+    if (r >= TARGET) return k + 1;
   }
   return BALLS.length;
 })();
-
 const CYCLE = WIN_BALL + 3;
 
 function useMatchSim(paused: boolean) {
@@ -249,10 +172,6 @@ function ballMeta(v: Ball | undefined) {
   if (v === 0) return { t: "•", label: "DOT BALL", k: "dot" };
   return { t: String(v), label: `${v} RUN${v > 1 ? "S" : ""}`, k: "run" };
 }
-
-/* ================================================================
-   HOOKS
-================================================================ */
 
 function useIsDark() {
   const [isDark, setIsDark] = useState(true);
@@ -340,10 +259,6 @@ function useReducedMotion() {
   return reduced;
 }
 
-/* ================================================================
-   ICONS
-================================================================ */
-
 function ArrowIcon({ back = false }: { back?: boolean }) {
   return (
     <svg
@@ -364,10 +279,6 @@ function ArrowIcon({ back = false }: { back?: boolean }) {
     </svg>
   );
 }
-
-/* ================================================================
-   PRELOADER
-================================================================ */
 
 function Preloader({
   onFinish,
@@ -482,10 +393,6 @@ function Preloader({
   );
 }
 
-/* ================================================================
-   HERO PIECES
-================================================================ */
-
 function Words({
   text,
   base = 0,
@@ -597,7 +504,6 @@ function HeroArt({ reduced }: { reduced: boolean }) {
           </div>
         </div>
 
-        {/* live score */}
         <div className="fh-z1 fh-c1">
           <div className="fh-pill fh-float">
             <span className="fh-live" />
@@ -613,7 +519,6 @@ function HeroArt({ reduced }: { reduced: boolean }) {
           </div>
         </div>
 
-        {/* last ball */}
         <div className="fh-z2 fh-c2">
           <div className="fh-pill fh-float fh-delay">
             <span key={sim.i} className={`fh-ball fh-pop k-${meta.k}`}>
@@ -626,7 +531,6 @@ function HeroArt({ reduced }: { reduced: boolean }) {
           </div>
         </div>
 
-        {/* this over */}
         <div className="fh-z2 fh-c3">
           <div className="fh-pill fh-float fh-over">
             <small className="fh-over-title">THIS OVER</small>
@@ -650,7 +554,6 @@ function HeroArt({ reduced }: { reduced: boolean }) {
           </div>
         </div>
 
-        {/* need */}
         <div className="fh-z1 fh-c4">
           <div className="fh-pill fh-float fh-delay fh-need">
             <div className="fh-need-row">
@@ -695,10 +598,6 @@ function MobileLive({ reduced }: { reduced: boolean }) {
   );
 }
 
-/* ================================================================
-   HOME
-================================================================ */
-
 export default function Home() {
   const isDark = useIsDark();
   const reducedMotion = useReducedMotion();
@@ -708,12 +607,16 @@ export default function Home() {
 
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [logoError, setLogoError] = useState(false);
   const [bursts, setBursts] = useState<SparkBurst[]>([]);
   const [announcement, setAnnouncement] = useState("");
 
   const rootRef = useRef<HTMLElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const centerRef = useRef<HTMLButtonElement>(null);
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
 
   const burstId = useRef(0);
   const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
@@ -728,13 +631,22 @@ export default function Home() {
 
   const accent = previewGroup?.color ?? "#60a5fa";
 
+  const results = useMemo(() => {
+    const value = query.trim().toLocaleLowerCase();
+    if (!value) return ALL_PORTALS;
+    return ALL_PORTALS.filter((portal) =>
+      [portal.title, portal.english, portal.description, portal.groupTitle]
+        .join(" ")
+        .toLocaleLowerCase()
+        .includes(value)
+    );
+  }, [query]);
+
   useEffect(() => {
     let seen = false;
-
     try {
       seen = !!sessionStorage.getItem("fcl_visited");
     } catch {}
-
     setPhase(seen ? "done" : "loading");
   }, []);
 
@@ -742,13 +654,11 @@ export default function Home() {
     try {
       sessionStorage.setItem("fcl_visited", "true");
     } catch {}
-
     setPhase("done");
   }, []);
 
   useEffect(() => {
     const pendingTimers = timers.current;
-
     return () => {
       pendingTimers.forEach((timer) => clearTimeout(timer));
       pendingTimers.clear();
@@ -758,6 +668,10 @@ export default function Home() {
   useEffect(() => {
     if (reducedMotion) setBursts([]);
   }, [reducedMotion]);
+
+  useEffect(() => {
+    if (directoryOpen) searchRef.current?.focus({ preventScroll: true });
+  }, [directoryOpen]);
 
   function scrollToMenu() {
     document.getElementById("fu-menu")?.scrollIntoView({
@@ -925,7 +839,7 @@ export default function Home() {
                 <Rotator paused={reducedMotion} />
 
                 <p className="fh-text">
-                  Facebook Cricket League-এর অফিশিয়াল পোর্টাল — র্যাঙ্কিং, রেকর্ড, স্মৃতি আর
+                  Facebook Cricket League-এর অফিশিয়াল পোর্টাল — র‍্যাঙ্কিং, রেকর্ড, স্মৃতি আর
                   হাই-ভোল্টেজ ম্যাচের গল্প, সব এক জায়গায়।
                 </p>
 
@@ -1025,7 +939,7 @@ export default function Home() {
           {/* ================================================================
               FLOWER MENU
           ================================================================ */}
-          <section id="fu-menu" className="fu-dashboard" aria-label="FCL interactive navigation">
+          <section className="fu-dashboard" aria-label="FCL interactive navigation">
             <aside className="fu-wing fu-wing-left">
               <span className="fu-overline">
                 <i />
@@ -1039,8 +953,7 @@ export default function Home() {
               </h2>
 
               <p>
-                আপনার FCL এখন হাতের মুঠোয়।
-                পছন্দের একটি পাপড়িতে ক্লিক করুন—খুলে যাবে নতুন দুনিয়া।
+                আপনার FCL এখন হাতের মুঠোয়। পছন্দের একটি পাপড়িতে ক্লিক করুন—খুলে যাবে নতুন দুনিয়া।
               </p>
 
               <div className="fu-counts">
@@ -1062,7 +975,7 @@ export default function Home() {
               </Link>
             </aside>
 
-            <div className="fu-console">
+            <div className="fu-console" id="fu-menu">
               <div className="fu-console-top">
                 <div className="fu-breadcrumb">
                   <button
@@ -1084,7 +997,7 @@ export default function Home() {
                 </span>
               </div>
 
-              <div id="fu-menu-content" className="fu-menu-content">
+              <div className="fu-menu-content">
                 <div
                   className="fu-flower"
                   onPointerMove={followPointer}
@@ -1115,7 +1028,7 @@ export default function Home() {
                     data-accent={accent}
                     aria-label={
                       activeGroup
-                        ? "মূল FCL মেনুতে ফিরুন"
+                        ? "মূল FCL মেনুতে ফিরে এসেছেন।"
                         : "FCL মূল মেনু"
                     }
                   >
@@ -1285,41 +1198,17 @@ export default function Home() {
                   )}
                 </div>
               </div>
+
+              <span className="fu-key-hint">
+                <kbd>/</kbd> Search <span>·</span> <kbd>Esc</kbd> Back
+              </span>
             </aside>
           </section>
 
-          <nav className="fu-dock" aria-label="দ্রুত ক্যাটেগরি পরিবর্তন">
-            {MENU_GROUPS.map((group) => (
-              <button
-                key={group.id}
-                type="button"
-                className={activeGroupId === group.id ? "is-active" : ""}
-                aria-pressed={activeGroupId === group.id}
-                data-accent={group.color}
-                style={{ "--item-color": group.color } as CSSVars}
-                onClick={() => {
-                  setActiveGroupId(group.id);
-                  setPreviewId(null);
-                  setAnnouncement(`${group.title}: তিনটি অপশন খোলা হয়েছে।`);
-                }}
-              >
-                <span aria-hidden="true">{group.icon}</span>
-                <span>
-                  {group.id === "legends"
-                    ? "স্ট্যাটস"
-                    : group.id === "arena"
-                      ? "ম্যাচ"
-                      : group.id === "community"
-                        ? "কমিউনিটি"
-                        : "এক্সপ্লোর"}
-                </span>
-              </button>
-            ))}
-          </nav>
-
           <footer className="fu-footer">
             <span>ONE GAME. ONE COMMUNITY. <b>FCL.</b></span>
-            <span className="fu-footer-desktop">Built around your cricket story.</span>
+            {/* 🌟 এখানে ফুটারের কপিরাইট লাইনটি উভয় ভিউতেই রাখা হয়েছে */}
+            <span className="fu-footer-desktop">© 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.</span>
           </footer>
         </div>
 
@@ -2829,21 +2718,184 @@ const UNIVERSE_STYLES = `
   font-size: 9px;
 }
 
+.fu-directory {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+  animation: fu-preview-in .25s ease-out;
+}
+
+.fu-search-field {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid #3b82f655;
+  background: var(--fu-field);
+  border-radius: 12px;
+  color: var(--fu-muted);
+}
+
+.fu-search-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: var(--fu-text);
+  font-size: 13px;
+  outline: none;
+}
+
+.fu-search-field input::placeholder {
+  color: var(--fu-muted);
+  opacity: .8;
+}
+
+.fu-search-field button {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 27px;
+  height: 27px;
+  padding: 0;
+  border: 1px solid var(--fu-line);
+  border-radius: 8px;
+  background: var(--fu-panel);
+  color: var(--fu-muted);
+  font-size: 11px;
+}
+
+.fu-result-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 1px 9px;
+  font-size: 9px;
+  color: var(--fu-muted);
+}
+
+.fu-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 7px;
+  overflow-y: auto;
+  padding: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f655 transparent;
+}
+
+.fu-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 50px;
+  padding: 9px;
+  background: var(--fu-field);
+  border: 1px solid var(--fu-line);
+  border-radius: 12px;
+  transition: border-color .2s, background .2s;
+}
+
+.fu-result:hover {
+  border-color: var(--item-color);
+  background: color-mix(in srgb, var(--item-color) 9%, var(--fu-field));
+}
+
+.fu-result-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.fu-result-copy {
+  min-width: 0;
+}
+
+.fu-result-copy strong {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.fu-result-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px;
+  margin-top: 2px;
+  color: var(--fu-muted);
+}
+
+.fu-result-arrow {
+  margin-left: auto;
+  color: var(--fu-muted);
+  font-size: 12px;
+}
+
+.fu-directory-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: auto;
+  padding: 10px 4px 0;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fu-muted);
+  font-size: 11px !important;
+}
+
+.fu-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 13px;
+  margin: auto;
+  padding: 15px;
+  text-align: center;
+}
+
+.fu-empty > span {
+  font-size: 30px;
+}
+
+.fu-empty strong {
+  font-size: 13px;
+}
+
+.fu-empty button {
+  padding: 7px 14px;
+  border: 1px solid #3b82f655;
+  border-radius: 9px;
+  background: #3b82f612;
+  color: var(--fu-text);
+  font-size: 11px;
+}
+
 .fu-dock {
   display: none;
 }
 
+/* 🌟 ফুটার ও ওপরের গ্যাপ জিরো বা ন্যূনতম করার জন্য আপডেট করা স্টাইল */
 .fu-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 17px;
-  padding-top: 11px;
+  margin-top: 2px;
+  padding-top: 6px;
   border-top: 1px solid var(--fu-line);
   color: var(--fu-muted);
   font-size: 8px;
   letter-spacing: .08em;
+  flex-wrap: wrap;
 }
 
 .fu-footer b {
@@ -3268,10 +3320,6 @@ const UNIVERSE_STYLES = `
     margin-top: 11px;
     padding-top: 10px;
     font-size: 7px;
-  }
-
-  .fu-footer-desktop {
-    display: none;
   }
 
   .fu-square-a {

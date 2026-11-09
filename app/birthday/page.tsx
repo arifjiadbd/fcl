@@ -806,7 +806,7 @@ export default function BirthdayPage() {
   const scrollToCalendar = () => {
     const el = calendarRef.current;
     if (!el) return;
-    const yOffset = -80; // স্টিকি হেডারের উচ্চতা অনুযায়ী অফসেট
+    const yOffset = -80;
     const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
     window.scrollTo({ top: y, behavior: "smooth" });
   };
@@ -1032,7 +1032,6 @@ export default function BirthdayPage() {
 
       <audio ref={audioRef} src="https://actions.google.com/sounds/v1/ambiences/birthday_party.ogg" loop />
 
-      {/* স্টিকি হেডার */}
       <header className="bd-header sticky top-0 z-30 border-b backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-2.5 sm:px-6">
           <Link href="/" className="bd-btn inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition">
@@ -1042,29 +1041,20 @@ export default function BirthdayPage() {
             <span>🎂</span>
             <span className="bd-gtext">FCL বার্থডে হাব</span>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={toggleMusic}
-              aria-label="মিউজিক চালু/বন্ধ"
-              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
-                isPlayingMusic ? "border-emerald-500/60 bg-emerald-400/15 bd-em" : "bd-btn"
-              }`}
-            >
-              {isPlayingMusic ? "🎵" : "🔇"}
-              <span className="hidden sm:inline">{isPlayingMusic ? "মিউজিক বাজছে" : "মিউজিক"}</span>
-            </button>
-            <Link
-              href="/bn"
-              className="bd-btn inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition"
-            >
-              বাংলা
-            </Link>
-          </div>
+          <button
+            onClick={toggleMusic}
+            aria-label="মিউজিক চালু/বন্ধ"
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition ${
+              isPlayingMusic ? "border-emerald-500/60 bg-emerald-400/15 bd-em" : "bd-btn"
+            }`}
+          >
+            {isPlayingMusic ? "🎵" : "🔇"}
+            <span className="hidden sm:inline">{isPlayingMusic ? "মিউজিক বাজছে" : "মিউজিক"}</span>
+          </button>
         </div>
       </header>
 
-      {/* মূল কন্টেন্ট (উপরে pt-8 বা pt-10 দেওয়া হয়েছে যাতে হেডারের নিচে কন্টেন্ট ঢাকা না পড়ে) */}
-      <main className="relative mx-auto max-w-7xl px-3 pt-8 sm:px-6 sm:pt-12">
+      <main className="relative mx-auto max-w-7xl px-3 pt-5 sm:px-6 sm:pt-8">
         {loading ? (
           <div className="bd-sky2 flex h-64 items-center justify-center font-bold animate-pulse">বার্থডে ডেটা লোড হচ্ছে...</div>
         ) : (
@@ -1109,40 +1099,55 @@ export default function BirthdayPage() {
                     <div className="relative z-10 mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                       {todayStars.map((s, i) => {
                         const on = activeStar === i;
+                        const validPhoto = playerHasPhoto(s.player, brokenPhotos);
                         return (
-                          <button
+                          <div
                             key={s.player.name + i}
-                            onClick={() => pickStar(i)}
-                            className={`group flex items-center gap-3.5 rounded-2xl border p-3 text-left transition active:scale-[0.98] ${
+                            className={`flex flex-col justify-between rounded-2xl border p-3 text-left transition ${
                               on
                                 ? "border-emerald-400 bg-gradient-to-r from-blue-600/30 to-emerald-500/25 shadow-lg shadow-blue-500/20"
                                 : "bd-glass-btn"
                             }`}
                           >
-                            <div className="rounded-full bg-gradient-to-tr from-blue-500 to-emerald-400 p-[3px]">
-                              <img
-                                src={getPhoto(s.player)}
-                                alt={s.player.name}
-                                className="bd-ring h-14 w-14 rounded-full border-2 object-cover sm:h-16 sm:w-16"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src = FALLBACK_PHOTO;
-                                }}
-                              />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="bd-head truncate text-sm font-black sm:text-base">{s.player.name}</p>
-                              <p className="bd-sub truncate text-[11px]">
-                                @{s.player.nickName || "Player"} • {s.player.role}
-                              </p>
-                              <span
-                                className={`mt-1.5 inline-block rounded-full px-3 py-1 text-[11px] font-black ${
+                            <button onClick={() => pickStar(i)} className="flex items-center gap-3.5 w-full text-left">
+                              <div className="rounded-full bg-gradient-to-tr from-blue-500 to-emerald-400 p-[3px] shrink-0">
+                                <img
+                                  src={getPhoto(s.player)}
+                                  alt={s.player.name}
+                                  className="bd-ring h-14 w-14 rounded-full border-2 object-cover sm:h-16 sm:w-16"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).src = FALLBACK_PHOTO;
+                                  }}
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="bd-head truncate text-sm font-black sm:text-base">{s.player.name}</p>
+                                <p className="bd-sub truncate text-[11px]">
+                                  @{s.player.nickName || "Player"} • {s.player.role}
+                                </p>
+                              </div>
+                            </button>
+
+                            <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-2.5">
+                              <button
+                                onClick={() => pickStar(i)}
+                                className={`rounded-full px-3 py-1 text-[11px] font-black ${
                                   on ? "bg-emerald-500 text-white" : "bd-white-btn"
                                 }`}
                               >
-                                {on ? "✓ কার্ড দেখছেন" : "🎁 উইশ কার্ড দেখুন"}
-                              </span>
+                                {on ? "✓ কার্ড দেখছেন" : "🎁 কার্ড দেখুন"}
+                              </button>
+                              {!validPhoto && (
+                                <button
+                                  onClick={() => openMessenger(s.player.name)}
+                                  title="ছবি দিতে মেসেজ দিন"
+                                  className="rounded-xl bg-[#0084ff] px-2.5 py-1 text-[10px] font-bold text-white shadow hover:bg-blue-600"
+                                >
+                                  💬 ছবি দিন
+                                </button>
+                              )}
                             </div>
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -1370,30 +1375,43 @@ export default function BirthdayPage() {
                 </div>
                 <div className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-2 [scrollbar-width:none] sm:mx-0 sm:px-0">
                   {upcoming.map((e, i) => (
-                    <button
+                    <div
                       key={e.player.name + i}
-                      onClick={() => setSelectedPlayerForModal(e.player)}
-                      className="bd-row group w-[150px] shrink-0 snap-start rounded-2xl border p-3 text-center transition sm:w-[170px]"
+                      className="bd-row group flex flex-col justify-between w-[150px] shrink-0 snap-start rounded-2xl border p-3 text-center transition sm:w-[170px]"
                     >
-                      <div className="bd-avatar mx-auto h-16 w-16 overflow-hidden rounded-full border-2 sm:h-[72px] sm:w-[72px]">
-                        <img
-                          src={getPhoto(e.player)}
-                          alt={e.player.name}
-                          loading="lazy"
-                          className="h-full w-full object-cover transition group-hover:scale-110"
-                          onError={(ev) => {
-                            (ev.currentTarget as HTMLImageElement).src = FALLBACK_PHOTO;
-                          }}
-                        />
+                      <button onClick={() => setSelectedPlayerForModal(e.player)} className="w-full">
+                        <div className="bd-avatar mx-auto h-16 w-16 overflow-hidden rounded-full border-2 sm:h-[72px] sm:w-[72px]">
+                          <img
+                            src={getPhoto(e.player)}
+                            alt={e.player.name}
+                            loading="lazy"
+                            className="h-full w-full object-cover transition group-hover:scale-110"
+                            onError={(ev) => {
+                              (ev.currentTarget as HTMLImageElement).src = FALLBACK_PHOTO;
+                            }}
+                          />
+                        </div>
+                        <p className="bd-head mt-2 truncate text-xs font-extrabold sm:text-sm">{e.player.name}</p>
+                        <p className="bd-sub mt-0.5 text-[11px]">
+                          {String(e.day).padStart(2, "0")} {MONTH_BN[e.month]}
+                        </p>
+                      </button>
+
+                      <div className="mt-2.5 flex items-center justify-between border-t border-slate-500/10 pt-2">
+                        <span className="bd-amber-pill rounded-full px-2.5 py-0.5 text-[10px] font-bold">
+                          {leftLabel(e.daysLeft)}
+                        </span>
+                        {!playerHasPhoto(e.player, brokenPhotos) && (
+                          <button
+                            onClick={() => openMessenger(e.player.name)}
+                            title="ছবি দিতে মেসেজ দিন"
+                            className="text-[10px] font-bold text-blue-500 hover:underline"
+                          >
+                            💬 ছবি দিন
+                          </button>
+                        )}
                       </div>
-                      <p className="bd-head mt-2 truncate text-xs font-extrabold sm:text-sm">{e.player.name}</p>
-                      <p className="bd-sub mt-0.5 text-[11px]">
-                        {String(e.day).padStart(2, "0")} {MONTH_BN[e.month]}
-                      </p>
-                      <span className="bd-amber-pill mt-2 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold">
-                        {leftLabel(e.daysLeft)}
-                      </span>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -1571,7 +1589,7 @@ export default function BirthdayPage() {
         )}
       </main>
 
-      {/* ফ্লোটিং ক্যালেন্ডার বাটন (Floating Action Button - ডান কোণায় ভাসমান) */}
+      {/* ফ্লোটিং ক্যালেন্ডার বাটন */}
       <button
         onClick={scrollToCalendar}
         title="বার্থডে ক্যালেন্ডারে যান"

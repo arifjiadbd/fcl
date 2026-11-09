@@ -60,47 +60,47 @@ function isExcelSerial(num: number): boolean {
 
 function formatExcelDate(val: unknown): string {
   if (!val || val === "—") return "";
+  const raw = String(val).trim();
+
+  // যদি ISO ডেট স্ট্রিং হয় (যেমন 2013-10-08T18:00:00.000Z)
+  if (raw.includes("T") || (raw.includes("-") && raw.length >= 10)) {
+    const parsedDate = new Date(raw);
+    if (!isNaN(parsedDate.getTime())) {
+      const day = String(parsedDate.getUTCDate()).padStart(2, "0");
+      const months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+      ];
+      return `${day} ${months[parsedDate.getUTCMonth()]} ${parsedDate.getUTCFullYear()}`;
+    }
+  }
 
   const num = Number(val);
-
   if (isExcelSerial(num)) {
     const utcDays = Math.floor(num - 25569);
     const dateInfo = new Date(utcDays * 86400 * 1000);
     const day = String(dateInfo.getUTCDate()).padStart(2, "0");
-
     const months = [
-      "January",
-      "February",
-      "March",
-      "April",
-      "May",
-      "June",
-      "July",
-      "August",
-      "September",
-      "October",
-      "November",
-      "December",
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
     ];
-
     return `${day} ${months[dateInfo.getUTCMonth()]} ${dateInfo.getUTCFullYear()}`;
   }
 
-  return String(val).trim();
+  return raw;
 }
 
 function dateToTimestamp(val: unknown): number {
   if (!val || val === "—") return 0;
+  const raw = String(val).trim();
+  const parsed = Date.parse(raw);
+  if (Number.isFinite(parsed)) return parsed;
 
   const num = Number(val);
-
   if (isExcelSerial(num)) {
     return Math.floor(num - 25569) * 86400 * 1000;
   }
-
-  const parsed = Date.parse(String(val).trim());
-
-  return Number.isFinite(parsed) ? parsed : 0;
+  return 0;
 }
 
 function isValidExternalUrl(url: string): boolean {
