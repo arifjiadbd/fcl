@@ -53,7 +53,12 @@ interface Hit {
 const PLACEHOLDER = "/FCL Cricket Avatar Placeholder.jpg";
 
 const POPUP_DELAY_MS = 2500;
-const LOCATE_KINDS: Kind[] = ["thriller", "extra", "tour"];
+
+// শুধু যেসব পেইজে সরাসরি URL দিয়ে আইটেম খোলা যায় না, সেগুলোতেই locate (টেক্সট খুঁজে ক্লিক) ব্যবহার হবে
+const LOCATE_KINDS: Kind[] = ["tour"];
+
+// এই পেইজগুলো ?item=INDEX প্যারামিটার দেখেই নিজে থেকে মোডাল খুলে দেয় (মোবাইল + পিসি দুটোতেই কাজ করে)
+const DIRECT_OPEN_KINDS: Kind[] = ["thriller", "extra"];
 
 function needsLocate(e: Entry): boolean {
   return LOCATE_KINDS.includes(e.kind);
@@ -480,6 +485,7 @@ function loadIndex(): Promise<Entry[]> {
       );
     });
 
+    // ⚠️ i হলো API অ্যারের আসল ইনডেক্স — পেইজের originalIndex এর সাথে হুবহু মিলতে হবে
     toArray(thr, "highVoltage").forEach((m: any, i: number) => {
       const title = String(m?.matchTitle ?? "").trim();
       if (!title) return;
@@ -490,7 +496,7 @@ function loadIndex(): Promise<Entry[]> {
           title,
           sub: m.tournament || "হাই ভোল্টেজ ম্যাচ",
           icon: "⚡",
-          href: `/thrillers?item=${i}&q=${encodeURIComponent(title)}`,
+          href: `/thrillers?item=${i}`,
           titleText: `${title} ${m.tournament || ""}`,
           bodyText: String(m.description || ""),
           boost: 3,
@@ -512,7 +518,7 @@ function loadIndex(): Promise<Entry[]> {
           title: title || player,
           sub: [player, m.tournamentMatch].filter(Boolean).join(" • "),
           icon: "💎",
-          href: `/extraordinary?item=${i}&q=${encodeURIComponent(title || player)}`,
+          href: `/extraordinary?item=${i}`,
           titleText: `${title} ${player} ${m.tournamentMatch || ""}`,
           bodyText: String(m.description || ""),
           boost: 3,
@@ -763,7 +769,13 @@ export default function GlobalSearch({
 
       router.push(url);
 
-      if (entry.kind !== "page" && entry.kind !== "player") {
+      // thriller / extra পেইজ নিজেই মোডাল খুলে দেয়, তাই এখানে আলাদা পপআপ লাগবে না
+      const showDetailPopup =
+        entry.kind !== "page" &&
+        entry.kind !== "player" &&
+        !DIRECT_OPEN_KINDS.includes(entry.kind);
+
+      if (showDetailPopup) {
         popupTimer.current = setTimeout(() => {
           setDetailEntry(entry);
         }, POPUP_DELAY_MS);

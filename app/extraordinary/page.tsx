@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -11,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 /* =========================================================
    FCL EXTRAORDINARY PERFORMANCES
@@ -925,7 +927,7 @@ function PerformanceModal({
           onScroll={handleScroll}
         >
           <div className="fcl-extra-modal-content" key={performance.key}>
-            {/* ডানে ওপরে বড় ছবির জায়গা এবং বামে টেক্সট */}
+            {/* ডানে ওপরে বড় ছবির জায়গা এবং বামে টেক্সট */}
             <div className="fcl-extra-modal-header-grid">
               <div className="fcl-extra-modal-header-text">
                 <Eyebrow>EXTRAORDINARY PERFORMANCE</Eyebrow>
@@ -950,7 +952,7 @@ function PerformanceModal({
                 </div>
               </div>
 
-              {/* ডানে ওপরের বড় ছবি প্রিভিউ বক্স (আরেকটু বড়, নিচে ও বামে সামঞ্জস্যপূর্ণ) */}
+              {/* ডানে ওপরের বড় ছবি প্রিভিউ বক্স (আরেকটু বড়, নিচে ও বামে সামঞ্জস্যপূর্ণ) */}
               <div className="fcl-extra-modal-big-photo">
                 {hasPhoto ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
@@ -1161,9 +1163,10 @@ function Pagination({
    MAIN PAGE
    ========================================================= */
 
-export default function ExtraordinaryPage() {
+function ExtraordinaryContent() {
   const isDark = useIsDark();
   const isMobile = useIsMobile();
+  const searchParams = useSearchParams();
 
   const [performances, setPerformances] = useState<ExtraordinaryRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1398,6 +1401,30 @@ export default function ExtraordinaryPage() {
       setSelectedPerf(navList[selectedIndex + 1]);
     }
   }, [navList, selectedIndex]);
+
+  /* =======================================================
+     গ্লোবাল সার্চ থেকে সরাসরি মোডাল খোলা (?item=INDEX)
+     ======================================================= */
+
+  const itemParam = searchParams.get("item");
+  const stampParam = searchParams.get("s");
+
+  useEffect(() => {
+    if (itemParam === null || loading || indexedPerformances.length === 0) return;
+
+    const idx = Number(itemParam);
+    if (!Number.isInteger(idx)) return;
+
+    const target = indexedPerformances.find((r) => r.originalIndex === idx);
+    if (!target) return;
+
+    // ফিল্টার/পেইজ রিসেট করে মোডাল খোলা
+    setSearchQuery("");
+    setSelectedYear("All");
+    setSortBy("part-asc");
+    setPage(1);
+    setSelectedPerf(target);
+  }, [itemParam, stampParam, loading, indexedPerformances]);
 
   /* =======================================================
      EFFECTS
@@ -1805,6 +1832,18 @@ export default function ExtraordinaryPage() {
         {EXTRAORDINARY_STYLES}
       </style>
     </div>
+  );
+}
+
+/* =========================================================
+   PAGE EXPORT (useSearchParams এর জন্য Suspense দরকার)
+   ========================================================= */
+
+export default function ExtraordinaryPage() {
+  return (
+    <Suspense fallback={null}>
+      <ExtraordinaryContent />
+    </Suspense>
   );
 }
 

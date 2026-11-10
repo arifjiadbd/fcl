@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -11,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 /* =========================================================
    FCL HIGH VOLTAGE MATCHES
@@ -62,7 +64,7 @@ function formatExcelDate(val: unknown): string {
   if (!val || val === "—") return "";
   const raw = String(val).trim();
 
-  // যদি ISO ডেট স্ট্রিং হয় (যেমন 2013-10-08T18:00:00.000Z)
+  // যদি ISO ডেট স্ট্রিং হয় (যেমন 2013-10-08T18:00:00.000Z)
   if (raw.includes("T") || (raw.includes("-") && raw.length >= 10)) {
     const parsedDate = new Date(raw);
     if (!isNaN(parsedDate.getTime())) {
@@ -1164,9 +1166,10 @@ function Pagination({
    MAIN PAGE
    ========================================================= */
 
-export default function ThrillersPage() {
+function ThrillersContent() {
   const isDark = useIsDark();
   const isMobile = useIsMobile();
+  const searchParams = useSearchParams();
 
   const [matches, setMatches] = useState<HighVoltageMatch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1380,6 +1383,30 @@ export default function ThrillersPage() {
       setSelectedMatch(navList[selectedIndex + 1]);
     }
   }, [navList, selectedIndex]);
+
+  /* =======================================================
+     গ্লোবাল সার্চ থেকে সরাসরি মোডাল খোলা (?item=INDEX)
+     ======================================================= */
+
+  const itemParam = searchParams.get("item");
+  const stampParam = searchParams.get("s");
+
+  useEffect(() => {
+    if (itemParam === null || loading || indexedMatches.length === 0) return;
+
+    const idx = Number(itemParam);
+    if (!Number.isInteger(idx)) return;
+
+    const target = indexedMatches.find((r) => r.originalIndex === idx);
+    if (!target) return;
+
+    // ফিল্টার/পেইজ রিসেট করে মোডাল খোলা
+    setSearchQuery("");
+    setSelectedTournament("All");
+    setSortBy("default");
+    setPage(1);
+    setSelectedMatch(target);
+  }, [itemParam, stampParam, loading, indexedMatches]);
 
   /* =======================================================
      EFFECTS
@@ -1779,6 +1806,18 @@ export default function ThrillersPage() {
         {HIGH_VOLTAGE_STYLES}
       </style>
     </div>
+  );
+}
+
+/* =========================================================
+   PAGE EXPORT (useSearchParams এর জন্য Suspense দরকার)
+   ========================================================= */
+
+export default function ThrillersPage() {
+  return (
+    <Suspense fallback={null}>
+      <ThrillersContent />
+    </Suspense>
   );
 }
 
