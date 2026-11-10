@@ -29,6 +29,7 @@ type MenuGroup = {
   id: string;
   icon: string;
   title: string;
+  short: string;
   english: string;
   color: string;
   description: string;
@@ -47,6 +48,7 @@ const MENU_GROUPS: MenuGroup[] = [
     id: "legends",
     icon: "🏆",
     title: "তারকাদের মঞ্চ",
+    short: "স্ট্যাটস",
     english: "STATS & LEGENDS",
     color: "#f59e0b",
     description: "র‍্যাঙ্কিং, রেকর্ড আর আপনার প্রিয় ক্রিকেটারের পরিসংখ্যান।",
@@ -60,6 +62,7 @@ const MENU_GROUPS: MenuGroup[] = [
     id: "arena",
     icon: "⚡",
     title: "ম্যাচের দুনিয়া",
+    short: "ম্যাচ",
     english: "MATCH ARENA",
     color: "#a78bfa",
     description: "পুরোনো ম্যাচ থেকে শেষ বলের রোমাঞ্চ—সব এক জায়গায়।",
@@ -73,6 +76,7 @@ const MENU_GROUPS: MenuGroup[] = [
     id: "community",
     icon: "💙",
     title: "আমাদের FCL",
+    short: "কমিউনিটি",
     english: "THE COMMUNITY",
     color: "#f472b6",
     description: "খবর, জন্মদিন আর একসঙ্গে কাটানো প্রিয় মুহূর্তগুলো।",
@@ -86,6 +90,7 @@ const MENU_GROUPS: MenuGroup[] = [
     id: "play",
     icon: "🎮",
     title: "প্লে ও এক্সপ্লোর",
+    short: "এক্সপ্লোর",
     english: "PLAY & EXPLORE",
     color: "#22d3ee",
     description: "মাঠে নামুন, নিয়ম জানুন অথবা ঘুরে দেখুন ফটো গ্যালারি।",
@@ -729,6 +734,14 @@ export default function Home() {
     centerRef.current?.focus({ preventScroll: true });
   }
 
+  function toggleGroup(group: MenuGroup) {
+    if (activeGroupId === group.id) {
+      goHome();
+    } else {
+      openGroup(group);
+    }
+  }
+
   function createSpark(event: ReactPointerEvent<HTMLElement>) {
     if (reducedMotion || !event.isPrimary || event.button !== 0) return;
 
@@ -1163,6 +1176,28 @@ export default function Home() {
               </div>
             </div>
 
+            {/* 📱 মোবাইল ডক — ৪টি ক্যাটেগরি বাটন (শুধু মোবাইলে দেখাবে) */}
+            <nav className="fu-dock" aria-label="দ্রুত ক্যাটেগরি নেভিগেশন">
+              {MENU_GROUPS.map((group) => {
+                const isActive = activeGroupId === group.id;
+
+                return (
+                  <button
+                    key={group.id}
+                    type="button"
+                    className={isActive ? "is-active" : ""}
+                    data-accent={group.color}
+                    style={{ "--item-color": group.color } as CSSVars}
+                    aria-pressed={isActive}
+                    onClick={() => toggleGroup(group)}
+                  >
+                    <span aria-hidden="true">{group.icon}</span>
+                    <span>{group.short}</span>
+                  </button>
+                );
+              })}
+            </nav>
+
             <aside className="fu-wing fu-wing-right">
               <div
                 key={previewGroup?.id ?? "welcome"}
@@ -1212,10 +1247,10 @@ export default function Home() {
             </aside>
           </section>
 
-          {/* 🌟 এখানে ফুটারের অতিরিক্ত কপিরাইট অংশটি পিসি থেকে বাদ দেওয়া হয়েছে এবং শুধু মোবাইলে রাখা হয়েছে */}
+          {/* ফুটারের অতিরিক্ত কপিরাইট অংশটি পিসি থেকে বাদ দেওয়া হয়েছে এবং শুধু মোবাইলে রাখা হয়েছে */}
+          {/* ফুটারের অংশ */}
           <footer className="fu-footer">
-            <span>ONE GAME. ONE COMMUNITY. <b>FCL.</b></span>
-            <span className="fu-footer-desktop">© 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.</span>
+            <span>ONE GAME. ONE COMMUNITY. <b>FCL.</b> © 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.</span>
           </footer>
         </div>
 
@@ -2886,6 +2921,7 @@ const UNIVERSE_STYLES = `
   font-size: 11px;
 }
 
+/* মোবাইল ডক — ডিফল্টে লুকানো, শুধু মোবাইলে দেখায় */
 .fu-dock {
   display: none;
 }
@@ -2893,22 +2929,25 @@ const UNIVERSE_STYLES = `
 .fu-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 2px;
-  padding-top: 6px;
-  border-top: 1px solid var(--fu-line);
+  justify-content: center;
+  text-align: center;
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: none;
   color: var(--fu-muted);
   font-size: 8px;
   letter-spacing: .08em;
-  flex-wrap: wrap;
 }
 
 .fu-footer b {
   color: #3b82f6;
 }
 
-/* 🌟 পিসি ভিউতে অতিরিক্ত কপিরাইট লাইনটি হাইড করার জন্য স্টাইল (মোবাইলে দেখাবে) */
+.fu-footer-desktop {
+  display: none !important;
+}
+
+/* পিসি ভিউতে অতিরিক্ত কপিরাইট লাইনটি হাইড (মোবাইলে দেখাবে) */
 @media (min-width: 761px) {
   .fu-footer-desktop {
     display: none !important;
@@ -3286,6 +3325,7 @@ const UNIVERSE_STYLES = `
     font-size: 7px;
   }
 
+  /* 📱 মোবাইল ডক (৪টি বাটন) */
   .fu-dock {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -3295,6 +3335,8 @@ const UNIVERSE_STYLES = `
     border: 1px solid var(--fu-line);
     border-radius: 18px;
     background: var(--fu-panel);
+    backdrop-filter: blur(18px);
+    box-shadow: var(--fu-shadow);
   }
 
   .fu-dock button {
@@ -3305,27 +3347,39 @@ const UNIVERSE_STYLES = `
     gap: 5px;
     min-width: 0;
     min-height: 51px;
+    padding: 6px 2px;
     border: 1px solid transparent;
     border-radius: 13px;
     background: transparent;
     color: var(--fu-muted);
-    transition: background .2s, border-color .2s;
+    transition: background .2s, border-color .2s, transform .15s, color .2s;
+  }
+
+  .fu-dock button:active {
+    transform: scale(.94);
   }
 
   .fu-dock button > span:first-child {
     font-size: 19px;
     line-height: 1;
+    transition: transform .25s cubic-bezier(.2,1.5,.4,1);
   }
 
   .fu-dock button > span:last-child {
     font-size: 9px;
     font-weight: 750;
+    white-space: nowrap;
   }
 
   .fu-dock button.is-active {
     border-color: color-mix(in srgb, var(--item-color) 35%, transparent);
     background: color-mix(in srgb, var(--item-color) 10%, transparent);
     border-radius: 12px;
+    color: var(--fu-text);
+  }
+
+  .fu-dock button.is-active > span:first-child {
+    transform: scale(1.15);
   }
 
   .fu-footer {
@@ -3372,6 +3426,10 @@ const UNIVERSE_STYLES = `
 
   .fu-petal-icon {
     font-size: 21px;
+  }
+
+  .fu-dock button > span:last-child {
+    font-size: 8px;
   }
 }
 
