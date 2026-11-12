@@ -1,115 +1,265 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-type CSSVars = CSSProperties & {
-  [key: `--${string}`]: string | number;
-};
+/* ------------------------------------------------------------------ */
+/*  Theme detection (unchanged logic)                                  */
+/* ------------------------------------------------------------------ */
+function useIsDark() {
+  const [isDark, setIsDark] = useState(true);
 
+  useEffect(() => {
+    const read = () => {
+      const h = document.documentElement;
+      const b = document.body;
+      const dt = (
+        h.getAttribute("data-theme") ||
+        h.getAttribute("data-mode") ||
+        b.getAttribute("data-theme") ||
+        ""
+      ).toLowerCase();
+      if (dt === "dark" || dt === "light") return dt === "dark";
+
+      const cls = `${h.className} ${b.className}`.toLowerCase();
+      if (/\blight\b/.test(cls)) return false;
+      if (/\bdark\b/.test(cls)) return true;
+
+      const scheme = h.style.colorScheme;
+      if (scheme === "light" || scheme === "dark") return scheme === "dark";
+
+      try {
+        const saved = localStorage.getItem("theme");
+        if (saved === "light" || saved === "dark") return saved === "dark";
+      } catch {}
+
+      return window.matchMedia("(prefers-color-scheme: dark)").matches;
+    };
+
+    const update = () => setIsDark(read());
+    update();
+
+    const obs = new MutationObserver(update);
+    const opts = { attributes: true, attributeFilter: ["class", "data-theme", "data-mode", "style"] };
+    obs.observe(document.documentElement, opts);
+    obs.observe(document.body, opts);
+    window.addEventListener("storage", update);
+
+    return () => {
+      obs.disconnect();
+      window.removeEventListener("storage", update);
+    };
+  }, []);
+
+  return isDark;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Scroll reveal                                                      */
+/* ------------------------------------------------------------------ */
+function useReveal<T extends HTMLElement>(threshold = 0.15) {
+  const ref = useRef<T>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setVisible(true);
+            obs.unobserve(el);
+          }
+        });
+      },
+      { threshold }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+
+  return { ref, visible };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Data                                                               */
+/* ------------------------------------------------------------------ */
+type Cat = "stats" | "stories" | "fun";
 type Portal = {
   href: string;
-  icon: string;
-  title: string;
-  english: string;
-  description: string;
-};
-
-type MenuGroup = {
-  id: string;
-  icon: string;
-  title: string;
-  short: string;
-  english: string;
   color: string;
+  badgeText: string;
+  badgeIcon: string;
+  cornerIcon: string;
+  title: string;
   description: string;
-  items: Portal[];
+  footerText: string;
+  cat: Cat;
+  size?: "xl" | "wide";
+  featured?: boolean;
 };
 
-type SparkBurst = {
-  id: number;
-  x: number;
-  y: number;
-  color: string;
-};
-
-const MENU_GROUPS: MenuGroup[] = [
+const PORTALS: Portal[] = [
   {
-    id: "legends",
-    icon: "🏆",
-    title: "তারকাদের মঞ্চ",
-    short: "স্ট্যাটস",
-    english: "STATS & LEGENDS",
+    href: "/play",
+    color: "#1877F2",
+    badgeText: "FCL ONLINE",
+    badgeIcon: "🏏",
+    cornerIcon: "🎮",
+    title: "Play The Game",
+    description:
+      "Login to FCL Online, join matches and experience the original Facebook Cricket League game.",
+    footerText: "Enter FCL Online",
+    cat: "fun",
+    size: "xl",
+    featured: true,
+  },
+  {
+    href: "/rankings",
     color: "#f59e0b",
-    description: "র‍্যাঙ্কিং, রেকর্ড আর আপনার প্রিয় ক্রিকেটারের পরিসংখ্যান।",
-    items: [
-      { href: "/rankings", icon: "👑", title: "র‍্যাঙ্কিং ও MVP", english: "Rankings & MVP", description: "সেরা খেলোয়াড়, MVP রেটিং ও লিডারবোর্ড।" },
-      { href: "/records", icon: "🏆", title: "রেকর্ডবুক", english: "Hall of Fame & Records", description: "সেঞ্চুরি, হ্যাটট্রিক আর ইতিহাস গড়া সব অর্জন।" },
-      { href: "/players", icon: "🏏", title: "প্লেয়ার প্রোফাইল", english: "Players & Stat Cards", description: "খেলোয়াড়দের পরিচিতি ও অফিসিয়াল স্ট্যাট কার্ড।" },
-    ],
+    badgeText: "LEADERBOARD",
+    badgeIcon: "👑",
+    cornerIcon: "⭐",
+    title: "Rankings & MVP",
+    description:
+      "Explore all-time player rankings, MVP pinnacle ratings, and elite championship leaderboards.",
+    footerText: "Enter Portal",
+    cat: "stats",
+    size: "wide",
+    featured: true,
   },
   {
-    id: "arena",
-    icon: "⚡",
-    title: "ম্যাচের দুনিয়া",
-    short: "ম্যাচ",
-    english: "MATCH ARENA",
-    color: "#a78bfa",
-    description: "পুরোনো ম্যাচ থেকে শেষ বলের রোমাঞ্চ—সব এক জায়গায়।",
-    items: [
-      { href: "/matches", icon: "🏟️", title: "ম্যাচ আর্কাইভ", english: "Match Directory & History", description: "টুর্নামেন্ট, সিরিজ ও ঐতিহাসিক ম্যাচের সংগ্রহ।" },
-      { href: "/thrillers", icon: "⚡", title: "হাই ভোল্টেজ", english: "High Voltage Matches", description: "শেষ মুহূর্তের উত্তেজনা আর অবিশ্বাস্য সব ফিনিশ।" },
-      { href: "/extraordinary", icon: "💎", title: "অসাধারণ নৈপুণ্য", english: "Extraordinary Performance", description: "ম্যাচজয়ী ইনিংস ও অবিস্মরণীয় ব্যক্তিগত পারফরম্যান্স।" },
-    ],
+    href: "/records",
+    color: "#3b82f6",
+    badgeText: "RECORD CABINET",
+    badgeIcon: "🏆",
+    cornerIcon: "📜",
+    title: "Hall of Fame & Records",
+    description:
+      "Discover historical benchmarks, most runs, highest wickets, hat-tricks, and legendary milestones.",
+    footerText: "Enter Portal",
+    cat: "stats",
+    featured: true,
   },
   {
-    id: "community",
-    icon: "💙",
-    title: "আমাদের FCL",
-    short: "কমিউনিটি",
-    english: "THE COMMUNITY",
-    color: "#f472b6",
-    description: "খবর, জন্মদিন আর একসঙ্গে কাটানো প্রিয় মুহূর্তগুলো।",
-    items: [
-      { href: "/news", icon: "📰", title: "FCL সংবাদ", english: "FCL News Portal", description: "টুর্নামেন্ট আপডেট, কমিউনিটি সংবাদ ও বিশেষ প্রতিবেদন।" },
-      { href: "/memories", icon: "🎞️", title: "স্মৃতি ও আড্ডা", english: "FCL Memories & Adda", description: "পুরোনো দিনের গল্প, হাসি আর জমে থাকা স্মৃতি।" },
-      { href: "/birthday", icon: "🎂", title: "জন্মদিনের উৎসব", english: "Birthday Celebration", description: "FCL তারকাদের জন্মদিন ও শুভেচ্ছা কার্ড।" },
-    ],
+    href: "/news",
+    color: "#ef4444",
+    badgeText: "PAPER NEWS",
+    badgeIcon: "📰",
+    cornerIcon: "🗞️",
+    title: "FCL News Portal",
+    description:
+      "Read traditional daily newspaper style articles, tournament updates, player spotlights, and community notices.",
+    footerText: "Open Newspaper",
+    cat: "stories",
   },
   {
-    id: "play",
-    icon: "🎮",
-    title: "প্লে ও এক্সপ্লোর",
-    short: "এক্সপ্লোর",
-    english: "PLAY & EXPLORE",
+    href: "/thrillers",
+    color: "#a855f7",
+    badgeText: "THRILLER",
+    badgeIcon: "⚡",
+    cornerIcon: "🔥",
+    title: "High Voltage Matches",
+    description:
+      "Relive the most intense nail-biting matches, thrilling finishes, and heroic tournament victories.",
+    footerText: "Explore Matches",
+    cat: "stories",
+    featured: true,
+  },
+  {
+    href: "/extraordinary",
     color: "#22d3ee",
-    description: "মাঠে নামুন, নিয়ম জানুন অথবা ঘুরে দেখুন ফটো গ্যালারি।",
-    items: [
-      { href: "/play", icon: "🎮", title: "খেলা শুরু করুন", english: "Play FCL Online", description: "মূল Facebook Cricket League গেমে প্রবেশ করুন।" },
-      { href: "/gallery", icon: "📸", title: "ফটো গ্যালারি", english: "Player Photo Gallery", description: "খেলোয়াড়দের ছবি দেখুন ও ডাউনলোড করুন।" },
-      { href: "/rules", icon: "📜", title: "খেলার নিয়ম", english: "Rules & Match Formats", description: "অফিসিয়াল গাইডলাইন ও বিভিন্ন ম্যাচ ফরম্যাট।" },
-    ],
+    badgeText: "HEROICS",
+    badgeIcon: "🌟",
+    cornerIcon: "💎",
+    title: "Extraordinary Performance",
+    description:
+      "Witness jaw-dropping individual masterclasses, match-winning hat-tricks, and explosive 50+ knocks.",
+    footerText: "Explore Masterclasses",
+    cat: "stories",
+  },
+  {
+    href: "/matches",
+    color: "#22c55e",
+    badgeText: "MATCH ARCHIVE",
+    badgeIcon: "📅",
+    cornerIcon: "🏟️",
+    title: "Match Directory & History",
+    description:
+      "Browse tournament home pages, series games, friendly matches, and test match archives across years.",
+    footerText: "Enter Portal",
+    cat: "stats",
+  },
+  {
+    href: "/players",
+    color: "#38bdf8",
+    badgeText: "SQUAD DIRECTORY",
+    badgeIcon: "👥",
+    cornerIcon: "🏏",
+    title: "Players & Stat Cards",
+    description:
+      "Browse all registered players, examine official player statistics cards, and download PNG cards.",
+    footerText: "Enter Portal",
+    cat: "stats",
+  },
+  {
+    href: "/memories",
+    color: "#f472b6",
+    badgeText: "NOSTALGIA",
+    badgeIcon: "📖",
+    cornerIcon: "🎞️",
+    title: "FCL Memories & Adda",
+    description:
+      "Relive the golden days, funny moments, community stories, and nostalgic photo galleries.",
+    footerText: "Enter Portal",
+    cat: "stories",
+  },
+  {
+    href: "/birthday",
+    color: "#ec4899",
+    badgeText: "BIRTHDAY CORNER",
+    badgeIcon: "🎂",
+    cornerIcon: "🎉",
+    title: "Birthday Celebration",
+    description:
+      "Celebrate FCL stars! View birthday dates, play festive wishes, and download auto-generated greeting cards.",
+    footerText: "Enter Corner",
+    cat: "fun",
+  },
+  {
+    href: "/gallery",
+    color: "#60a5fa",
+    badgeText: "MEDIA HUB",
+    badgeIcon: "🖼️",
+    cornerIcon: "📸",
+    title: "Player Photo Gallery",
+    description:
+      "Browse official player photos, filter by name, and download high-resolution portrait files instantly.",
+    footerText: "Explore Gallery",
+    cat: "fun",
+  },
+  {
+    href: "/rules",
+    color: "#c084fc",
+    badgeText: "RULEBOOK",
+    badgeIcon: "📜",
+    cornerIcon: "⚖️",
+    title: "Rules & Match Formats",
+    description:
+      "Read official tournament guidelines, T20/ODI/Test systems, and power-play regulations.",
+    footerText: "Enter Portal",
+    cat: "stats",
   },
 ];
 
-const ALL_PORTALS = MENU_GROUPS.flatMap((group) =>
-  group.items.map((item) => ({
-    ...item,
-    groupId: group.id,
-    groupTitle: group.title,
-    color: group.color,
-  }))
-);
+const FILTERS: { id: "all" | Cat; label: string; icon: string }[] = [
+  { id: "all", label: "All", icon: "✨" },
+  { id: "stats", label: "Stats", icon: "📊" },
+  { id: "stories", label: "Stories", icon: "📰" },
+  { id: "fun", label: "Fun & Media", icon: "🎮" },
+];
 
 const ROT_WORDS = [
   { t: "RANKINGS", c: "#f59e0b" },
@@ -120,6 +270,9 @@ const ROT_WORDS = [
   { t: "THE GAME", c: "#22c55e" },
 ];
 
+/* ------------------------------------------------------------------ */
+/*  Live match simulation (decorative)                                 */
+/* ------------------------------------------------------------------ */
 type Ball = number | "W";
 const BALLS: Ball[] = [1, 4, 6, 0, 2, "W", 4, 1, 6, 0, 1, 2, 6, 4, 0, 1, 6, "W", 2, 4, 6, 1, 6, 4];
 const START_RUNS = 14;
@@ -136,26 +289,20 @@ const WIN_BALL = (() => {
 })();
 const CYCLE = WIN_BALL + 3;
 
-function useMatchSim(paused: boolean) {
+function useMatchSim() {
   const [step, setStep] = useState(0);
-
   useEffect(() => {
-    if (paused) return;
     const id = setInterval(() => setStep((s) => s + 1), 1500);
     return () => clearInterval(id);
-  }, [paused]);
-
+  }, []);
   const i = Math.min(step % CYCLE, WIN_BALL);
   const played = BALLS.slice(0, i);
-
   let runs = START_RUNS;
   let wkts = START_WKTS;
-
   played.forEach((b) => {
     if (b === "W") wkts += 1;
     else runs += b;
   });
-
   return {
     i,
     runs,
@@ -170,303 +317,297 @@ function useMatchSim(paused: boolean) {
 }
 
 function ballMeta(v: Ball | undefined) {
-  if (v === undefined) return { t: "·", label: "NEXT BALL", k: "next" };
-  if (v === "W") return { t: "W", label: "OUT!", k: "w" };
-  if (v === 6) return { t: "6", label: "SIX!", k: "six" };
-  if (v === 4) return { t: "4", label: "FOUR!", k: "four" };
-  if (v === 0) return { t: "•", label: "DOT BALL", k: "dot" };
-  return { t: String(v), label: `${v} RUN${v > 1 ? "S" : ""}`, k: "run" };
+  if (v === undefined) return { t: "·", label: "NEXT BALL", cls: "bg-slate-500/50 text-white" };
+  if (v === "W") return { t: "W", label: "OUT!", cls: "bg-rose-500 text-white" };
+  if (v === 6) return { t: "6", label: "SIX!", cls: "bg-amber-500 text-white" };
+  if (v === 4) return { t: "4", label: "FOUR!", cls: "bg-[#1877F2] text-white" };
+  if (v === 0) return { t: "•", label: "DOT BALL", cls: "bg-slate-500 text-white" };
+  return { t: String(v), label: `${v} RUN${v > 1 ? "S" : ""}`, cls: "bg-emerald-500 text-white" };
 }
 
-function useIsDark() {
-  const [isDark, setIsDark] = useState(true);
+/* ------------------------------------------------------------------ */
+/*  FX canvas — sparks on tap/click, mouse aura + trail, embers        */
+/* ------------------------------------------------------------------ */
+const FX_COLORS = ["#60a5fa", "#22d3ee", "#f59e0b", "#a855f7", "#f472b6", "#22c55e", "#fde047"];
+
+function FxCanvas({ isDark }: { isDark: boolean }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const darkRef = useRef(isDark);
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-
-    const read = () => {
-      const html = document.documentElement;
-      const body = document.body;
-
-      const theme = (
-        html.getAttribute("data-theme") ||
-        html.getAttribute("data-mode") ||
-        body.getAttribute("data-theme") ||
-        body.getAttribute("data-mode") ||
-        ""
-      ).toLowerCase();
-
-      if (theme === "dark" || theme === "light") {
-        return theme === "dark";
-      }
-
-      const classes = `${html.className} ${body.className}`.toLowerCase();
-
-      if (/\blight\b/.test(classes)) return false;
-      if (/\bdark\b/.test(classes)) return true;
-
-      const scheme = html.style.colorScheme;
-
-      if (scheme === "dark" || scheme === "light") {
-        return scheme === "dark";
-      }
-
-      try {
-        const saved = localStorage.getItem("theme");
-
-        if (saved === "dark" || saved === "light") {
-          return saved === "dark";
-        }
-      } catch {}
-
-      return media.matches;
-    };
-
-    const update = () => setIsDark(read());
-
-    update();
-
-    const observer = new MutationObserver(update);
-    const options = {
-      attributes: true,
-      attributeFilter: ["class", "data-theme", "data-mode", "style"],
-    };
-
-    observer.observe(document.documentElement, options);
-    observer.observe(document.body, options);
-
-    window.addEventListener("storage", update);
-    media.addEventListener("change", update);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("storage", update);
-      media.removeEventListener("change", update);
-    };
-  }, []);
-
-  return isDark;
-}
-
-function useReducedMotion() {
-  const [reduced, setReduced] = useState(true);
+    darkRef.current = isDark;
+  }, [isDark]);
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReduced(media.matches);
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
-    update();
-    media.addEventListener("change", update);
+    type Spark = { x: number; y: number; px: number; py: number; vx: number; vy: number; life: number; max: number; size: number; color: string; g: number };
+    type Ring = { x: number; y: number; r: number; max: number; life: number; lmax: number; color: string };
+    type Ember = { x: number; y: number; vx: number; vy: number; size: number; phase: number; color: string };
 
-    return () => media.removeEventListener("change", update);
-  }, []);
-
-  return reduced;
-}
-
-function ArrowIcon({ back = false }: { back?: boolean }) {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      style={{ transform: back ? "rotate(180deg)" : undefined }}
-    >
-      <path
-        d="M5 12h14m-6-6 6 6-6 6"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function Preloader({
-  onFinish,
-  isDark,
-}: {
-  onFinish: () => void;
-  isDark: boolean;
-}) {
-  const [fadeOut, setFadeOut] = useState(false);
-  const [pct, setPct] = useState(0);
-  const [logoError, setLogoError] = useState(false);
-
-  const finishRef = useRef(onFinish);
-  const doneRef = useRef(false);
-  const skipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    finishRef.current = onFinish;
-  });
-
-  const finish = useCallback(() => {
-    if (doneRef.current) return;
-    doneRef.current = true;
-    finishRef.current();
-  }, []);
-
-  useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const DURATION = reduced ? 900 : 3200;
-    const start = performance.now();
+    let w = 0;
+    let h = 0;
     let raf = 0;
+    let last = performance.now();
+    const sparks: Spark[] = [];
+    const rings: Ring[] = [];
+    let embers: Ember[] = [];
+    const mouse = { x: -999, y: -999, tx: -999, ty: -999, lx: 0, ly: 0, on: false };
 
-    const tick = (now: number) => {
-      const p = Math.min((now - start) / DURATION, 1);
-      setPct(Math.round(p * 100));
-      if (p < 1) raf = requestAnimationFrame(tick);
+    const rand = (a: number, b: number) => a + Math.random() * (b - a);
+    const pick = () => FX_COLORS[(Math.random() * FX_COLORS.length) | 0];
+
+    const makeEmbers = () => {
+      const n = w < 640 ? 14 : 30;
+      embers = Array.from({ length: n }, () => ({
+        x: rand(0, w),
+        y: rand(0, h),
+        vx: rand(-0.15, 0.15),
+        vy: -rand(0.12, 0.45),
+        size: rand(1, 2.6),
+        phase: rand(0, 6.28),
+        color: pick(),
+      }));
     };
 
-    raf = requestAnimationFrame(tick);
+    const resize = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = window.innerWidth;
+      h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (embers.length !== (w < 640 ? 14 : 30)) makeEmbers();
+    };
 
-    const t1 = setTimeout(() => setFadeOut(true), DURATION - 500);
-    const t2 = setTimeout(finish, DURATION);
+    const burst = (x: number, y: number, color?: string) => {
+      const n = w < 640 ? 22 : 32;
+      for (let k = 0; k < n; k++) {
+        if (sparks.length > 450) break;
+        const a = Math.random() * Math.PI * 2;
+        const s = rand(1.5, 7.5);
+        sparks.push({
+          x, y, px: x, py: y,
+          vx: Math.cos(a) * s,
+          vy: Math.sin(a) * s - 1.2,
+          life: 0,
+          max: rand(34, 70),
+          size: rand(1.4, 3.2),
+          color: color && Math.random() < 0.7 ? color : pick(),
+          g: 0.14,
+        });
+      }
+      rings.push({ x, y, r: 6, max: 74, life: 0, lmax: 34, color: color ?? "#60a5fa" });
+    };
+
+    const frame = (now: number) => {
+      const dt = Math.min((now - last) / 16.667, 3);
+      last = now;
+      ctx.clearRect(0, 0, w, h);
+      const dark = darkRef.current;
+      ctx.globalCompositeOperation = dark ? "lighter" : "source-over";
+      ctx.lineCap = "round";
+
+      /* mouse aura */
+      if (mouse.on) {
+        const k = 1 - Math.pow(0.86, dt);
+        mouse.x += (mouse.tx - mouse.x) * k;
+        mouse.y += (mouse.ty - mouse.y) * k;
+        const g = ctx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, 170);
+        g.addColorStop(0, dark ? "rgba(56,139,253,0.16)" : "rgba(24,119,242,0.10)");
+        g.addColorStop(1, "rgba(24,119,242,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(mouse.x - 170, mouse.y - 170, 340, 340);
+      }
+
+      /* embers */
+      for (const e of embers) {
+        e.x += (e.vx + Math.sin(e.phase) * 0.18) * dt;
+        e.y += e.vy * dt;
+        e.phase += 0.02 * dt;
+        if (e.y < -10) {
+          e.y = h + 10;
+          e.x = rand(0, w);
+        }
+        if (e.x < -10) e.x = w + 10;
+        if (e.x > w + 10) e.x = -10;
+        ctx.globalAlpha = (dark ? 0.16 : 0.22) + 0.28 * ((Math.sin(e.phase * 3) + 1) / 2);
+        ctx.fillStyle = e.color;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size, 0, 6.283);
+        ctx.fill();
+      }
+
+      /* rings */
+      for (let k = rings.length - 1; k >= 0; k--) {
+        const r = rings[k];
+        r.life += dt;
+        r.r += (r.max - r.r) * 0.12 * dt;
+        const a = 1 - r.life / r.lmax;
+        if (a <= 0) {
+          rings.splice(k, 1);
+          continue;
+        }
+        ctx.globalAlpha = a * 0.8;
+        ctx.strokeStyle = r.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.r, 0, 6.283);
+        ctx.stroke();
+      }
+
+      /* sparks */
+      for (let k = sparks.length - 1; k >= 0; k--) {
+        const s = sparks[k];
+        s.life += dt;
+        if (s.life >= s.max) {
+          sparks.splice(k, 1);
+          continue;
+        }
+        s.px = s.x;
+        s.py = s.y;
+        s.x += s.vx * dt;
+        s.y += s.vy * dt;
+        s.vy += s.g * dt;
+        const f = Math.pow(0.97, dt);
+        s.vx *= f;
+        s.vy *= f;
+        ctx.globalAlpha = 1 - s.life / s.max;
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = s.size;
+        ctx.beginPath();
+        ctx.moveTo(s.px, s.py);
+        ctx.lineTo(s.x + 0.01, s.y + 0.01);
+        ctx.stroke();
+      }
+
+      ctx.globalAlpha = 1;
+      raf = requestAnimationFrame(frame);
+    };
+
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      const el = t && t.closest ? t.closest("[data-spark]") : null;
+      burst(e.clientX, e.clientY, el?.getAttribute("data-spark") ?? undefined);
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      mouse.tx = e.clientX;
+      mouse.ty = e.clientY;
+      if (!mouse.on) {
+        mouse.on = true;
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+        mouse.lx = e.clientX;
+        mouse.ly = e.clientY;
+      }
+      const dx = e.clientX - mouse.lx;
+      const dy = e.clientY - mouse.ly;
+      if (dx * dx + dy * dy > 180 && sparks.length < 450) {
+        mouse.lx = e.clientX;
+        mouse.ly = e.clientY;
+        sparks.push({
+          x: e.clientX, y: e.clientY, px: e.clientX, py: e.clientY,
+          vx: rand(-0.6, 0.6), vy: rand(-0.6, 0.6),
+          life: 0, max: rand(16, 28), size: rand(1, 2), color: pick(), g: 0.02,
+        });
+      }
+    };
+
+    const onLeave = () => {
+      mouse.on = false;
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    window.addEventListener("pointerdown", onDown, { passive: true });
+    window.addEventListener("pointermove", onMove, { passive: true });
+    document.addEventListener("mouseleave", onLeave);
+    raf = requestAnimationFrame(frame);
 
     return () => {
       cancelAnimationFrame(raf);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      if (skipTimer.current) clearTimeout(skipTimer.current);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("pointermove", onMove);
+      document.removeEventListener("mouseleave", onLeave);
     };
-  }, [finish]);
+  }, []);
 
-  const skip = () => {
-    if (fadeOut) return;
-    setFadeOut(true);
-    skipTimer.current = setTimeout(finish, 350);
-  };
-
-  return (
-    <div
-      role="status"
-      aria-label="FCL লোড হচ্ছে"
-      onClick={skip}
-      className={`pl-root ${isDark ? "pl-dark" : "pl-light"} ${fadeOut ? "is-out" : ""}`}
-    >
-      <div className="pl-grid" aria-hidden="true" />
-      <div className="pl-glow pl-glow-a" aria-hidden="true" />
-      <div className="pl-glow pl-glow-b" aria-hidden="true" />
-
-      <div className="pl-center">
-        <div className="pl-logo-wrap">
-          <div className="pl-ring" />
-          <div className="pl-orbit">
-            <i />
-          </div>
-          <div className="pl-disc">
-            {logoError ? (
-              <strong className="pl-fallback">FCL</strong>
-            ) : (
-              <img
-                src="/fcl-logo.png"
-                alt="FCL Logo"
-                className="pl-logo"
-                draggable={false}
-                onError={() => setLogoError(true)}
-              />
-            )}
-          </div>
-        </div>
-
-        <h2 className="pl-title" aria-label="FCL CRICKET">
-          {"FCL CRICKET".split("").map((ch, i) => (
-            <span
-              key={i}
-              className={`pl-letter ${i >= 4 ? "is-amber" : ""}`}
-              style={{ "--i": i } as CSSVars}
-              aria-hidden="true"
-            >
-              {ch === " " ? "\u00A0" : ch}
-            </span>
-          ))}
-        </h2>
-
-        <p className="pl-sub">LOADING EXPERIENCE</p>
-
-        <div className="pl-bar">
-          <div style={{ width: `${pct}%` }} />
-        </div>
-        <span className="pl-pct">{pct}%</span>
-        <span className="pl-skip">Tap anywhere to skip</span>
-      </div>
-    </div>
-  );
+  return <canvas ref={ref} aria-hidden className="pointer-events-none fixed inset-0 z-[45]" />;
 }
 
-function Words({
-  text,
-  base = 0,
-  className = "",
-}: {
-  text: string;
-  base?: number;
-  className?: string;
-}) {
-  return (
-    <>
-      {text.split(" ").map((word, i) => (
-        <span
-          key={i}
-          className={`fh-wd ${className}`}
-          style={{ "--i": base + i } as CSSVars}
-        >
-          {word}
-          {"\u00A0"}
-        </span>
-      ))}
-    </>
-  );
-}
-
-function Rotator({
-  small = false,
-  paused,
-}: {
-  small?: boolean;
-  paused: boolean;
-}) {
-  const [i, setI] = useState(0);
-
-  useEffect(() => {
-    if (paused) return;
-    const id = setInterval(() => setI((v) => (v + 1) % ROT_WORDS.length), 2200);
-    return () => clearInterval(id);
-  }, [paused]);
-
-  const word = ROT_WORDS[i];
-
-  return (
-    <div className={`fh-rotator ${small ? "is-small" : ""}`}>
-      <span>Dive into</span>
-      <span className="fh-rot" style={{ color: word.c }}>
-        <span key={i} className="fh-rot-w">
-          {word.t}
-        </span>
-      </span>
-    </div>
-  );
-}
-
-function Magnetic({
-  children,
-  disabled,
-}: {
-  children: ReactNode;
-  disabled: boolean;
-}) {
+/* ------------------------------------------------------------------ */
+/*  Small helpers                                                      */
+/* ------------------------------------------------------------------ */
+function ScrollBar() {
   const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const on = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const d = document.documentElement;
+        const max = d.scrollHeight - d.clientHeight;
+        const p = max > 0 ? d.scrollTop / max : 0;
+        if (ref.current) ref.current.style.transform = `scaleX(${p})`;
+      });
+    };
+    window.addEventListener("scroll", on, { passive: true });
+    on();
+    return () => {
+      window.removeEventListener("scroll", on);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-[44] h-[3px]">
+      <div
+        ref={ref}
+        className="h-full origin-left bg-gradient-to-r from-[#1877F2] via-[#22d3ee] to-[#a855f7]"
+        style={{ transform: "scaleX(0)" }}
+      />
+    </div>
+  );
+}
 
+/** Link that lets the spark burst play for a moment before navigating */
+function SparkLink({
+  href,
+  children,
+  ...rest
+}: { href: string; children: React.ReactNode } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href">) {
+  const router = useRouter();
+  const onClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    rest.onClick?.(e);
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (rest.target === "_blank") return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    e.preventDefault();
+    window.setTimeout(() => router.push(href), 260);
+  };
+  return (
+    <Link {...rest} href={href} onClick={onClick}>
+      {children}
+    </Link>
+  );
+}
+
+function Magnetic({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
   return (
     <div
       ref={ref}
-      className="fh-magnetic"
+      className={className}
+      style={{ transition: "transform .25s cubic-bezier(.2,.8,.2,1)" }}
       onPointerMove={(e) => {
-        if (disabled || e.pointerType !== "mouse" || !ref.current) return;
+        if (e.pointerType !== "mouse" || !ref.current) return;
         const r = ref.current.getBoundingClientRect();
         const x = (e.clientX - r.left - r.width / 2) * 0.25;
         const y = (e.clientY - r.top - r.height / 2) * 0.35;
@@ -481,16 +622,173 @@ function Magnetic({
   );
 }
 
-function HeroArt({ reduced }: { reduced: boolean }) {
+function Words({ text, base = 0, className = "" }: { text: string; base?: number; className?: string }) {
+  return (
+    <>
+      {text.split(" ").map((w, i) => (
+        <span key={i} className={`fcl-wd ${className}`} style={{ "--i": base + i } as React.CSSProperties}>
+          {w}
+          {"\u00A0"}
+        </span>
+      ))}
+    </>
+  );
+}
+
+function Rotator({ small = false }: { small?: boolean }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setI((v) => (v + 1) % ROT_WORDS.length), 2200);
+    return () => clearInterval(id);
+  }, []);
+  const w = ROT_WORDS[i];
+  return (
+    <div className={`mt-4 flex items-center gap-2 font-black ${small ? "text-[15px]" : "text-xl"}`}>
+      <span className="fcl-body font-bold">Dive into</span>
+      <span className="fcl-rot" style={{ color: w.c }}>
+        <span key={i} className="fcl-rot-w">
+          {w.t}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function FilterChips({
+  value,
+  onChange,
+  counts,
+}: {
+  value: "all" | Cat;
+  onChange: (v: "all" | Cat) => void;
+  counts: Record<string, number>;
+}) {
+  return (
+    <div className="no-sb flex gap-2 overflow-x-auto">
+      {FILTERS.map((f) => (
+        <button
+          key={f.id}
+          type="button"
+          onClick={() => onChange(f.id)}
+          className={`fchip ${value === f.id ? "on" : ""}`}
+        >
+          <span>{f.icon}</span>
+          {f.label}
+          <b>{counts[f.id]}</b>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Preloader                                                          */
+/* ------------------------------------------------------------------ */
+function Preloader({ onFinish }: { onFinish: () => void }) {
+  const [fadeOut, setFadeOut] = useState(false);
+  const [pct, setPct] = useState(0);
+  const finishRef = useRef(onFinish);
+  const doneRef = useRef(false);
+
+  useEffect(() => {
+    finishRef.current = onFinish;
+  });
+
+  const finish = useCallback(() => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    finishRef.current();
+  }, []);
+
+  useEffect(() => {
+    const DURATION = 3200;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const p = Math.min((now - start) / DURATION, 1);
+      setPct(Math.round(p * 100));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    const t1 = setTimeout(() => setFadeOut(true), DURATION - 500);
+    const t2 = setTimeout(finish, DURATION);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [finish]);
+
+  const skip = () => {
+    setFadeOut(true);
+    setTimeout(finish, 350);
+  };
+
+  return (
+    <div
+      onClick={skip}
+      className={`fixed inset-0 z-[60] flex cursor-pointer flex-col items-center justify-center overflow-hidden bg-[#020617] transition-opacity duration-500 ${
+        fadeOut ? "pointer-events-none opacity-0" : "opacity-100"
+      }`}
+    >
+      <div className="pl-grid absolute inset-0" />
+      <div className="absolute h-72 w-72 rounded-full bg-blue-600/25 blur-[110px]" />
+      <div className="absolute -right-10 top-10 h-52 w-52 rounded-full bg-purple-600/20 blur-[100px]" />
+
+      <div className="relative z-10 flex flex-col items-center">
+        <div className="relative flex h-28 w-28 items-center justify-center">
+          <div className="pl-ring" />
+          <div className="pl-orbit">
+            <i />
+          </div>
+          <div className="flex h-24 w-24 items-center justify-center rounded-full border border-blue-500/30 bg-[#0b1220] shadow-[0_0_40px_rgba(37,99,235,0.45)]">
+            <img
+              src="/fcl-logo.png"
+              alt="FCL Logo"
+              className="fcl-logo-float h-16 w-16 object-contain drop-shadow-[0_0_12px_rgba(255,255,255,0.6)]"
+            />
+          </div>
+        </div>
+
+        <h2 className="mt-8 flex text-2xl font-black tracking-[0.2em] text-white">
+          {"FCL CRICKET".split("").map((ch, i) => (
+            <span
+              key={i}
+              className={`fcl-letter ${i >= 4 ? "text-amber-400" : ""}`}
+              style={{ "--i": i } as React.CSSProperties}
+            >
+              {ch === " " ? "\u00A0" : ch}
+            </span>
+          ))}
+        </h2>
+        <p className="mt-1 text-[11px] font-semibold tracking-widest text-slate-400">LOADING EXPERIENCE</p>
+
+        <div className="mt-6 h-1.5 w-52 overflow-hidden rounded-full bg-slate-800">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-blue-500 via-emerald-400 to-amber-400"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <span className="mt-2 text-xs font-black tabular-nums text-slate-300">{pct}%</span>
+        <span className="mt-4 text-[10px] font-semibold text-slate-600">Tap anywhere to skip</span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Hero art (desktop) — 3D tilt + live chips                          */
+/* ------------------------------------------------------------------ */
+function HeroArt() {
   const tiltRef = useRef<HTMLDivElement>(null);
-  const sim = useMatchSim(reduced);
+  const sim = useMatchSim();
   const meta = ballMeta(sim.last);
 
   return (
     <div
-      className="fh-stage"
+      className="hero-stage relative h-[400px] w-full sm:h-[440px] lg:h-[500px]"
       onPointerMove={(e) => {
-        if (reduced || e.pointerType !== "mouse" || !tiltRef.current) return;
+        if (e.pointerType !== "mouse" || !tiltRef.current) return;
         const r = e.currentTarget.getBoundingClientRect();
         const x = (e.clientX - r.left) / r.width - 0.5;
         const y = (e.clientY - r.top) / r.height - 0.5;
@@ -502,54 +800,59 @@ function HeroArt({ reduced }: { reduced: boolean }) {
         tiltRef.current?.style.setProperty("--ry", "0deg");
       }}
     >
-      <div ref={tiltRef} className="fh-tilt">
-        <div className="fh-ring">
-          <div className="fh-ring-in">
-            <img src="/fcl-room.png" alt="FCL Room" draggable={false} />
+      <div ref={tiltRef} className="hero-tilt absolute inset-0">
+        <div className="fcl-ring h-full w-full">
+          <div className="fcl-ring-in flex h-full w-full items-center justify-center p-4">
+            <img src="/fcl-room.png" alt="FCL Room" className="h-full w-full object-contain object-center" />
           </div>
         </div>
 
-        <div className="fh-z1 fh-c1">
-          <div className="fh-pill fh-float">
-            <span className="fh-live" />
+        {/* live score */}
+        <div className="z1 absolute -left-3 top-8 sm:-left-6">
+          <div className="fcl-chip fcl-pill fcl-pill-line flex items-center gap-2.5 rounded-2xl border px-4 py-2.5 backdrop-blur-xl">
+            <span className="fcl-live h-2.5 w-2.5 rounded-full bg-[#22c55e]" />
             <div>
-              <b>FCL LIVE</b>
-              <small className="fh-blue">
+              <span className="fcl-head block text-xs font-bold">FCL LIVE</span>
+              <span className="fcl-blue1 text-[11px] font-bold">
                 Phoenix ·{" "}
-                <span key={sim.runs} className="fh-pop">
+                <span key={sim.runs} className="fcl-pop inline-block">
                   {sim.runs}/{sim.wkts}
                 </span>
-              </small>
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="fh-z2 fh-c2">
-          <div className="fh-pill fh-float fh-delay">
-            <span key={sim.i} className={`fh-ball fh-pop k-${meta.k}`}>
+        {/* last ball */}
+        <div className="z2 absolute -right-3 top-24 sm:-right-5 sm:top-32">
+          <div className="fcl-chip fcl-chip-delay fcl-pill fcl-pill-line flex items-center gap-2.5 rounded-2xl border px-4 py-2.5 backdrop-blur-xl">
+            <span
+              key={sim.i}
+              className={`fcl-pop flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black ${meta.cls}`}
+            >
               {meta.t}
             </span>
             <div>
-              <b>{meta.label}</b>
-              <small>Ball {sim.i}</small>
+              <span className="fcl-head block text-xs font-black tracking-wider">{meta.label}</span>
+              <span className="fcl-pill-sub text-[10px]">Ball {sim.i}</span>
             </div>
           </div>
         </div>
 
-        <div className="fh-z2 fh-c3">
-          <div className="fh-pill fh-float fh-over">
-            <small className="fh-over-title">THIS OVER</small>
-            <div className="fh-over-balls">
+        {/* this over */}
+        <div className="z2 absolute -left-3 bottom-20 sm:-left-6">
+          <div className="fcl-chip fcl-pill fcl-pill-line rounded-2xl border px-4 py-2.5 backdrop-blur-xl">
+            <span className="fcl-pill-sub mb-1.5 block text-[9px] font-bold uppercase tracking-widest">This over</span>
+            <div className="flex gap-1.5">
               {Array.from({ length: 6 }).map((_, k) => {
                 const v = sim.recent[k];
                 const m = ballMeta(v);
-
                 return v === undefined ? (
-                  <span key={k} className="fh-dash" />
+                  <span key={k} className="h-6 w-6 rounded-full border border-dashed border-slate-500/50" />
                 ) : (
                   <span
                     key={`${sim.i}-${k}`}
-                    className={`fh-ball is-sm fh-pop k-${m.k}`}
+                    className={`fcl-pop flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black ${m.cls}`}
                   >
                     {m.t}
                   </span>
@@ -559,18 +862,22 @@ function HeroArt({ reduced }: { reduced: boolean }) {
           </div>
         </div>
 
-        <div className="fh-z1 fh-c4">
-          <div className="fh-pill fh-float fh-delay fh-need">
-            <div className="fh-need-row">
-              <span>{sim.won ? "🏆" : "🎯"}</span>
-              <b className="fh-amber">
+        {/* need */}
+        <div className="z1 absolute -right-3 bottom-6 sm:-right-4 sm:bottom-8">
+          <div className="fcl-chip fcl-chip-delay fcl-pill min-w-[160px] rounded-2xl border border-amber-500/40 px-4 py-2.5 backdrop-blur-xl">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm">{sim.won ? "🏆" : "🎯"}</span>
+              <span className="fcl-amber text-xs font-bold">
                 {sim.won ? "Phoenix won!" : `Need ${sim.need} off ${sim.left}`}
-              </b>
+              </span>
             </div>
-            <div className="fh-need-track">
-              <div style={{ width: `${sim.pct}%` }} />
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-500/25">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-amber-400 to-rose-500 transition-all duration-700"
+                style={{ width: `${sim.pct}%` }}
+              />
             </div>
-            <small>Target {TARGET}</small>
+            <span className="fcl-pill-sub mt-1 block text-[10px] font-semibold">Target {TARGET}</span>
           </div>
         </div>
       </div>
@@ -578,2881 +885,918 @@ function HeroArt({ reduced }: { reduced: boolean }) {
   );
 }
 
-function MobileLive({ reduced }: { reduced: boolean }) {
-  const sim = useMatchSim(reduced);
+function MobileLive() {
+  const sim = useMatchSim();
   const meta = ballMeta(sim.last);
-
   return (
-    <div className="fh-mlive">
-      <span className="fh-live" />
-      <div className="fh-mlive-copy">
-        <b>
+    <div className="fcl-pill fcl-pill-line absolute inset-x-2 bottom-2 z-10 flex items-center gap-2.5 rounded-2xl border px-3 py-2 backdrop-blur-xl">
+      <span className="fcl-live h-2 w-2 shrink-0 rounded-full bg-[#22c55e]" />
+      <div className="min-w-0">
+        <span className="fcl-head block text-[10px] font-black leading-none">
           FCL LIVE · Phoenix{" "}
-          <span key={sim.runs} className="fh-pop">
+          <span key={sim.runs} className="fcl-pop inline-block">
             {sim.runs}/{sim.wkts}
           </span>
-        </b>
-        <small className="fh-amber">
+        </span>
+        <span className="fcl-amber mt-0.5 block text-[9px] font-bold">
           {sim.won ? "🏆 Phoenix won!" : `🎯 Need ${sim.need} off ${sim.left}`}
-        </small>
+        </span>
       </div>
-      <span key={sim.i} className={`fh-ball fh-pop k-${meta.k}`}>
+      <span
+        key={sim.i}
+        className={`fcl-pop ml-auto grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-black ${meta.cls}`}
+      >
         {meta.t}
       </span>
     </div>
   );
 }
 
-export default function Home() {
-  const isDark = useIsDark();
-  const reducedMotion = useReducedMotion();
+/* ------------------------------------------------------------------ */
+/*  Desktop portal card (bento)                                        */
+/* ------------------------------------------------------------------ */
+function PortalCard({ p, index, forceStd }: { p: Portal; index: number; forceStd: boolean }) {
+  const { ref, visible } = useReveal<HTMLDivElement>(0.08);
+  const size = forceStd ? "std" : p.size ?? "std";
 
-  const [phase, setPhase] = useState<"check" | "loading" | "done">("check");
-  const ready = phase === "done";
+  const span =
+    size === "xl" ? "sm:col-span-2 sm:row-span-2" : size === "wide" ? "sm:col-span-2" : "";
 
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
-  const [previewId, setPreviewId] = useState<string | null>(null);
-  const [directoryOpen, setDirectoryOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [logoError, setLogoError] = useState(false);
-  const [bursts, setBursts] = useState<SparkBurst[]>([]);
-  const [announcement, setAnnouncement] = useState("");
+  const onMove = (e: React.PointerEvent<HTMLAnchorElement>) => {
+    if (e.pointerType !== "mouse") return;
+    const el = e.currentTarget;
+    const r = el.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    const t = size === "xl" ? 4 : 7;
+    el.style.setProperty("--mx", `${x}px`);
+    el.style.setProperty("--my", `${y}px`);
+    el.style.setProperty("--rx", `${(y / r.height - 0.5) * -t}deg`);
+    el.style.setProperty("--ry", `${(x / r.width - 0.5) * t}deg`);
+  };
+  const onLeave = (e: React.PointerEvent<HTMLAnchorElement>) => {
+    e.currentTarget.style.setProperty("--rx", "0deg");
+    e.currentTarget.style.setProperty("--ry", "0deg");
+  };
 
-  const rootRef = useRef<HTMLElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
-  const centerRef = useRef<HTMLButtonElement>(null);
-  const searchButtonRef = useRef<HTMLButtonElement>(null);
+  return (
+    <div
+      ref={ref}
+      className={`${span} transition-all duration-700 ease-out`}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0) scale(1)" : "translateY(30px) scale(.97)",
+        transitionDelay: `${Math.min(index, 8) * 70}ms`,
+      }}
+    >
+      <SparkLink
+        href={p.href}
+        data-spark={p.color}
+        onPointerMove={onMove}
+        onPointerLeave={onLeave}
+        className={`pc ${size === "xl" ? "pc-xl" : ""} ${size === "wide" ? "pc-wide" : ""}`}
+        style={{ "--c": p.color } as React.CSSProperties}
+      >
+        {size === "xl" && <div className="pc-orbit" aria-hidden><i /></div>}
+        <span className="pc-water" aria-hidden>
+          {p.cornerIcon}
+        </span>
 
-  const burstId = useRef(0);
-  const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+        <div className="pc-body">
+          <div className="flex items-start justify-between gap-2">
+            <span className="pc-ico">{p.badgeIcon}</span>
+            <span className="pc-badge fcl-ink">{p.badgeText}</span>
+          </div>
 
-  const activeGroup =
-    MENU_GROUPS.find((group) => group.id === activeGroupId) ?? null;
+          <div className="mt-auto pt-5">
+            {size === "xl" && (
+              <span className="pc-online fcl-ink">
+                <span className="fcl-live h-2 w-2 rounded-full bg-[#22c55e]" /> ONLINE NOW
+              </span>
+            )}
+            <h4
+              className={`fcl-head font-black leading-tight ${
+                size === "xl" ? "mt-3 text-4xl" : size === "wide" ? "text-2xl" : "text-xl"
+              }`}
+            >
+              {p.title}
+            </h4>
+            <p
+              className={`fcl-body mt-1.5 leading-5 ${
+                size === "std" ? "line-clamp-2 text-[13px]" : "max-w-[460px] text-sm"
+              }`}
+            >
+              {p.description}
+            </p>
 
-  const previewGroup =
-    activeGroup ??
-    MENU_GROUPS.find((group) => group.id === previewId) ??
-    null;
+            {size === "xl" ? (
+              <span className="pc-cta">
+                <span className="pc-cta-shine" />
+                <span className="relative">{p.footerText}</span>
+                <span className="pc-arrow relative">→</span>
+              </span>
+            ) : (
+              <div className="fcl-ink mt-3 flex items-center justify-between text-xs font-bold">
+                <span>{p.footerText}</span>
+                <span className="pc-arrow text-base font-black">→</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </SparkLink>
+    </div>
+  );
+}
 
-  const accent = previewGroup?.color ?? "#60a5fa";
-
-  const results = useMemo(() => {
-    const value = query.trim().toLocaleLowerCase();
-    if (!value) return ALL_PORTALS;
-    return ALL_PORTALS.filter((portal) =>
-      [portal.title, portal.english, portal.description, portal.groupTitle]
-        .join(" ")
-        .toLocaleLowerCase()
-        .includes(value)
-    );
-  }, [query]);
+/* ------------------------------------------------------------------ */
+/*  Mobile: carousel + tiles                                           */
+/* ------------------------------------------------------------------ */
+function MobileCarousel({ items }: { items: Portal[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(0);
+  const paused = useRef(false);
 
   useEffect(() => {
-    let seen = false;
+    const el = ref.current;
+    if (!el) return;
+    const stepOf = () => {
+      const card = el.firstElementChild as HTMLElement | null;
+      return card && card.offsetWidth ? card.offsetWidth + 12 : 0;
+    };
+    const onScroll = () => {
+      const s = stepOf();
+      if (s) setActive(Math.round(el.scrollLeft / s));
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    const id = setInterval(() => {
+      if (paused.current) return;
+      const s = stepOf();
+      if (!s) return;
+      const cur = Math.round(el.scrollLeft / s);
+      el.scrollTo({ left: ((cur + 1) % items.length) * s, behavior: "smooth" });
+    }, 3800);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      clearInterval(id);
+    };
+  }, [items.length]);
+
+  return (
+    <div>
+      <div
+        ref={ref}
+        className="no-sb -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1"
+        onTouchStart={() => {
+          paused.current = true;
+        }}
+        onTouchEnd={() => {
+          setTimeout(() => {
+            paused.current = false;
+          }, 5000);
+        }}
+      >
+        {items.map((p) => (
+          <SparkLink
+            key={p.href}
+            href={p.href}
+            data-spark={p.color}
+            className="mc w-[82%] shrink-0 snap-center"
+            style={{ "--c": p.color } as React.CSSProperties}
+          >
+            <span className="mc-shine" />
+            <div className="relative flex items-start justify-between">
+              <span className="pc-badge fcl-ink">
+                {p.badgeIcon} {p.badgeText}
+              </span>
+              <span className="mc-ico">{p.cornerIcon}</span>
+            </div>
+            <h4 className="fcl-head relative mt-5 text-[22px] font-black leading-tight">{p.title}</h4>
+            <p className="fcl-body relative mt-1.5 line-clamp-2 text-[11px] leading-4">{p.description}</p>
+            <span className="fcl-ink relative mt-3 inline-flex items-center gap-1.5 text-[11px] font-black">
+              {p.footerText} <span className="mc-arrow">→</span>
+            </span>
+          </SparkLink>
+        ))}
+      </div>
+      <div className="mt-3 flex justify-center gap-1.5">
+        {items.map((p, k) => (
+          <span
+            key={p.href}
+            className="h-1.5 rounded-full transition-all duration-300"
+            style={{
+              width: active === k ? 22 : 6,
+              background: active === k ? p.color : "var(--line)",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MobileTile({ p, index }: { p: Portal; index: number }) {
+  const { ref, visible } = useReveal<HTMLDivElement>(0.05);
+  return (
+    <div
+      ref={ref}
+      className="transition-all duration-500 ease-out"
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0) scale(1)" : "translateY(18px) scale(.94)",
+        transitionDelay: `${(index % 2) * 60}ms`,
+      }}
+    >
+      <SparkLink
+        href={p.href}
+        data-spark={p.color}
+        className="mt-tile"
+        style={{ "--c": p.color } as React.CSSProperties}
+      >
+        <div className="flex items-start justify-between">
+          <span className="mt-ico">{p.badgeIcon}</span>
+          <span className="fcl-ink text-base font-black">→</span>
+        </div>
+        <div className="mt-4">
+          <h4 className="fcl-head text-[14px] font-black leading-tight">{p.title}</h4>
+          <span className="fcl-ink mt-1 block text-[8px] font-black uppercase tracking-wider">{p.badgeText}</span>
+        </div>
+      </SparkLink>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Page                                                               */
+/* ------------------------------------------------------------------ */
+export default function Home() {
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | Cat>("all");
+  const isDark = useIsDark();
+
+  useEffect(() => {
     try {
-      seen = !!sessionStorage.getItem("fcl_visited");
+      if (sessionStorage.getItem("fcl_visited")) setLoading(false);
     } catch {}
-    setPhase(seen ? "done" : "loading");
   }, []);
 
   const handlePreloadFinish = useCallback(() => {
     try {
       sessionStorage.setItem("fcl_visited", "true");
     } catch {}
-    setPhase("done");
+    setLoading(false);
   }, []);
 
-  useEffect(() => {
-    const pendingTimers = timers.current;
-    return () => {
-      pendingTimers.forEach((timer) => clearTimeout(timer));
-      pendingTimers.clear();
-    };
-  }, []);
+  const sectionHead = useReveal<HTMLDivElement>(0.2);
 
-  useEffect(() => {
-    if (reducedMotion) setBursts([]);
-  }, [reducedMotion]);
-
-  useEffect(() => {
-    if (directoryOpen) searchRef.current?.focus({ preventScroll: true });
-  }, [directoryOpen]);
-
-  function scrollToMenu() {
-    document.getElementById("fu-menu")?.scrollIntoView({
-      behavior: reducedMotion ? "auto" : "smooth",
-      block: "start",
-    });
-  }
-
-  function scrollToCalendar() {
-    document.getElementById("birthday-calendar-section")?.scrollIntoView({
-      behavior: reducedMotion ? "auto" : "smooth",
-      block: "start",
-    });
-  }
-
-  useEffect(() => {
-    if (!ready) return;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        event.ctrlKey ||
-        event.metaKey ||
-        event.altKey ||
-        event.isComposing
-      ) {
-        return;
-      }
-
-      if (event.key === "Escape") {
-        if (activeGroupId) {
-          event.preventDefault();
-          setActiveGroupId(null);
-          setPreviewId(null);
-          setAnnouncement("মূল মেনুতে ফিরে এসেছেন।");
-          centerRef.current?.focus({ preventScroll: true });
-        }
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [ready, activeGroupId]);
-
-  function openGroup(group: MenuGroup) {
-    setActiveGroupId(group.id);
-    setPreviewId(null);
-    setAnnouncement(`${group.title}: তিনটি অপশন খোলা হয়েছে।`);
-    centerRef.current?.focus({ preventScroll: true });
-  }
-
-  function goHome() {
-    setActiveGroupId(null);
-    setPreviewId(null);
-    setAnnouncement("মূল মেনুতে ফিরে এসেছেন।");
-    centerRef.current?.focus({ preventScroll: true });
-  }
-
-  function toggleGroup(group: MenuGroup) {
-    if (activeGroupId === group.id) {
-      goHome();
-    } else {
-      openGroup(group);
-    }
-  }
-
-  function createSpark(event: ReactPointerEvent<HTMLElement>) {
-    if (reducedMotion || !event.isPrimary || event.button !== 0) return;
-
-    const target = event.target as HTMLElement;
-    const element = target.closest<HTMLElement>("[data-accent]");
-    const color = element?.dataset.accent ?? accent;
-    const id = ++burstId.current;
-
-    setBursts((previous) => [
-      ...previous.slice(-2),
-      {
-        id,
-        x: event.clientX,
-        y: event.clientY,
-        color,
-      },
-    ]);
-
-    const timer = setTimeout(() => {
-      setBursts((previous) => previous.filter((burst) => burst.id !== id));
-      timers.current.delete(timer);
-    }, 720);
-
-    timers.current.add(timer);
-  }
-
-  function followPointer(event: ReactPointerEvent<HTMLDivElement>) {
-    if (reducedMotion || event.pointerType !== "mouse") return;
-
-    const rect = event.currentTarget.getBoundingClientRect();
-
-    event.currentTarget.style.setProperty(
-      "--pointer-x",
-      `${event.clientX - rect.left}px`
-    );
-    event.currentTarget.style.setProperty(
-      "--pointer-y",
-      `${event.clientY - rect.top}px`
-    );
-  }
-
-  function heroParallax(event: ReactPointerEvent<HTMLElement>) {
-    if (reducedMotion || event.pointerType !== "mouse") return;
-
-    const r = event.currentTarget.getBoundingClientRect();
-
-    event.currentTarget.style.setProperty(
-      "--px",
-      String((event.clientX - r.left) / r.width - 0.5)
-    );
-    event.currentTarget.style.setProperty(
-      "--py",
-      String((event.clientY - r.top) / r.height - 0.5)
-    );
-  }
+  const list = filter === "all" ? PORTALS : PORTALS.filter((p) => p.cat === filter);
+  const featured = PORTALS.filter((p) => p.featured);
+  const counts: Record<string, number> = {
+    all: PORTALS.length,
+    stats: PORTALS.filter((p) => p.cat === "stats").length,
+    stories: PORTALS.filter((p) => p.cat === "stories").length,
+    fun: PORTALS.filter((p) => p.cat === "fun").length,
+  };
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: UNIVERSE_STYLES }} />
-
-      {phase === "check" && (
-        <div
-          className={`pl-root ${isDark ? "pl-dark" : "pl-light"}`}
-          aria-hidden="true"
-        />
-      )}
-      {phase === "loading" && (
-        <Preloader onFinish={handlePreloadFinish} isDark={isDark} />
-      )}
+      <style dangerouslySetInnerHTML={{ __html: HOME_STYLES }} />
+      <FxCanvas isDark={isDark} />
+      <ScrollBar />
+      {loading && <Preloader onFinish={handlePreloadFinish} />}
 
       <main
-        ref={rootRef}
-        className={`fcl-universe ${isDark ? "fu-dark" : "fu-light"} ${
-          ready ? "" : "fu-hidden"
+        className={`fcl-root ${isDark ? "fcl-dark" : "fcl-light"} min-h-screen pb-20 font-sans selection:bg-[#1877F2]/30 sm:pb-0 ${
+          loading ? "hidden" : "block"
         }`}
-        style={{ "--fu-accent": accent } as CSSVars}
-        onPointerDown={createSpark}
       >
-        <div className="fu-background" aria-hidden="true">
-          <div className="fu-grid" />
-          <div className="fu-glow fu-glow-a" />
-          <div className="fu-glow fu-glow-b" />
-          <div className="fu-square fu-square-a" />
-          <div className="fu-square fu-square-b" />
-          <div className="fu-square fu-square-c" />
-        </div>
+        {/* ================================================================
+            DESKTOP HERO
+            ================================================================ */}
+        <section
+          className="fcl-hero relative hidden overflow-hidden border-b sm:block"
+          onPointerMove={(e) => {
+            if (e.pointerType !== "mouse") return;
+            const r = e.currentTarget.getBoundingClientRect();
+            e.currentTarget.style.setProperty("--px", String((e.clientX - r.left) / r.width - 0.5));
+            e.currentTarget.style.setProperty("--py", String((e.clientY - r.top) / r.height - 0.5));
+          }}
+        >
+          <div className="absolute inset-0 fcl-grid-bg" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_45%,rgba(37,99,235,0.12),transparent_34%)]" />
+          <div className="par-a absolute right-[-15%] top-[-20%]">
+            <div className="fcl-orb-a h-[650px] w-[650px] rounded-full bg-[#7c3aed]/10 blur-[130px]" />
+          </div>
+          <div className="par-b absolute bottom-[-20%] left-[-20%]">
+            <div className="fcl-orb-b h-[500px] w-[500px] rounded-full bg-[#1877F2]/10 blur-[130px]" />
+          </div>
+          <div className="sq sq-1" />
+          <div className="sq sq-2" />
+          <div className="sq sq-3" />
 
-        <div className="fu-shell">
-          {/* ================================================================
-              HERO — DESKTOP / TABLET
-          ================================================================ */}
-          <section className="fh-hero fh-desk" onPointerMove={heroParallax} aria-label="FCL hero">
-            <div className="fh-orb fh-orb-a" aria-hidden="true" />
-            <div className="fh-orb fh-orb-b" aria-hidden="true" />
-
-            <div className="fh-desk-grid">
-              <div className="fh-copy">
-                <div className="fh-badge fh-wd" style={{ "--i": 0 } as CSSVars}>
-                  <span className="fh-live" />
-                  FCL • DIGITAL GATEWAY HUB
+          <div className="relative mx-auto flex max-w-[1500px] items-center px-6 lg:min-h-[640px]">
+            <div className="grid w-full items-center gap-10 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12">
+              <div className="relative z-30 text-center lg:text-left">
+                <div className="fcl-wd mb-6 inline-flex items-center gap-2 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-4 py-2 backdrop-blur-xl" style={{ "--i": 0 } as React.CSSProperties}>
+                  <span className="fcl-live h-2 w-2 rounded-full bg-[#22c55e]" />
+                  <span className="fcl-blue1 text-[10px] font-bold uppercase tracking-[0.3em]">
+                    FCL • DIGITAL GATEWAY HUB
+                  </span>
                 </div>
 
-                <h2 className="fh-title">
-                  <span className="fh-line">
+                <h2 className="fcl-head text-5xl font-black leading-[0.95] tracking-[-0.05em] md:text-6xl lg:text-[70px]">
+                  <span className="block">
                     <Words text="THE GAME LIVES" base={1} />
                   </span>
-                  <span className="fh-line">
-                    <Words text="BEYOND THE FIELD." base={4} className="fh-grad" />
+                  <span className="block">
+                    <Words text="BEYOND THE FIELD." base={4} className="fcl-grad" />
                   </span>
-                  <span className="fh-tag">
-                    One Game. One Community. <span className="fh-zoom">FCL.</span>
+                  <span className="fcl-amber mt-3 block text-[0.4em] font-bold leading-tight tracking-[-0.02em]">
+                    One Game. One Community. <span className="fcl-zoom-text text-[1.45em] font-black tracking-[-0.04em]">FCL.</span>
                   </span>
                 </h2>
 
-                <Rotator paused={reducedMotion} />
+                <div className="flex justify-center lg:justify-start">
+                  <Rotator />
+                </div>
 
-                <p className="fh-text">
-                  Facebook Cricket League-এর অফিশিয়াল পোর্টাল — র‍্যাঙ্কিং, রেকর্ড, স্মৃতি আর
-                  হাই-ভোল্টেজ ম্যাচের গল্প, সব এক জায়গায়।
+                <p className="fcl-body mx-auto mt-4 max-w-[520px] text-sm leading-7 lg:mx-0">
+                  The official portal of Facebook Cricket League — rankings, record cabinets, memories and high-voltage
+                  match stories, all in one place.
                 </p>
 
-                <div className="fh-actions">
-                  <Magnetic disabled={reducedMotion}>
-                    <button
-                      type="button"
-                      className="fh-btn-primary"
-                      data-accent="#1877F2"
-                      onClick={scrollToMenu}
+                <div className="mt-7 flex flex-wrap justify-center gap-3 lg:justify-start">
+                  <Magnetic>
+                    <a
+                      href="#gateways"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        document.getElementById("gateways")?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className="btn-primary"
                     >
-                      <span className="fh-btn-shine" />
-                      <span className="fh-rel">Explore Menu ↓</span>
-                    </button>
+                      <span className="btn-shine" />
+                      <span className="relative">Explore Portals ↓</span>
+                    </a>
                   </Magnetic>
-
-                  <Magnetic disabled={reducedMotion}>
-                    <Link href="/play" className="fh-btn-play" data-accent="#22c55e">
-                      <span className="fh-live" />
+                  <Magnetic>
+                    <SparkLink href="/play" data-spark="#22c55e" className="btn-play">
+                      <span className="fcl-live h-2 w-2 rounded-full bg-[#22c55e]" />
                       🎮 Play Now
-                    </Link>
+                    </SparkLink>
+                  </Magnetic>
+                  <Magnetic>
+                    <SparkLink href="/bn" data-spark="#3b82f6" className="btn-ghost">
+                      💙 বাংলা ভার্সন
+                    </SparkLink>
                   </Magnetic>
                 </div>
               </div>
 
-              <HeroArt reduced={reducedMotion} />
+              <HeroArt />
             </div>
+          </div>
 
-            <div className="fh-marquee">
-              <div className="fh-marquee-track">
+          {/* marquee */}
+          <div className="relative border-t py-3" style={{ borderColor: "var(--line)" }}>
+            <div className="mq">
+              <div className="mq-track">
                 {[0, 1].map((copy) =>
-                  ALL_PORTALS.map((portal) => (
-                    <Link
-                      key={`${copy}-${portal.href}`}
-                      href={portal.href}
-                      className="fh-marquee-item"
-                      data-accent={portal.color}
-                      style={{ "--item-color": portal.color } as CSSVars}
+                  PORTALS.map((p) => (
+                    <SparkLink
+                      key={`${copy}-${p.href}`}
+                      href={p.href}
+                      data-spark={p.color}
+                      className="mq-item"
+                      style={{ "--c": p.color } as React.CSSProperties}
                       tabIndex={copy ? -1 : 0}
                       aria-hidden={copy ? true : undefined}
                     >
-                      <span>{portal.icon}</span>
-                      {portal.english}
-                    </Link>
+                      <span>{p.badgeIcon}</span>
+                      {p.title}
+                    </SparkLink>
                   ))
                 )}
               </div>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* ================================================================
-              HERO — MOBILE (app style)
-          ================================================================ */}
-          <section className="fh-hero fh-mob" aria-label="FCL hero">
-            <div className="fh-badge fh-wd" style={{ "--i": 0 } as CSSVars}>
-              <span className="fh-live" />
-              FCL • DIGITAL GATEWAY HUB
+        {/* ================================================================
+            MOBILE HOME (app style)
+            ================================================================ */}
+        <section className="fcl-hero relative overflow-hidden border-b px-4 pb-5 pt-5 sm:hidden">
+          <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-blue-500/10 blur-[90px]" />
+          <div className="pointer-events-none absolute -left-28 bottom-0 h-64 w-64 rounded-full bg-purple-500/10 blur-[90px]" />
+          <div className="sq sq-1" />
+          <div className="sq sq-2" />
+
+          <div className="relative">
+            <div className="fcl-wd inline-flex items-center gap-1.5 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-3 py-1.5" style={{ "--i": 0 } as React.CSSProperties}>
+              <span className="fcl-live h-1.5 w-1.5 rounded-full bg-[#22c55e]" />
+              <span className="fcl-blue1 text-[8px] font-black uppercase tracking-[0.25em]">FCL Digital Hub</span>
             </div>
-
-            <h2 className="fh-title">
-              <span className="fh-line">
+            <h2 className="fcl-head mt-3 text-[30px] font-black leading-[1] tracking-[-0.045em]">
+              <span className="block">
                 <Words text="THE GAME LIVES" base={1} />
               </span>
-              <span className="fh-line">
-                <Words text="BEYOND THE FIELD." base={4} className="fh-grad" />
+              <span className="block">
+                <Words text="BEYOND THE FIELD." base={4} className="fcl-grad" />
               </span>
             </h2>
+            <Rotator small />
 
-            <Rotator small paused={reducedMotion} />
-
-            <div className="fh-mob-art">
-              <div className="fh-ring" style={{ "--rr": "22px" } as CSSVars}>
-                <div className="fh-ring-in">
-                  <img src="/fcl-room.png" alt="FCL Online" draggable={false} />
+            <div className="relative mt-4">
+              <div className="fcl-ring" style={{ "--rr": "22px" } as React.CSSProperties}>
+                <div className="fcl-ring-in">
+                  <img src="/fcl-room.png" alt="FCL Online" className="h-[210px] w-full object-cover object-center" />
                 </div>
               </div>
-              <MobileLive reduced={reducedMotion} />
+              <MobileLive />
             </div>
 
-            <div className="fh-mob-actions">
-              <button
-                type="button"
-                className="fh-btn-primary"
-                data-accent="#1877F2"
-                onClick={scrollToMenu}
-              >
-                <span className="fh-btn-shine" />
-                <span className="fh-rel">Explore Menu ↓</span>
-              </button>
-              <Link href="/play" className="fh-btn-play" data-accent="#22c55e">
-                <span className="fh-live" />
-                🎮 Play
-              </Link>
+            <div className="mt-4 grid grid-cols-2 gap-2.5">
+              <SparkLink href="/play" data-spark="#22c55e" className="btn-play justify-center !px-3 !py-3 text-[13px]">
+                <span className="fcl-live h-2 w-2 rounded-full bg-[#22c55e]" />
+                🎮 Play Now
+              </SparkLink>
+              <SparkLink href="/bn" data-spark="#3b82f6" className="btn-ghost justify-center !px-3 !py-3 text-[13px]">
+                💙 বাংলা ভার্সন
+              </SparkLink>
             </div>
-          </section>
+          </div>
+        </section>
 
-          {/* ================================================================
-              FLOWER MENU
-          ================================================================ */}
-          <section className="fu-dashboard" aria-label="FCL interactive navigation">
-            <aside className="fu-wing fu-wing-left">
-              <span className="fu-overline">
-                <i />
-                YOUR CRICKET UNIVERSE
-              </span>
-
-              <h2>
-                এক <span>এফসিএল,</span>
-                <br />
-                অসংখ্য <span>গল্প।</span>
-              </h2>
-
-              <p>
-                আপনার FCL এখন হাতের মুঠোয়। পছন্দের একটি পাপড়িতে ক্লিক করুন—খুলে যাবে নতুন দুনিয়া।
-              </p>
-
-              <div className="fu-counts">
-                <div>
-                  <strong>{MENU_GROUPS.length.toString().padStart(2, "0")}</strong>
-                  <span>ক্যাটেগরি</span>
-                </div>
-                <span className="fu-count-divider" />
-                <div>
-                  <strong>{ALL_PORTALS.length}</strong>
-                  <span>ডেস্টিনেশন</span>
-                </div>
-              </div>
-
-              <Link href="/play" className="fu-play-button" data-accent="#22d3ee">
-                <span aria-hidden="true">🎮</span>
-                মাঠে নামুন
-                <ArrowIcon />
-              </Link>
-            </aside>
-
-            <div className="fu-console" id="fu-menu">
-              <div className="fu-console-top">
-                <div className="fu-breadcrumb">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      goHome();
-                    }}
-                  >
-                    FCL
-                  </button>
-                  <span>/</span>
-                  <strong>
-                    {activeGroup?.title ?? "মূল মেনু"}
-                  </strong>
-                </div>
-
-                <span className="fu-mode-label">
-                  ORBIT MENU
-                </span>
-              </div>
-
-              <div className="fu-menu-content">
-                <div
-                  className="fu-flower"
-                  onPointerMove={followPointer}
-                  onPointerLeave={() => setPreviewId(null)}
-                >
-                  <div className="fu-cursor-light" aria-hidden="true" />
-
-                  <div className="fu-orbit fu-orbit-outer" aria-hidden="true" />
-                  <div className="fu-orbit fu-orbit-inner" aria-hidden="true" />
-                  <div className="fu-orbit-runner" aria-hidden="true">
-                    <i />
-                  </div>
-
-                  <svg
-                    className="fu-connectors"
-                    viewBox="0 0 500 500"
-                    aria-hidden="true"
-                  >
-                    <path d="M250 250V82 M250 250H418 M250 250V418 M250 250H82" />
-                    <circle cx="250" cy="250" r="84" />
-                  </svg>
-
-                  <button
-                    ref={centerRef}
-                    type="button"
-                    className={`fu-core ${activeGroup ? "fu-core-open" : ""}`}
-                    onClick={goHome}
-                    data-accent={accent}
-                    aria-label={
-                      activeGroup
-                        ? "মূল FCL মেনুতে ফিরে এসেছেন।"
-                        : "FCL মূল মেনু"
-                    }
-                  >
-                    <span className="fu-core-halo" aria-hidden="true" />
-                    <span className="fu-core-inner">
-                      {logoError ? (
-                        <strong className="fu-logo-fallback">FCL</strong>
-                      ) : (
-                        <img
-                          src="/fcl-logo.png"
-                          alt=""
-                          width={62}
-                          height={62}
-                          onError={() => setLogoError(true)}
-                          draggable={false}
-                        />
-                      )}
-                      <span>{activeGroup ? "↩ HOME" : "EXPLORE"}</span>
-                    </span>
-                  </button>
-
-                  <nav
-                    key={activeGroup?.id ?? "root"}
-                    className="fu-petals"
-                    aria-label={
-                      activeGroup
-                        ? `${activeGroup.title} সাবমেনু`
-                        : "FCL ক্যাটেগরি"
-                    }
-                  >
-                    {activeGroup
-                      ? activeGroup.items.map((item, index) => (
-                          <div
-                            key={item.href}
-                            className={`fu-petal-position fu-position-${index}`}
-                            style={
-                              {
-                                "--item-color": activeGroup.color,
-                                "--delay": `${index * 65}ms`,
-                              } as CSSVars
-                            }
-                          >
-                            <Link
-                              href={item.href}
-                              className="fu-petal fu-leaf"
-                              data-accent={activeGroup.color}
-                            >
-                              <span className="fu-petal-shine" />
-                              <span className="fu-petal-icon" aria-hidden="true">
-                                {item.icon}
-                              </span>
-                              <strong>{item.title}</strong>
-                              <small>প্রবেশ করুন ↗</small>
-                            </Link>
-                          </div>
-                        ))
-                      : MENU_GROUPS.map((group, index) => (
-                          <div
-                            key={group.id}
-                            className={`fu-petal-position fu-position-${index}`}
-                            style={
-                              {
-                                "--item-color": group.color,
-                                "--delay": `${index * 65}ms`,
-                              } as CSSVars
-                            }
-                          >
-                            <button
-                              type="button"
-                              className="fu-petal"
-                              data-accent={group.color}
-                              onClick={() => openGroup(group)}
-                              onPointerEnter={() => setPreviewId(group.id)}
-                              onFocus={() => setPreviewId(group.id)}
-                              onBlur={() => setPreviewId(null)}
-                            >
-                              <span className="fu-petal-shine" />
-                              <span className="fu-petal-icon" aria-hidden="true">
-                                {group.icon}
-                              </span>
-                              <strong>{group.title}</strong>
-                              <small>{group.items.length}টি অপশন · খুলুন</small>
-                            </button>
-                          </div>
-                        ))}
-
-                    {activeGroup && (
-                      <div
-                        className="fu-petal-position fu-position-3"
-                        style={
-                          {
-                            "--item-color": "#94a3b8",
-                            "--delay": "195ms",
-                          } as CSSVars
-                        }
-                      >
-                        <button
-                          type="button"
-                          className="fu-petal fu-back-petal"
-                          onClick={goHome}
-                          data-accent="#94a3b8"
-                        >
-                          <span className="fu-petal-icon" aria-hidden="true">
-                            <ArrowIcon back />
-                          </span>
-                          <strong>ফিরে যান</strong>
-                          <small>মূল মেনু</small>
-                        </button>
-                      </div>
-                    )}
-                  </nav>
-                </div>
-              </div>
-
-              <div className="fu-console-bottom">
-                <span className="fu-instruction">
-                  <span aria-hidden="true">{activeGroup ? "↗" : "✦"}</span>
-                  {activeGroup
-                    ? "অপশন বেছে নিন · মাঝখানে ট্যাপ করলে Home"
-                    : "পাপড়িতে ট্যাপ করুন · খুলবে নতুন অপশন"}
-                </span>
-                <span className="fu-step">
-                  {activeGroup ? "02 / 02" : "01 / 02"}
-                </span>
-              </div>
-            </div>
-
-            {/* 📱 মোবাইল ডক — ৪টি ক্যাটেগরি বাটন (শুধু মোবাইলে দেখাবে) */}
-            <nav className="fu-dock" aria-label="দ্রুত ক্যাটেগরি নেভিগেশন">
-              {MENU_GROUPS.map((group) => {
-                const isActive = activeGroupId === group.id;
-
-                return (
-                  <button
-                    key={group.id}
-                    type="button"
-                    className={isActive ? "is-active" : ""}
-                    data-accent={group.color}
-                    style={{ "--item-color": group.color } as CSSVars}
-                    aria-pressed={isActive}
-                    onClick={() => toggleGroup(group)}
-                  >
-                    <span aria-hidden="true">{group.icon}</span>
-                    <span>{group.short}</span>
-                  </button>
-                );
-              })}
-            </nav>
-
-            <aside className="fu-wing fu-wing-right">
-              <div
-                key={previewGroup?.id ?? "welcome"}
-                className="fu-preview"
-              >
-                <span className="fu-preview-icon" aria-hidden="true">
-                  {previewGroup?.icon ?? "✦"}
-                </span>
-
-                <span className="fu-overline">
-                  {previewGroup?.english ?? "ONE GAME. ONE COMMUNITY."}
-                </span>
-
-                <h2>{previewGroup?.title ?? "আপনার পরের গন্তব্য?"}</h2>
-
-                <p>
-                  {previewGroup?.description ??
-                    "মেনুর ওপর কার্সর রাখুন। ক্যাটেগরির ভেতরে কী আছে, এখানেই দেখে নিন।"}
-                </p>
-
-                <div className="fu-preview-list">
-                  {previewGroup ? (
-                    previewGroup.items.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        data-accent={previewGroup.color}
-                      >
-                        <span aria-hidden="true">{item.icon}</span>
-                        <span>{item.title}</span>
-                        <span aria-hidden="true">↗</span>
-                      </Link>
-                    ))
-                  ) : (
-                    <>
-                      <div><span>01</span> একটি ক্যাটেগরি বেছে নিন</div>
-                      <div><span>02</span> পছন্দের পেইজ খুলুন</div>
-                      <div><span>↩</span> FCL-এ ট্যাপ করে ফিরে আসুন</div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <span className="fu-key-hint">
-                <kbd>/</kbd> Search <span>·</span> <kbd>Esc</kbd> Back
-              </span>
-            </aside>
-          </section>
-
-          {/* ফুটারের অতিরিক্ত কপিরাইট অংশটি পিসি থেকে বাদ দেওয়া হয়েছে এবং শুধু মোবাইলে রাখা হয়েছে */}
-          {/* ফুটারের অংশ */}
-          <footer className="fu-footer">
-            <span>ONE GAME. ONE COMMUNITY. <b>FCL.</b> © 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.</span>
-          </footer>
-        </div>
-
-        <div className="fu-sr-only" role="status" aria-live="polite">
-          {announcement}
-        </div>
-
-        <div className="fu-spark-layer" aria-hidden="true">
-          {bursts.map((burst) => (
+        {/* ================================================================
+            DESKTOP PORTALS (bento)
+            ================================================================ */}
+        <section id="gateways" className="fcl-section relative hidden scroll-mt-20 overflow-hidden px-6 py-14 sm:block">
+          <div className="absolute inset-0 fcl-grid-bg opacity-60" />
+          <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 blur-[150px]" />
+          <div className="relative z-10 mx-auto max-w-7xl">
             <div
-              key={burst.id}
-              className="fu-burst"
-              style={
-                {
-                  left: burst.x,
-                  top: burst.y,
-                  "--spark-color": burst.color,
-                } as CSSVars
-              }
+              ref={sectionHead.ref}
+              style={{
+                opacity: sectionHead.visible ? 1 : 0,
+                transform: sectionHead.visible ? "translateY(0)" : "translateY(24px)",
+              }}
+              className="mb-7 flex flex-wrap items-end justify-between gap-4 transition-all duration-700 ease-out"
             >
-              <span className="fu-spark-ring" />
-              {Array.from({ length: 12 }, (_, index) => {
-                const angle = (index / 12) * Math.PI * 2;
-                const distance = 30 + (index % 3) * 13;
-
-                return (
-                  <i
-                    key={index}
-                    style={
-                      {
-                        "--dx": `${Math.cos(angle) * distance}px`,
-                        "--dy": `${Math.sin(angle) * distance}px`,
-                        "--turn": `${index * 30}deg`,
-                      } as CSSVars
-                    }
-                  />
-                );
-              })}
+              <div>
+                <span className="fcl-eyebrow text-[11px] font-bold uppercase tracking-[0.35em]">FCL Navigation Portals</span>
+                <h3 className="fcl-head mt-2 text-3xl font-black tracking-tight sm:text-4xl">Choose Your Destination</h3>
+              </div>
+              <FilterChips value={filter} onChange={setFilter} counts={counts} />
             </div>
-          ))}
-        </div>
+
+            <div
+              key={filter}
+              className="grid auto-rows-[minmax(190px,auto)] grid-flow-dense gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            >
+              {list.map((p, i) => (
+                <PortalCard key={p.href} p={p} index={i} forceStd={filter !== "all"} />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ================================================================
+            MOBILE PORTALS
+            ================================================================ */}
+        <section className="fcl-section relative overflow-hidden px-4 pb-8 pt-5 sm:hidden">
+          <div className="mb-3 flex items-end justify-between px-0.5">
+            <div>
+              <span className="fcl-eyebrow text-[8px] font-black uppercase tracking-[0.28em]">Featured</span>
+              <h3 className="fcl-head mt-0.5 text-[20px] font-black tracking-tight">Jump right in</h3>
+            </div>
+            <span className="fcl-muted text-[9px] font-semibold">Swipe →</span>
+          </div>
+          <MobileCarousel items={featured} />
+
+          <div className="mb-3 mt-7 px-0.5">
+            <span className="fcl-eyebrow text-[8px] font-black uppercase tracking-[0.28em]">All Portals</span>
+            <h3 className="fcl-head mt-0.5 text-[20px] font-black tracking-tight">Choose Your Destination</h3>
+          </div>
+          <div className="-mx-4 mb-3 px-4">
+            <FilterChips value={filter} onChange={setFilter} counts={counts} />
+          </div>
+
+          <div key={filter} className="grid grid-cols-2 gap-2.5">
+            {list.map((p, i) => (
+              <MobileTile key={p.href} p={p} index={i} />
+            ))}
+          </div>
+        </section>
       </main>
     </>
   );
 }
 
-const UNIVERSE_STYLES = `
-/* ================================================================
-   PRELOADER
-================================================================ */
-.pl-root {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: #020617;
-  color: #fff;
-  cursor: pointer;
-  opacity: 1;
-  transition: opacity .5s ease;
-  -webkit-tap-highlight-color: transparent;
+/* ------------------------------------------------------------------ */
+/*  Styles                                                             */
+/* ------------------------------------------------------------------ */
+const HOME_STYLES = `
+/* ============ THEME TOKENS ============ */
+.fcl-root {
+  --bg: #ffffff;
+  --bg-alt: #f1f5f9;
+  --head: #0f172a;
+  --text: #475569;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --eyebrow: #0369a1;
+  --blue1: #1d4ed8;
+  --blue2: #1d4ed8;
+  --amber: #b45309;
+  --rose: #e11d48;
+  --frame-bg: #ffffff;
+  --frame-line: #e2e8f0;
+  --frame-shadow: 0 30px 80px rgba(15, 23, 42, 0.14);
+  --card-a: #ffffff;
+  --card-b: #f8fafc;
+  --card-shadow: 0 6px 24px rgba(15, 23, 42, 0.07);
+  --pill-bg: rgba(255, 255, 255, 0.96);
+  --pill-line: #e2e8f0;
+  --pill-sub: #64748b;
+  --grid-line: rgba(100, 116, 139, 0.12);
+  background: var(--bg);
+  color: var(--head);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+.fcl-root.fcl-dark {
+  --bg: #020617;
+  --bg-alt: #02050b;
+  --head: #ffffff;
+  --text: #94a3b8;
+  --muted: #94a3b8;
+  --line: #172033;
+  --eyebrow: #38bdf8;
+  --blue1: #93c5fd;
+  --blue2: #60a5fa;
+  --amber: #f59e0b;
+  --rose: #fb7185;
+  --frame-bg: #080d17;
+  --frame-line: rgba(255, 255, 255, 0.08);
+  --frame-shadow: 0 40px 120px rgba(0, 0, 0, 0.7);
+  --card-a: #0f172a;
+  --card-b: #0b1220;
+  --card-shadow: none;
+  --pill-bg: rgba(11, 18, 32, 0.9);
+  --pill-line: rgba(255, 255, 255, 0.1);
+  --pill-sub: #94a3b8;
+  --grid-line: rgba(148, 163, 184, 0.06);
 }
 
-.pl-root.pl-light {
-  background: #f8fafc;
-  color: #0f172a;
+/* ============ THEMED UTILITIES ============ */
+.fcl-head { color: var(--head); }
+.fcl-body { color: var(--text); }
+.fcl-muted { color: var(--muted); }
+.fcl-eyebrow { color: var(--eyebrow); }
+.fcl-blue1 { color: var(--blue1); }
+.fcl-blue2 { color: var(--blue2); }
+.fcl-amber { color: var(--amber); }
+.fcl-rose { color: var(--rose); }
+.fcl-pill-sub { color: var(--pill-sub); }
+.fcl-hero { background: var(--bg-alt); border-color: var(--line); }
+.fcl-section { background: var(--bg); }
+.fcl-pill { background: var(--pill-bg); box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12); }
+.fcl-dark .fcl-pill { box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); }
+.fcl-pill-line { border-color: var(--pill-line); }
+.fcl-ink { color: color-mix(in srgb, var(--c) 58%, #0f172a); }
+.fcl-dark .fcl-ink { color: var(--c); }
+.no-sb { scrollbar-width: none; -ms-overflow-style: none; }
+.no-sb::-webkit-scrollbar { display: none; }
+
+/* ============ KEYFRAMES ============ */
+@keyframes fcl-spin { to { transform: rotate(360deg); } }
+@keyframes float-a { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(24px,-32px) scale(1.05); } }
+@keyframes float-b { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-28px,26px) scale(1.06); } }
+@keyframes chip-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes fcl-gshift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@keyframes fcl-wd {
+  from { opacity: 0; transform: translateY(46px) rotate(5deg); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
 }
-
-.pl-root.is-out {
-  opacity: 0;
-  pointer-events: none;
+@keyframes fcl-rot {
+  0% { opacity: 0; transform: translateY(100%); }
+  12%, 88% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-100%); }
 }
-
-.pl-root *,
-.pl-root *::before,
-.pl-root *::after {
-  box-sizing: border-box;
+@keyframes fcl-pop {
+  0% { transform: scale(.4); opacity: 0; }
+  60% { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
-
-.pl-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(148, 163, 184, .07) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(148, 163, 184, .07) 1px, transparent 1px);
-  background-size: 44px 44px;
-  -webkit-mask-image: radial-gradient(circle at center, #000 20%, transparent 70%);
-  mask-image: radial-gradient(circle at center, #000 20%, transparent 70%);
+@keyframes fcl-marquee { to { transform: translateX(-50%); } }
+@keyframes fcl-shine {
+  0% { transform: translateX(-130%) skewX(-15deg); }
+  55%, 100% { transform: translateX(380%) skewX(-15deg); }
 }
-
-.pl-light .pl-grid {
-  background-image:
-    linear-gradient(to right, rgba(100, 116, 139, .12) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(100, 116, 139, .12) 1px, transparent 1px);
+@keyframes fcl-live-ring {
+  0% { box-shadow: 0 0 0 0 rgba(34,197,94,.6); }
+  100% { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
 }
-
-.pl-glow {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
+@keyframes fcl-letter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes fcl-logo-float { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-5px) scale(1.06); } }
+@keyframes fcl-zoom-pulse {
+  0%,100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(34,211,238,.5)); }
+  50% { transform: scale(1.14); filter: drop-shadow(0 0 22px rgba(34,211,238,.9)); }
 }
-
-.pl-glow-a {
-  width: 288px;
-  height: 288px;
-  background: rgba(37, 99, 235, .25);
-  filter: blur(110px);
+@keyframes fcl-color-shift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+@keyframes fcl-sq {
+  0%,100% { transform: translate(0,0) rotate(var(--r,12deg)); }
+  50% { transform: translate(18px,-26px) rotate(calc(var(--r,12deg) + 14deg)); }
 }
+@keyframes fcl-icon-float { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-12px) rotate(4deg); } }
 
-.pl-glow-b {
-  width: 208px;
-  height: 208px;
-  right: -40px;
-  top: 40px;
-  background: rgba(147, 51, 234, .2);
-  filter: blur(100px);
-}
-
-.pl-light .pl-glow-a { background: rgba(96, 165, 250, .3); }
-.pl-light .pl-glow-b { background: rgba(167, 139, 250, .25); }
-
-.pl-center {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0 16px;
-  text-align: center;
-}
-
-.pl-logo-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 112px;
-  height: 112px;
-}
-
-.pl-ring {
-  position: absolute;
-  inset: -8px;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent, #1877f2, #22d3ee, #f59e0b, transparent);
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-  animation: fu-spin 1.6s linear infinite;
-}
-
-.pl-orbit {
-  position: absolute;
-  inset: -24px;
-  animation: fu-spin 2.4s linear infinite;
-}
-
-.pl-orbit i {
-  position: absolute;
-  top: -4px;
-  left: 50%;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #f59e0b;
-  box-shadow: 0 0 14px #f59e0b;
-}
-
-.pl-disc {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  border: 1px solid rgba(59, 130, 246, .3);
-  background: #0b1220;
-  box-shadow: 0 0 40px rgba(37, 99, 235, .45);
-}
-
-.pl-light .pl-disc {
-  background: #ffffff;
-  border-color: rgba(59, 130, 246, .35);
-  box-shadow: 0 0 30px rgba(37, 99, 235, .22);
-}
-
-.pl-logo {
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, .6));
-  animation: pl-logo-float 2.2s ease-in-out infinite;
-}
-
-.pl-light .pl-logo {
-  filter: drop-shadow(0 4px 10px rgba(37, 99, 235, .3));
-}
-
-.pl-fallback {
-  font-size: 28px;
-  font-style: italic;
-  color: #3b82f6;
-}
-
-.pl-title {
-  display: flex;
-  margin: 32px 0 0;
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: .2em;
-  color: #fff;
-}
-
-.pl-light .pl-title {
-  color: #0f172a;
-}
-
-.pl-letter {
+/* ============ ENTRY WORDS / GRADIENT ============ */
+.fcl-wd {
   display: inline-block;
   opacity: 0;
-  animation: pl-letter .5s ease-out both;
-  animation-delay: calc(var(--i, 0) * 70ms + 200ms);
-}
-
-.pl-letter.is-amber {
-  color: #f59e0b;
-}
-
-.pl-sub {
-  margin: 4px 0 0;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .14em;
-  color: #94a3b8;
-}
-
-.pl-light .pl-sub {
-  color: #64748b;
-}
-
-.pl-bar {
-  width: 208px;
-  height: 6px;
-  margin-top: 24px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #1e293b;
-}
-
-.pl-light .pl-bar {
-  background: #e2e8f0;
-}
-
-.pl-bar > div {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #3b82f6, #34d399, #fbbf24);
-}
-
-.pl-pct {
-  margin-top: 8px;
-  font-size: 12px;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-  color: #cbd5e1;
-}
-
-.pl-light .pl-pct {
-  color: #475569;
-}
-
-.pl-skip {
-  margin-top: 16px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #475569;
-}
-
-.pl-light .pl-skip {
-  color: #94a3b8;
-}
-
-@keyframes pl-letter {
-  from { opacity: 0; transform: translateY(16px); }
-  to { opacity: 1; transform: none; }
-}
-
-@keyframes pl-logo-float {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-5px) scale(1.06); }
-}
-
-/* ================================================================
-   HOME ROOT
-================================================================ */
-.fcl-universe.fu-hidden {
-  display: none;
-}
-
-.fcl-universe {
-  --site-nav-h: 76px;
-  --fu-bg: #f4f7fc;
-  --fu-text: #14213b;
-  --fu-muted: #64748b;
-  --fu-line: rgba(51, 65, 85, .12);
-  --fu-panel: rgba(255, 255, 255, .7);
-  --fu-petal: #ffffff;
-  --fu-core: #ffffff;
-  --fu-field: rgba(255, 255, 255, .86);
-  --fu-shadow: 0 18px 50px -25px rgba(30, 58, 138, .24);
-  --fu-grid: rgba(30, 64, 175, .055);
-  --fu-accent: #60a5fa;
-  --fu-blue: #1d4ed8;
-  --fu-amber: #b45309;
-  --fu-pill: rgba(255, 255, 255, .96);
-  --fu-frame: #ffffff;
-
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  background: var(--fu-bg);
-  color: var(--fu-text);
-  font-family: inherit;
-  transition: background .3s, color .3s;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.fcl-universe.fu-dark {
-  --fu-bg: #050914;
-  --fu-text: #f1f5ff;
-  --fu-muted: #94a3bd;
-  --fu-line: rgba(148, 163, 184, .15);
-  --fu-panel: rgba(10, 18, 34, .66);
-  --fu-petal: #101b30;
-  --fu-core: #0b1426;
-  --fu-field: rgba(9, 17, 32, .9);
-  --fu-shadow: 0 25px 65px -25px rgba(0, 0, 0, .65);
-  --fu-grid: rgba(148, 163, 184, .045);
-  --fu-blue: #93c5fd;
-  --fu-amber: #f59e0b;
-  --fu-pill: rgba(11, 18, 32, .9);
-  --fu-frame: #080d17;
-}
-
-.fcl-universe *,
-.fcl-universe *::before,
-.fcl-universe *::after {
-  box-sizing: border-box;
-}
-
-.fcl-universe button,
-.fcl-universe input {
-  font: inherit;
-}
-
-.fcl-universe button,
-.fcl-universe a {
-  touch-action: manipulation;
-}
-
-.fcl-universe button {
-  cursor: pointer;
-}
-
-.fcl-universe a {
-  text-decoration: none;
-  color: inherit;
-}
-
-.fcl-universe button:focus-visible,
-.fcl-universe a:focus-visible,
-.fcl-universe input:focus-visible {
-  outline: 3px solid #3b82f6;
-  outline-offset: 4px;
-}
-
-.fu-background {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: -1;
-}
-
-.fu-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--fu-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--fu-grid) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: radial-gradient(ellipse at center, black, transparent 80%);
-}
-
-.fu-glow {
-  position: absolute;
-  width: 400px;
-  height: 400px;
-  border-radius: 50%;
-  filter: blur(100px);
-  opacity: .12;
-}
-
-.fu-glow-a {
-  background: #2563eb;
-  top: -140px;
-  left: 10%;
-}
-
-.fu-glow-b {
-  background: #9333ea;
-  bottom: -200px;
-  right: 5%;
-}
-
-.fu-square {
-  position: absolute;
-  border: 1px solid rgba(96, 165, 250, .2);
-  border-radius: 27%;
-  background: linear-gradient(135deg, #3b82f633, #a855f71a);
-  filter: blur(8px);
-  animation: fu-float 13s ease-in-out infinite;
-}
-
-.fu-square-a {
-  width: 115px;
-  height: 115px;
-  top: 18%;
-  left: 4%;
-  --rotation: 20deg;
-}
-
-.fu-square-b {
-  width: 150px;
-  height: 150px;
-  right: 3%;
-  bottom: 10%;
-  --rotation: -22deg;
-  animation-delay: -5s;
-}
-
-.fu-square-c {
-  width: 65px;
-  height: 65px;
-  top: 8%;
-  right: 30%;
-  --rotation: 35deg;
-  animation-delay: -9s;
-}
-
-.fu-shell {
-  width: min(1220px, 100%);
-  margin: 0 auto;
-  padding: calc(var(--site-nav-h) + 16px) 26px 12px;
-}
-
-.fcl-universe kbd {
-  border: 1px solid var(--fu-line);
-  border-radius: 5px;
-  padding: 2px 5px;
-  font-family: inherit;
-  font-size: 10px;
-  color: var(--fu-muted);
-}
-
-/* ================================================================
-   HERO
-================================================================ */
-
-.fh-hero {
-  position: relative;
-  margin-bottom: 22px;
-}
-
-.fh-mob {
-  display: none;
-}
-
-.fh-orb {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-  filter: blur(70px);
-  transition: transform .4s ease-out;
-}
-
-.fh-orb-a {
-  width: 340px;
-  height: 340px;
-  right: -60px;
-  top: -80px;
-  background: #7c3aed;
-  opacity: .16;
-  transform: translate3d(calc(var(--px, 0) * -34px), calc(var(--py, 0) * -22px), 0);
-}
-
-.fh-orb-b {
-  width: 280px;
-  height: 280px;
-  left: -60px;
-  bottom: -40px;
-  background: #1877f2;
-  opacity: .16;
-  transform: translate3d(calc(var(--px, 0) * 28px), calc(var(--py, 0) * 20px), 0);
-}
-
-.fh-desk-grid {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
-  align-items: center;
-  gap: 34px;
-  padding: 6px 12px 0 0;
-}
-
-.fh-copy {
-  min-width: 0;
-}
-
-.fh-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  border: 1px solid #1877f24d;
-  border-radius: 999px;
-  background: #1877f21a;
-  color: var(--fu-blue);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .26em;
-  backdrop-filter: blur(12px);
-}
-
-.fh-title {
-  margin: 16px 0 0;
-  font-size: clamp(30px, 4.6vw, 60px);
-  line-height: .98;
-  letter-spacing: -.045em;
-  font-weight: 950;
-  color: var(--fu-text);
-}
-
-.fh-line {
-  display: block;
-}
-
-.fh-tag {
-  display: block;
-  margin-top: 12px;
-  font-size: .38em;
-  line-height: 1.3;
-  font-weight: 800;
-  letter-spacing: -.02em;
-  color: var(--fu-amber);
-}
-
-.fh-zoom {
-  display: inline-block;
-  font-size: 1.45em;
-  font-weight: 950;
-  letter-spacing: -.04em;
-  background: linear-gradient(90deg, #1d4ed8, #0891b2, #d97706, #7c3aed, #1d4ed8);
-  background-size: 300% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: fh-color-shift 4s ease infinite, fh-zoom-pulse 2.5s ease-in-out infinite;
-}
-
-.fu-dark .fh-zoom {
-  background-image: linear-gradient(90deg, #60a5fa, #22d3ee, #f59e0b, #8b5cf6, #60a5fa);
-}
-
-.fh-wd {
-  display: inline-block;
-  opacity: 0;
-  animation: fh-wd .8s cubic-bezier(.2, .9, .2, 1) both;
+  animation: fcl-wd .8s cubic-bezier(.2,.9,.2,1) both;
   animation-delay: calc(var(--i, 0) * 90ms + 150ms);
 }
-
-.fh-grad {
-  background: linear-gradient(90deg, #2563eb, #1877f2, #7c3aed, #06b6d4, #2563eb);
+.fcl-grad {
+  background: linear-gradient(90deg, #2563eb, #1877F2, #7c3aed, #06b6d4, #2563eb);
   background-size: 250% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  animation: fh-wd .8s cubic-bezier(.2, .9, .2, 1) both, fh-gshift 6s ease-in-out infinite;
+  animation: fcl-wd .8s cubic-bezier(.2,.9,.2,1) both, fcl-gshift 6s ease-in-out infinite;
   animation-delay: calc(var(--i, 0) * 90ms + 150ms), 0s;
 }
-
-.fh-rotator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 14px;
-  font-size: 20px;
-  font-weight: 900;
-}
-
-.fh-rotator > span:first-child {
-  color: var(--fu-muted);
-  font-weight: 700;
-}
-
-.fh-rotator.is-small {
-  margin-top: 10px;
-  font-size: 15px;
-}
-
-.fh-rot {
+.fcl-zoom-text {
+  background: linear-gradient(90deg, #60a5fa, #22d3ee, #f59e0b, #8b5cf6, #60a5fa);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: fcl-color-shift 4s ease infinite, fcl-zoom-pulse 2.5s ease-in-out infinite;
   display: inline-block;
-  height: 1.35em;
-  min-width: 9.5ch;
-  overflow: hidden;
-  line-height: 1.35em;
-  vertical-align: bottom;
-  text-shadow: 0 0 22px currentColor;
 }
-
-.fh-rot-w {
-  display: inline-block;
-  animation: fh-rot 2200ms both;
+.fcl-light .fcl-zoom-text {
+  background: linear-gradient(90deg, #1d4ed8, #0891b2, #d97706, #7c3aed, #1d4ed8);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
 }
+.fcl-rot { display: inline-block; overflow: hidden; height: 1.35em; line-height: 1.35em; vertical-align: bottom; min-width: 7.5ch; text-shadow: 0 0 22px currentColor; }
+.fcl-rot-w { display: inline-block; animation: fcl-rot 2200ms both; }
 
-.fh-text {
-  max-width: 480px;
-  margin: 12px 0 0;
-  font-size: 13px;
-  line-height: 1.85;
-  color: var(--fu-muted);
+/* ============ BACKGROUND ============ */
+.fcl-grid-bg {
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 90%);
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 40%, transparent 90%);
 }
-
-.fh-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.fh-magnetic {
-  transition: transform .25s cubic-bezier(.2, .8, .2, 1);
-}
-
-.fh-rel {
-  position: relative;
-}
-
-.fh-btn-primary {
-  position: relative;
-  overflow: hidden;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 13px 24px;
-  border: 0;
-  border-radius: 14px;
-  background: linear-gradient(135deg, #1877f2, #5b5bf0);
-  color: #fff !important;
-  font-size: 13px;
-  font-weight: 800;
-  box-shadow: 0 14px 40px -10px rgba(24, 119, 242, .6);
-  transition: filter .2s, box-shadow .2s, transform .2s;
-}
-
-.fh-btn-primary:hover {
-  filter: brightness(1.1);
-  box-shadow: 0 18px 48px -8px rgba(24, 119, 242, .75);
-}
-
-.fh-btn-shine {
+.fcl-orb-a { animation: float-a 11s ease-in-out infinite; }
+.fcl-orb-b { animation: float-b 13s ease-in-out infinite; }
+.par-a { transform: translate3d(calc(var(--px, 0) * -34px), calc(var(--py, 0) * -22px), 0); transition: transform .4s ease-out; }
+.par-b { transform: translate3d(calc(var(--px, 0) * 28px), calc(var(--py, 0) * 20px), 0); transition: transform .4s ease-out; }
+.sq {
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 40%;
-  background: rgba(255, 255, 255, .28);
-  animation: fh-shine 3.2s ease-in-out infinite;
+  border-radius: 32px;
+  background: linear-gradient(135deg, rgba(24,119,242,.2), rgba(124,58,237,.16));
+  filter: blur(14px);
+  animation: fcl-sq 16s ease-in-out infinite;
+  pointer-events: none;
 }
+.sq-1 { width: 120px; height: 120px; left: 6%; top: 14%; --r: 14deg; }
+.sq-2 { width: 90px; height: 90px; right: 8%; bottom: 20%; --r: -18deg; animation-delay: -5s; }
+.sq-3 { width: 70px; height: 70px; left: 46%; top: 8%; --r: 30deg; animation-delay: -9s; }
 
-.fh-btn-play {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 13px 22px;
-  border-radius: 14px;
-  font-size: 13px;
-  font-weight: 800;
-  transition: background .2s, color .2s, transform .2s;
-  border: 1px solid rgba(34, 197, 94, .45);
-  background: rgba(34, 197, 94, .1);
-  color: var(--fu-text);
-}
-
-.fh-btn-play:hover {
-  background: rgba(34, 197, 94, .22);
-}
-
-.fh-btn-primary:active,
-.fh-btn-play:active {
-  transform: scale(.96);
-}
-
-.fh-live {
-  display: inline-block;
-  flex-shrink: 0;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #22c55e;
-  animation: fh-live-ring 1.6s ease-out infinite;
-}
-
-/* hero art */
-
-.fh-stage {
-  position: relative;
-  height: 360px;
-  width: 100%;
-  perspective: 1100px;
-}
-
-.fh-tilt {
-  position: absolute;
-  inset: 0;
+/* ============ HERO ART ============ */
+.hero-stage { perspective: 1100px; }
+.hero-tilt {
   transform-style: preserve-3d;
   transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
   transition: transform .25s ease-out;
 }
-
-.fh-ring {
+.z1 { transform: translateZ(46px); }
+.z2 { transform: translateZ(76px); }
+.fcl-ring {
   position: relative;
-  width: 100%;
-  height: 100%;
   overflow: hidden;
+  border-radius: var(--rr, 2.5rem);
   padding: 2px;
-  border-radius: var(--rr, 2.2rem);
-  box-shadow: 0 30px 80px rgba(15, 23, 42, .16);
+  box-shadow: var(--frame-shadow);
 }
-
-.fu-dark .fh-ring {
-  box-shadow: 0 40px 100px rgba(0, 0, 0, .6);
-}
-
-.fh-ring::before {
+.fcl-ring::before {
   content: "";
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: 50%; top: 50%;
   width: 220%;
   aspect-ratio: 1;
   translate: -50% -50%;
-  background: conic-gradient(from 0deg, transparent 0 55%, #1877f2, #22d3ee, #a855f7, transparent 100%);
-  animation: fh-spin 6s linear infinite;
+  background: conic-gradient(from 0deg, transparent 0 55%, #1877F2, #22d3ee, #a855f7, transparent 100%);
+  animation: fcl-spin 6s linear infinite;
 }
-
-.fh-ring-in {
+.fcl-ring-in {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
   overflow: hidden;
-  padding: 12px;
-  border-radius: calc(var(--rr, 2.2rem) - 2px);
-  background: var(--fu-frame);
+  border-radius: calc(var(--rr, 2.5rem) - 2px);
+  background: var(--frame-bg);
 }
+.fcl-chip { animation: chip-float 5s ease-in-out infinite; }
+.fcl-chip-delay { animation-delay: 1.4s; }
+.fcl-pop { animation: fcl-pop .45s cubic-bezier(.2,1.4,.4,1) both; }
+.fcl-live { display: inline-block; animation: fcl-live-ring 1.6s ease-out infinite; }
 
-.fh-ring-in img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center;
+/* ============ BUTTONS ============ */
+.btn-primary {
+  position: relative; overflow: hidden; display: inline-flex; align-items: center;
+  padding: 14px 28px; border-radius: 14px; font-size: 14px; font-weight: 800; color: #fff;
+  background: linear-gradient(135deg, #1877F2, #5b5bf0);
+  box-shadow: 0 14px 40px -10px rgba(24,119,242,.6);
+  transition: filter .2s, box-shadow .2s;
 }
-
-.fh-z1,
-.fh-z2 {
-  position: absolute;
+.btn-primary:hover { filter: brightness(1.1); box-shadow: 0 18px 48px -8px rgba(24,119,242,.75); }
+.btn-shine { position: absolute; inset: 0 auto 0 0; width: 40%; background: rgba(255,255,255,.28); animation: fcl-shine 3.2s ease-in-out infinite; }
+.btn-play {
+  display: inline-flex; align-items: center; gap: 8px; padding: 14px 24px; border-radius: 14px;
+  font-size: 14px; font-weight: 800; color: var(--head);
+  border: 1px solid rgba(34,197,94,.45); background: rgba(34,197,94,.1);
+  transition: background .2s, transform .2s;
 }
-
-.fh-z1 { transform: translateZ(46px); }
-.fh-z2 { transform: translateZ(76px); }
-
-.fh-c1 { left: -22px; top: 26px; }
-.fh-c2 { right: -18px; top: 96px; }
-.fh-c3 { left: -22px; bottom: 62px; }
-.fh-c4 { right: -14px; bottom: 20px; }
-
-.fh-pill {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 14px;
-  border: 1px solid var(--fu-line);
-  border-radius: 16px;
-  background: var(--fu-pill);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, .12);
-  backdrop-filter: blur(14px);
+.btn-play:hover { background: rgba(34,197,94,.22); }
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 8px; padding: 14px 24px; border-radius: 14px;
+  font-size: 14px; font-weight: 800; color: var(--blue2);
+  border: 1px solid rgba(59,130,246,.4); background: rgba(59,130,246,.1);
+  transition: background .2s, color .2s;
 }
+.btn-ghost:hover { background: #1877F2; color: #fff; }
+.btn-primary:active, .btn-play:active, .btn-ghost:active { transform: scale(.96); }
 
-.fu-dark .fh-pill {
-  box-shadow: 0 20px 50px rgba(0, 0, 0, .5);
-}
-
-.fh-pill b {
-  display: block;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: .04em;
-  color: var(--fu-text);
-}
-
-.fh-pill small {
-  display: block;
-  font-size: 10px;
-  color: var(--fu-muted);
-}
-
-.fh-pill small.fh-blue {
-  font-weight: 800;
-  color: var(--fu-blue);
-}
-
-.fh-amber {
-  color: var(--fu-amber) !important;
-}
-
-.fh-float {
-  animation: fh-chip-float 5s ease-in-out infinite;
-}
-
-.fh-delay {
-  animation-delay: 1.4s;
-}
-
-.fh-ball {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.fh-ball.is-sm {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  font-size: 10px;
-}
-
-.fh-ball.k-next { background: #64748b99; }
-.fh-ball.k-w { background: #f43f5e; }
-.fh-ball.k-six { background: #f59e0b; }
-.fh-ball.k-four { background: #1877f2; }
-.fh-ball.k-dot { background: #64748b; }
-.fh-ball.k-run { background: #10b981; }
-
-.fh-pop {
-  display: inline-grid;
-  animation: fh-pop .45s cubic-bezier(.2, 1.4, .4, 1) both;
-}
-
-.fh-over {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 7px;
-}
-
-.fh-over-title {
-  font-size: 9px !important;
-  font-weight: 800;
-  letter-spacing: .16em;
-}
-
-.fh-over-balls {
-  display: flex;
-  gap: 6px;
-}
-
-.fh-dash {
-  width: 24px;
-  height: 24px;
-  border: 1px dashed rgba(100, 116, 139, .55);
-  border-radius: 50%;
-}
-
-.fh-need {
-  display: block;
-  min-width: 164px;
-  border-color: rgba(245, 158, 11, .4);
-}
-
-.fh-need-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.fh-need-row > span {
-  font-size: 14px;
-}
-
-.fh-need-track {
-  height: 6px;
-  margin: 7px 0 5px;
+/* ============ MARQUEE ============ */
+.mq {
   overflow: hidden;
-  border-radius: 99px;
-  background: rgba(100, 116, 139, .25);
-}
-
-.fh-need-track > div {
-  height: 100%;
-  border-radius: 99px;
-  background: linear-gradient(90deg, #fbbf24, #f43f5e);
-  transition: width .7s;
-}
-
-/* marquee */
-
-.fh-marquee {
-  position: relative;
-  margin-top: 22px;
-  padding: 11px 0 0;
-  overflow: hidden;
-  border-top: 1px solid var(--fu-line);
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
-
-.fh-marquee-track {
-  display: flex;
-  width: max-content;
-  animation: fh-marquee 55s linear infinite;
-}
-
-.fh-marquee:hover .fh-marquee-track {
-  animation-play-state: paused;
-}
-
-.fh-marquee-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-right: 10px;
-  padding: 7px 14px;
-  border: 1px solid color-mix(in srgb, var(--item-color) 40%, var(--fu-line));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--item-color) 8%, var(--fu-petal));
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
+.mq-track { display: flex; width: max-content; animation: fcl-marquee 48s linear infinite; }
+.mq:hover .mq-track { animation-play-state: paused; }
+.mq-item {
+  display: inline-flex; align-items: center; gap: 8px; margin-right: 10px; padding: 7px 14px;
+  border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; color: var(--head);
+  border: 1px solid color-mix(in srgb, var(--c) 40%, var(--line));
+  background: color-mix(in srgb, var(--c) 8%, var(--card-a));
   transition: transform .2s, background .2s;
 }
+.mq-item:hover { transform: translateY(-2px) scale(1.05); background: color-mix(in srgb, var(--c) 22%, var(--card-a)); }
 
-.fh-marquee-item:hover {
-  transform: translateY(-2px) scale(1.05);
-  background: color-mix(in srgb, var(--item-color) 22%, var(--fu-petal));
+/* ============ FILTER CHIPS ============ */
+.fchip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px;
+  font-size: 12px; font-weight: 800; white-space: nowrap; cursor: pointer;
+  border: 1px solid var(--line); background: var(--card-a); color: var(--text);
+  transition: all .25s;
 }
-
-/* ================================================================
-   FLOWER MENU LAYOUT
-================================================================ */
-
-.fu-dashboard {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 520px) minmax(0, 1fr);
-  align-items: center;
-  gap: 26px;
-  scroll-margin-top: calc(var(--site-nav-h) + 8px);
+.fchip:hover { transform: translateY(-1px); border-color: #1877F2; }
+.fchip.on {
+  background: linear-gradient(135deg, #1877F2, #7c3aed); color: #fff; border-color: transparent;
+  box-shadow: 0 8px 22px -8px rgba(24,119,242,.7);
 }
+.fchip b { font-size: 10px; padding: 1px 6px; border-radius: 99px; background: rgba(127,127,127,.2); }
 
-.fu-wing {
-  min-width: 0;
+/* ============ DESKTOP PORTAL CARD ============ */
+.pc {
+  --rx: 0deg; --ry: 0deg;
+  position: relative; display: flex; flex-direction: column; height: 100%; min-height: 190px;
+  padding: 18px; border-radius: 26px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--c) 30%, var(--line));
+  background: linear-gradient(160deg, var(--card-a), var(--card-b));
+  box-shadow: var(--card-shadow);
+  transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry));
+  transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s;
+  will-change: transform;
 }
-
-.fu-overline {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 8px;
-  line-height: 1.6;
-  letter-spacing: .13em;
-  font-weight: 850;
-  color: var(--fu-muted);
+.pc::before {
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity .3s;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), color-mix(in srgb, var(--c) 22%, transparent), transparent 45%);
 }
-
-.fu-overline i {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 12px #22c55e66;
+.pc::after {
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity .3s;
+  border-radius: inherit; padding: 1.5px;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 0%), var(--c), transparent 60%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
-
-.fu-wing-left h2 {
-  margin: 16px 0 12px;
-  font-size: clamp(26px, 2.8vw, 37px);
-  line-height: 1.45;
-  font-weight: 900;
+@media (hover: hover) {
+  .pc:hover {
+    transform: perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-6px);
+    box-shadow: 0 24px 50px -18px color-mix(in srgb, var(--c) 60%, transparent);
+  }
+  .pc:hover::before, .pc:hover::after { opacity: 1; }
+  .pc:hover .pc-ico { transform: rotate(-8deg) scale(1.14); }
+  .pc:hover .pc-water { transform: scale(1.18) rotate(-8deg); opacity: .2; }
+  .pc:hover .pc-arrow { transform: translateX(7px); }
 }
-
-.fu-wing-left h2 span {
-  color: #3b82f6;
+.pc:active { transform: perspective(900px) scale(.98); }
+.pc-body { position: relative; z-index: 2; display: flex; flex-direction: column; flex: 1; }
+.pc-water {
+  position: absolute; z-index: 0; right: -6px; bottom: -16px; font-size: 96px; line-height: 1; opacity: .09;
+  pointer-events: none; transition: transform .5s cubic-bezier(.2,.8,.2,1), opacity .5s;
 }
-
-.fu-wing p {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.9;
-  color: var(--fu-muted);
+.pc-ico {
+  display: grid; place-items: center; width: 46px; height: 46px; border-radius: 15px; font-size: 22px;
+  background: color-mix(in srgb, var(--c) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+  transition: transform .4s cubic-bezier(.3,1.6,.5,1);
 }
-
-.fu-counts {
-  display: flex;
-  align-items: center;
-  gap: 21px;
-  margin: 24px 0;
+.pc-badge {
+  font-size: 9px; font-weight: 900; letter-spacing: .08em; padding: 4px 9px; border-radius: 9px; white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  background: color-mix(in srgb, var(--c) 12%, transparent);
 }
-
-.fu-counts div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.pc-arrow { display: inline-block; transition: transform .3s; }
+.pc-xl { padding: 26px; }
+.pc-xl .pc-ico { width: 64px; height: 64px; font-size: 32px; border-radius: 21px; }
+.pc-xl .pc-water { font-size: 220px; right: -10px; bottom: -30px; opacity: .1; animation: fcl-icon-float 6s ease-in-out infinite; }
+.pc-wide .pc-water { font-size: 120px; }
+.pc-orbit {
+  position: absolute; z-index: 0; right: -70px; top: -70px; width: 260px; height: 260px; border-radius: 50%;
+  border: 1px dashed color-mix(in srgb, var(--c) 45%, transparent); animation: fcl-spin 18s linear infinite; pointer-events: none;
 }
-
-.fu-counts strong {
-  font-size: 28px;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -1px;
+.pc-orbit::after {
+  content: ""; position: absolute; inset: 40px; border-radius: 50%;
+  border: 1px dashed color-mix(in srgb, var(--c) 30%, transparent); animation: fcl-spin 12s linear infinite reverse;
 }
-
-.fu-counts div span {
-  font-size: 10px;
-  color: var(--fu-muted);
+.pc-orbit i {
+  position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--c); box-shadow: 0 0 16px var(--c);
 }
-
-.fu-count-divider {
-  width: 1px;
-  height: 32px;
-  background: var(--fu-line);
+.pc-online {
+  display: inline-flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 900; letter-spacing: .12em;
+  padding: 5px 11px; border-radius: 99px; border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+  background: color-mix(in srgb, var(--c) 10%, transparent);
 }
+.pc-cta {
+  position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 10px; margin-top: 18px;
+  padding: 12px 22px; border-radius: 15px; font-size: 13px; font-weight: 900; color: #fff;
+  background: linear-gradient(135deg, var(--c), color-mix(in srgb, var(--c) 55%, #7c3aed));
+  box-shadow: 0 14px 32px -10px var(--c);
+}
+.pc-cta-shine { position: absolute; inset: 0 auto 0 0; width: 40%; background: rgba(255,255,255,.3); animation: fcl-shine 3s ease-in-out infinite; }
 
-.fu-play-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  border: 1px solid #3b82f640;
-  background: linear-gradient(135deg, #1877f2, #6254e9);
-  color: white !important;
-  padding: 12px 15px;
-  border-radius: 14px;
-  font-size: 12px;
-  font-weight: 800;
-  box-shadow: 0 10px 28px -10px #1877f277;
+/* ============ MOBILE ============ */
+.mc {
+  position: relative; display: block; overflow: hidden; padding: 16px; border-radius: 24px; min-height: 176px;
+  border: 1px solid color-mix(in srgb, var(--c) 45%, var(--line));
+  background: linear-gradient(150deg, color-mix(in srgb, var(--c) 24%, var(--card-a)), var(--card-b));
+  box-shadow: var(--card-shadow);
   transition: transform .2s;
 }
-
-.fu-play-button:hover {
-  transform: translateY(-3px);
-}
-
-.fu-console {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--fu-line);
-  border-radius: 30px;
-  background: var(--fu-panel);
-  box-shadow: var(--fu-shadow);
-  backdrop-filter: blur(18px);
-}
-
-.fu-console-top,
-.fu-console-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 14px 18px;
-}
-
-.fu-console-top {
-  border-bottom: 1px solid var(--fu-line);
-}
-
-.fu-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  min-width: 0;
-}
-
-.fu-breadcrumb button {
-  border: 0;
-  padding: 2px 0;
-  background: transparent;
-  color: var(--fu-muted);
-  font-size: 11px;
-  font-weight: 850;
-}
-
-.fu-breadcrumb > span {
-  color: var(--fu-muted);
-  opacity: .5;
-}
-
-.fu-breadcrumb strong {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-weight: 750;
-}
-
-.fu-mode-label {
-  color: var(--fu-muted);
-  font-size: 7px;
-  font-weight: 850;
-  letter-spacing: .15em;
-  white-space: nowrap;
-}
-
-.fu-menu-content {
-  width: 100%;
-  aspect-ratio: 1;
-  position: relative;
-}
-
-.fu-flower {
-  --pointer-x: 50%;
-  --pointer-y: 50%;
-  position: relative;
-  width: 100%;
-  height: 100%;
-  isolation: isolate;
-}
-
-.fu-cursor-light {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(
-      170px circle at var(--pointer-x) var(--pointer-y),
-      color-mix(in srgb, var(--fu-accent) 10%, transparent),
-      transparent 75%
-    );
-  pointer-events: none;
-}
-
-.fu-orbit {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.fu-orbit-outer {
-  inset: 9%;
-  border: 1px dashed var(--fu-line);
-  animation: fu-spin 90s linear infinite;
-}
-
-.fu-orbit-inner {
-  inset: 28%;
-  border: 1px solid var(--fu-line);
-  box-shadow: 0 0 35px color-mix(in srgb, var(--fu-accent) 6%, transparent);
-}
-
-.fu-orbit-runner {
-  position: absolute;
-  inset: 9%;
-  border-radius: 50%;
-  animation: fu-spin 17s linear infinite;
-  pointer-events: none;
-}
-
-.fu-orbit-runner i {
-  position: absolute;
-  left: 50%;
-  top: -3px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--fu-accent);
-  box-shadow: 0 0 12px var(--fu-accent);
-}
-
-.fu-connectors {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: var(--fu-accent);
-  stroke-width: 1;
-  opacity: .2;
-  pointer-events: none;
-}
-
-.fu-connectors path {
-  stroke-dasharray: 4 9;
-  animation: fu-flow 6s linear infinite;
-}
-
-.fu-connectors circle {
-  opacity: .35;
-}
-
-.fu-core {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 23%;
-  aspect-ratio: 1;
-  z-index: 4;
-  padding: 6px;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--fu-accent) 48%, transparent);
-  background: var(--fu-core);
-  color: var(--fu-text);
-  box-shadow:
-    0 0 0 8px color-mix(in srgb, var(--fu-accent) 5%, transparent),
-    0 0 45px color-mix(in srgb, var(--fu-accent) 16%, transparent);
-  transition: box-shadow .3s, border-color .3s;
-}
-
-.fu-core:hover {
-  box-shadow:
-    0 0 0 11px color-mix(in srgb, var(--fu-accent) 8%, transparent),
-    0 0 50px color-mix(in srgb, var(--fu-accent) 25%, transparent);
-}
-
-.fu-core:active {
-  transform: translate(-50%, -50%) scale(.94);
-}
-
-.fu-core-halo {
-  position: absolute;
-  inset: -4px;
-  border: 2px solid transparent;
-  border-top-color: var(--fu-accent);
-  border-bottom-color: color-mix(in srgb, var(--fu-accent) 35%, transparent);
-  border-radius: 50%;
-  animation: fu-spin 9s linear infinite;
-}
-
-.fu-core-inner {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  gap: 3px;
-}
-
-.fu-core img {
-  display: block;
-  width: 57%;
-  height: auto;
-  aspect-ratio: 1;
-  object-fit: contain;
-  filter: drop-shadow(0 3px 9px #3b82f635);
-}
-
-.fu-core-inner > span {
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: .15em;
-  color: var(--fu-muted);
-}
-
-.fu-logo-fallback {
-  font-size: 29px;
-  font-style: italic;
-  color: #3b82f6;
-}
-
-.fu-petals {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.fu-petal-position {
-  position: absolute;
-  width: 28%;
-  height: 23%;
-  transform: translate(-50%, -50%);
-  pointer-events: auto;
-  z-index: 2;
-}
-
-.fu-position-0 { left: 50%; top: 17%; }
-.fu-position-1 { left: 83%; top: 50%; }
-.fu-position-2 { left: 50%; top: 83%; }
-.fu-position-3 { left: 17%; top: 50%; }
-
-.fu-petal {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  overflow: hidden;
-  width: 100%;
-  height: 100%;
-  padding: 9px 5px;
-  border: 1px solid color-mix(in srgb, var(--item-color) 38%, var(--fu-line));
-  background:
-    linear-gradient(
-      145deg,
-      color-mix(in srgb, var(--item-color) 13%, var(--fu-petal)),
-      var(--fu-petal)
-    );
-  color: var(--fu-text);
-  box-shadow:
-    0 12px 25px -17px color-mix(in srgb, var(--item-color) 70%, transparent),
-    inset 0 1px 0 rgba(255,255,255,.08);
-  animation: fu-bloom .6s cubic-bezier(.2,.85,.2,1) both;
-  animation-delay: var(--delay);
-  transition: border-color .2s, box-shadow .2s, filter .2s;
-}
-
-.fu-position-0 .fu-petal { border-radius: 35% 35% 28% 28%; --from-x: 0px; --from-y: 65px; }
-.fu-position-1 .fu-petal { border-radius: 28% 38% 38% 28%; --from-x: -65px; --from-y: 0px; }
-.fu-position-2 .fu-petal { border-radius: 28% 28% 35% 35%; --from-x: 0px; --from-y: -65px; }
-.fu-position-3 .fu-petal { border-radius: 38% 28% 28% 38%; --from-x: 65px; --from-y: 0px; }
-
-.fu-petal-icon {
-  display: grid;
-  place-items: center;
-  font-size: clamp(23px, 2.3vw, 31px);
-  line-height: 1;
-  transition: transform .3s cubic-bezier(.2,1.5,.4,1);
-}
-
-.fu-petal strong {
-  position: relative;
-  font-size: 13px;
-  font-weight: 850;
-  line-height: 1.35;
-  text-align: center;
-}
-
-.fu-petal small {
-  position: relative;
-  font-size: 9px;
-  font-weight: 650;
-  color: var(--fu-muted);
-}
-
-.fu-petal-shine {
-  position: absolute;
-  width: 45%;
-  height: 180%;
-  top: -40%;
-  left: -80%;
-  transform: rotate(25deg);
-  background: linear-gradient(90deg, transparent, #ffffff16, transparent);
-  transition: left .65s;
-  pointer-events: none;
-}
-
-@media (hover: hover) {
-  .fu-petal:hover {
-    border-color: var(--item-color);
-    box-shadow:
-      0 0 25px -9px var(--item-color),
-      inset 0 0 20px color-mix(in srgb, var(--item-color) 9%, transparent);
-    filter: brightness(1.05);
-  }
-
-  .fu-petal:hover .fu-petal-icon {
-    transform: translateY(-3px) rotate(-8deg) scale(1.12);
-  }
-
-  .fu-petal:hover .fu-petal-shine {
-    left: 145%;
-  }
-}
-
-.fu-petal:active .fu-petal-icon {
-  transform: scale(.82);
-}
-
-.fu-petal:active {
-  filter: brightness(1.16);
-}
-
-.fu-back-petal {
-  border-style: dashed;
-  background: var(--fu-panel);
-  box-shadow: none;
-}
-
-.fu-back-petal .fu-petal-icon {
-  width: 29px;
-  height: 29px;
-  border: 1px solid var(--fu-line);
-  border-radius: 50%;
-}
-
-.fu-console-bottom {
-  padding-top: 12px;
-  padding-bottom: 12px;
-  border-top: 1px solid var(--fu-line);
-}
-
-.fu-instruction {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--fu-muted);
-  font-size: 10px;
-  line-height: 1.5;
-}
-
-.fu-instruction > span {
-  color: #3b82f6;
-  font-size: 15px;
-}
-
-.fu-step {
-  font-size: 8px;
-  font-weight: 850;
-  letter-spacing: .1em;
-  color: var(--fu-muted);
-  white-space: nowrap;
-}
-
-.fu-preview {
-  animation: fu-preview-in .3s ease-out both;
-}
-
-.fu-preview-icon {
-  display: grid;
-  place-items: center;
-  width: 54px;
-  height: 54px;
-  margin-bottom: 16px;
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--fu-accent) 30%, transparent);
-  background: color-mix(in srgb, var(--fu-accent) 10%, transparent);
-  color: var(--fu-accent);
-  font-size: 27px;
-}
-
-.fu-preview h2 {
-  margin: 9px 0;
-  font-size: 23px;
-  font-weight: 850;
-  line-height: 1.5;
-}
-
-.fu-preview-list {
-  display: grid;
-  gap: 8px;
-  margin-top: 17px;
-}
-
-.fu-preview-list > a,
-.fu-preview-list > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 38px;
-  padding: 8px 9px;
-  border: 1px solid var(--fu-line);
-  border-radius: 11px;
-  font-size: 10px;
-  background: var(--fu-panel);
-}
-
-.fu-preview-list > a:hover {
-  border-color: var(--fu-accent);
-}
-
-.fu-preview-list > a > span:last-child {
-  margin-left: auto;
-  color: var(--fu-muted);
-}
-
-.fu-preview-list > div > span {
-  color: #3b82f6;
-  font-weight: 850;
-  font-size: 10px;
-}
-
-.fu-key-hint {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 20px;
-  color: var(--fu-muted);
-  font-size: 9px;
-}
-
-.fu-directory {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 15px;
-  animation: fu-preview-in .25s ease-out;
-}
-
-.fu-search-field {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  gap: 8px;
-  padding: 7px 10px;
-  border: 1px solid #3b82f655;
-  background: var(--fu-field);
-  border-radius: 12px;
-  color: var(--fu-muted);
-}
-
-.fu-search-field input {
-  width: 100%;
-  min-width: 0;
-  padding: 5px 0;
-  border: 0;
-  background: transparent;
-  color: var(--fu-text);
-  font-size: 13px;
-  outline: none;
-}
-
-.fu-search-field input::placeholder {
-  color: var(--fu-muted);
-  opacity: .8;
-}
-
-.fu-search-field button {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 27px;
-  height: 27px;
-  padding: 0;
-  border: 1px solid var(--fu-line);
-  border-radius: 8px;
-  background: var(--fu-panel);
-  color: var(--fu-muted);
-  font-size: 11px;
-}
-
-.fu-result-heading {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 12px 1px 9px;
-  font-size: 9px;
-  color: var(--fu-muted);
-}
-
-.fu-results {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: start;
-  gap: 7px;
-  overflow-y: auto;
-  padding: 3px;
-  scrollbar-width: thin;
-  scrollbar-color: #3b82f655 transparent;
-}
-
-.fu-result {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  min-height: 50px;
-  padding: 9px;
-  background: var(--fu-field);
-  border: 1px solid var(--fu-line);
-  border-radius: 12px;
-  transition: border-color .2s, background .2s;
-}
-
-.fu-result:hover {
-  border-color: var(--item-color);
-  background: color-mix(in srgb, var(--item-color) 9%, var(--fu-field));
-}
-
-.fu-result-icon {
-  font-size: 22px;
-  flex-shrink: 0;
-}
-
-.fu-result-copy {
-  min-width: 0;
-}
-
-.fu-result-copy strong {
-  display: block;
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.fu-result-copy small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 8px;
-  margin-top: 2px;
-  color: var(--fu-muted);
-}
-
-.fu-result-arrow {
-  margin-left: auto;
-  color: var(--fu-muted);
-  font-size: 12px;
-}
-
-.fu-directory-back {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: auto;
-  padding: 10px 4px 0;
-  flex-shrink: 0;
-  border: 0;
-  background: transparent;
-  color: var(--fu-muted);
-  font-size: 11px !important;
-}
-
-.fu-empty {
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 13px;
-  margin: auto;
-  padding: 15px;
-  text-align: center;
-}
-
-.fu-empty > span {
-  font-size: 30px;
-}
-
-.fu-empty strong {
-  font-size: 13px;
-}
-
-.fu-empty button {
-  padding: 7px 14px;
-  border: 1px solid #3b82f655;
-  border-radius: 9px;
-  background: #3b82f612;
-  color: var(--fu-text);
-  font-size: 11px;
-}
-
-/* মোবাইল ডক — ডিফল্টে লুকানো, শুধু মোবাইলে দেখায় */
-.fu-dock {
-  display: none;
-}
-
-.fu-footer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  margin-top: 8px;
-  padding-top: 4px;
-  border-top: none;
-  color: var(--fu-muted);
-  font-size: 8px;
-  letter-spacing: .08em;
-}
-
-.fu-footer b {
-  color: #3b82f6;
-}
-
-.fu-footer-desktop {
-  display: none !important;
-}
-
-/* পিসি ভিউতে অতিরিক্ত কপিরাইট লাইনটি হাইড (মোবাইলে দেখাবে) */
-@media (min-width: 761px) {
-  .fu-footer-desktop {
-    display: none !important;
-  }
-}
-
-.fu-spark-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.fu-burst {
-  position: absolute;
-  width: 0;
-  height: 0;
-}
-
-.fu-burst i {
-  position: absolute;
-  left: -2px;
-  top: -2px;
-  width: 4px;
-  height: 7px;
-  border-radius: 3px;
-  background: var(--spark-color);
-  box-shadow: 0 0 7px var(--spark-color);
-  animation: fu-spark .65s cubic-bezier(.1,.6,.3,1) both;
-}
-
-.fu-spark-ring {
-  position: absolute;
-  left: -11px;
-  top: -11px;
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--spark-color);
-  border-radius: 50%;
-  animation: fu-ring .6s ease-out both;
-}
-
-.fu-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0,0,0,0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* ================================================================
-   KEYFRAMES
-================================================================ */
-
-@keyframes fu-spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes fu-flow {
-  to { stroke-dashoffset: -78; }
-}
-
-@keyframes fu-float {
-  0%, 100% {
-    transform: translate(0,0) rotate(var(--rotation, 15deg));
-  }
-  50% {
-    transform: translate(15px,-20px) rotate(calc(var(--rotation, 15deg) + 12deg));
-  }
-}
-
-@keyframes fu-bloom {
-  from {
-    opacity: 0;
-    transform: translate(var(--from-x),var(--from-y)) scale(.38) rotate(-12deg);
-  }
-  to {
-    opacity: 1;
-    transform: translate(0,0) scale(1) rotate(0);
-  }
-}
-
-@keyframes fu-preview-in {
-  from { opacity: 0; transform: translateY(7px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fu-spark {
-  0% {
-    opacity: 1;
-    transform: translate(0,0) rotate(var(--turn)) scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--dx),var(--dy)) rotate(var(--turn)) scale(.1);
-  }
-}
-
-@keyframes fu-ring {
-  from { opacity: .8; transform: scale(.3); }
-  to { opacity: 0; transform: scale(3.2); }
-}
-
-@keyframes fh-spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes fh-wd {
-  from { opacity: 0; transform: translateY(46px) rotate(5deg); filter: blur(8px); }
-  to { opacity: 1; transform: none; filter: blur(0); }
-}
-
-@keyframes fh-gshift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
-@keyframes fh-color-shift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-@keyframes fh-zoom-pulse {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(34,211,238,.5)); }
-  50% { transform: scale(1.14); filter: drop-shadow(0 0 22px rgba(34,211,238,.9)); }
-}
-
-@keyframes fh-rot {
-  0% { opacity: 0; transform: translateY(100%); }
-  12%, 88% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-100%); }
-}
-
-@keyframes fh-pop {
-  0% { transform: scale(.4); opacity: 0; }
-  60% { transform: scale(1.18); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-@keyframes fh-chip-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-9px); }
-}
-
-@keyframes fh-shine {
-  0% { transform: translateX(-130%) skewX(-15deg); }
-  55%, 100% { transform: translateX(380%) skewX(-15deg); }
-}
-
-@keyframes fh-live-ring {
-  0% { box-shadow: 0 0 0 0 rgba(34,197,94,.6); }
-  100% { box-shadow: 0 0 0 12px rgba(34,197,94,0); }
-}
-
-@keyframes fh-marquee {
-  to { transform: translateX(-50%); }
-}
-
-/* ================================================================
-   TABLET
-================================================================ */
-
-@media (min-width: 761px) and (max-width: 1050px) {
-  .fu-shell {
-    max-width: 900px;
-    padding: calc(var(--site-nav-h) + 16px) 18px 18px;
-  }
-
-  .fh-desk-grid {
-    gap: 24px;
-  }
-
-  .fh-stage {
-    height: 300px;
-  }
-
-  .fh-c1, .fh-c3 { left: -10px; }
-  .fh-c2, .fh-c4 { right: -8px; }
-
-  .fu-dashboard {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 480px);
-    gap: 28px;
-  }
-
-  .fu-wing-right {
-    display: none;
-  }
-}
-
-/* ================================================================
-   MOBILE APP LAYOUT
-================================================================ */
-
-@media (max-width: 760px) {
-  .fcl-universe {
-    --site-nav-h: 64px;
-  }
-
-  .pl-title {
-    font-size: 21px;
-  }
-
-  .fu-shell {
-    max-width: 460px;
-    padding: calc(var(--site-nav-h) + 12px) 12px max(12px, env(safe-area-inset-bottom));
-  }
-
-  .fh-desk {
-    display: none;
-  }
-
-  .fh-mob {
-    display: block;
-    margin-bottom: 14px;
-  }
-
-  .fh-badge {
-    padding: 6px 11px;
-    font-size: 8px;
-    letter-spacing: .2em;
-  }
-
-  .fh-title {
-    margin-top: 12px;
-    font-size: 30px;
-  }
-
-  .fh-mob-art {
-    position: relative;
-    margin-top: 14px;
-  }
-
-  .fh-mob-art .fh-ring {
-    height: auto;
-  }
-
-  .fh-mob-art .fh-ring-in {
-    padding: 0;
-  }
-
-  .fh-mob-art .fh-ring-in img {
-    height: 175px;
-    object-fit: cover;
-  }
-
-  .fh-mlive {
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 8px 11px;
-    border: 1px solid var(--fu-line);
-    border-radius: 16px;
-    background: var(--fu-pill);
-    backdrop-filter: blur(14px);
-  }
-
-  .fh-mlive-copy {
-    min-width: 0;
-    flex: 1;
-  }
-
-  .fh-mlive-copy b {
-    display: block;
-    font-size: 10px;
-    font-weight: 900;
-    line-height: 1.2;
-    color: var(--fu-text);
-  }
-
-  .fh-mlive-copy small {
-    display: block;
-    margin-top: 2px;
-    font-size: 9px;
-    font-weight: 800;
-  }
-
-  .fh-mob-actions {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr;
-    gap: 9px;
-    margin-top: 12px;
-  }
-
-  .fh-mob-actions .fh-btn-primary,
-  .fh-mob-actions .fh-btn-play {
-    padding: 12px 10px;
-    font-size: 13px;
-  }
-
-  .fu-dashboard {
-    display: block;
-    scroll-margin-top: calc(var(--site-nav-h) + 4px);
-  }
-
-  .fu-wing {
-    display: none;
-  }
-
-  .fu-console {
-    border-radius: 24px;
-  }
-
-  .fu-console-top {
-    padding: 12px 13px;
-  }
-
-  .fu-console-bottom {
-    padding: 10px 12px;
-  }
-
-  .fu-breadcrumb {
-    font-size: 10px;
-  }
-
-  .fu-mode-label {
-    font-size: 6px;
-    letter-spacing: .12em;
-  }
-
-  .fu-petal {
-    gap: 5px;
-    padding: 7px 3px;
-  }
-
-  .fu-petal strong {
-    font-size: clamp(10px, 3vw, 12px);
-    line-height: 1.35;
-  }
-
-  .fu-petal small {
-    font-size: 7px;
-  }
-
-  .fu-petal-icon {
-    font-size: clamp(23px, 6.3vw, 28px);
-  }
-
-  .fu-core {
-    padding: 4px;
-  }
-
-  .fu-core-inner {
-    gap: 2px;
-  }
-
-  .fu-core-inner > span {
-    font-size: 6px;
-  }
-
-  .fu-logo-fallback {
-    font-size: 22px;
-  }
-
-  .fu-instruction {
-    font-size: 8px;
-    gap: 4px;
-  }
-
-  .fu-instruction > span {
-    font-size: 12px;
-  }
-
-  .fu-step {
-    font-size: 7px;
-  }
-
-  /* 📱 মোবাইল ডক (৪টি বাটন) */
-  .fu-dock {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
-    margin-top: 12px;
-    padding: 6px;
-    border: 1px solid var(--fu-line);
-    border-radius: 18px;
-    background: var(--fu-panel);
-    backdrop-filter: blur(18px);
-    box-shadow: var(--fu-shadow);
-  }
-
-  .fu-dock button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    min-width: 0;
-    min-height: 51px;
-    padding: 6px 2px;
-    border: 1px solid transparent;
-    border-radius: 13px;
-    background: transparent;
-    color: var(--fu-muted);
-    transition: background .2s, border-color .2s, transform .15s, color .2s;
-  }
-
-  .fu-dock button:active {
-    transform: scale(.94);
-  }
-
-  .fu-dock button > span:first-child {
-    font-size: 19px;
-    line-height: 1;
-    transition: transform .25s cubic-bezier(.2,1.5,.4,1);
-  }
-
-  .fu-dock button > span:last-child {
-    font-size: 9px;
-    font-weight: 750;
-    white-space: nowrap;
-  }
-
-  .fu-dock button.is-active {
-    border-color: color-mix(in srgb, var(--item-color) 35%, transparent);
-    background: color-mix(in srgb, var(--item-color) 10%, transparent);
-    border-radius: 12px;
-    color: var(--fu-text);
-  }
-
-  .fu-dock button.is-active > span:first-child {
-    transform: scale(1.15);
-  }
-
-  .fu-footer {
-    justify-content: center;
-    margin-top: 11px;
-    padding-top: 10px;
-    font-size: 7px;
-  }
-
-  .fu-square-a {
-    width: 80px;
-    height: 80px;
-    left: -20px;
-  }
-
-  .fu-square-b {
-    width: 100px;
-    height: 100px;
-    right: -30px;
-  }
-
-  .fu-square-c {
-    display: none;
-  }
-}
-
-@media (max-width: 350px) {
-  .fu-shell {
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-
-  .fh-title {
-    font-size: 26px;
-  }
-
-  .fu-petal strong {
-    font-size: 9px;
-  }
-
-  .fu-petal small {
-    font-size: 6px;
-  }
-
-  .fu-petal-icon {
-    font-size: 21px;
-  }
-
-  .fu-dock button > span:last-child {
-    font-size: 8px;
-  }
-}
-
+.mc:active { transform: scale(.97); }
+.mc-shine { position: absolute; inset: 0 auto 0 0; width: 35%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent); animation: fcl-shine 4.5s ease-in-out infinite; }
+.mc-ico { font-size: 34px; animation: fcl-icon-float 4s ease-in-out infinite; }
+.mc-arrow { display: inline-block; animation: chip-float 1.6s ease-in-out infinite; transform: rotate(-90deg); }
+.mt-tile {
+  display: block; min-height: 118px; padding: 13px; border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--c) 38%, var(--line));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--c) 9%, var(--card-a)), var(--card-b));
+  box-shadow: var(--card-shadow);
+  transition: transform .18s cubic-bezier(.2,.8,.2,1), background .2s;
+}
+.mt-tile:active { transform: scale(.94); background: color-mix(in srgb, var(--c) 20%, var(--card-a)); }
+.mt-ico {
+  display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; font-size: 21px;
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+}
+
+/* ============ PRELOADER ============ */
+.pl-grid {
+  background-image:
+    linear-gradient(to right, rgba(148,163,184,.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148,163,184,.07) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(circle at center, #000 20%, transparent 70%);
+  mask-image: radial-gradient(circle at center, #000 20%, transparent 70%);
+}
+.pl-ring {
+  position: absolute; inset: -8px; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent, #1877F2, #22d3ee, #f59e0b, transparent);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  animation: fcl-spin 1.6s linear infinite;
+}
+.pl-orbit { position: absolute; inset: -24px; animation: fcl-spin 2.4s linear infinite; }
+.pl-orbit i { position: absolute; top: -4px; left: 50%; width: 9px; height: 9px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 14px #f59e0b; }
+.fcl-logo-float { animation: fcl-logo-float 2.2s ease-in-out infinite; }
+.fcl-letter { display: inline-block; opacity: 0; animation: fcl-letter .5s ease-out both; animation-delay: calc(var(--i, 0) * 70ms + 200ms); }
+
+/* ============ REDUCED MOTION ============ */
 @media (prefers-reduced-motion: reduce) {
-  .fcl-universe *,
-  .fcl-universe *::before,
-  .fcl-universe *::after,
-  .pl-root *,
-  .pl-root *::before,
-  .pl-root *::after {
-    animation: none !important;
-    transition: none !important;
-    scroll-behavior: auto !important;
+  .fcl-root *, .fcl-root *::before, .fcl-root *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
   }
-
-  .fh-wd,
-  .fh-grad,
-  .pl-letter {
-    opacity: 1 !important;
-  }
-
-  .fu-spark-layer {
-    display: none;
-  }
+  .fcl-wd { opacity: 1; }
 }
 `;
