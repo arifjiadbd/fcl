@@ -3,7 +3,15 @@
 /**
  * FCL Memory Page — Desktop "Virtual Library"
  * বুকশেলফ → বই ক্লিক → কভার খোলা → দুই পাতার রিডার
- * এই ফাইল সম্পূর্ণ self-contained (নিজের আইকন, স্টাইল ও হেল্পার আছে)।
+ *
+ * এই আপডেটে যা যোগ হয়েছে:
+ *  1) শেলফের উপরে রঙের পরিচয় (Legend) — কোন রঙ মানে গল্প / কবিতা / গান / স্মৃতি / সিরিজ
+ *  2) বইয়ের স্পাইনে: ধরন (গল্প/কবিতা/সিরিজ…) + নাম + লেখকের নাম
+ *  3) একাধিক পর্বের সিরিজ শেলফে শুধু একটি বই হিসেবে দেখায় (সিরিজের নামে)
+ *  4) বই খুললে বাম পাতায় "সারমর্ম" (কবিতায় কী ফুটে উঠেছে / গল্পে কী উঠে এসেছে…)
+ *  5) পড়ে শোনানোর সিস্টেম (useStorySpeech + SpeechBar) — ব্রাউজারের বাংলা ভয়েস,
+ *     আর item.audioUrl (mp3) থাকলে সেটিই বাজবে। এটি মোবাইল পেজও import করে ব্যবহার করে।
+ *
  * পেজের থিম ভ্যারিয়েবল (--mem-*) ব্যবহার করে, তাই dark/light দুটোতেই কাজ করবে।
  */
 
@@ -34,6 +42,10 @@ export type DReaderItem = {
   summary: string;
   url: string;
   number?: string;
+  /** সিরিজের পর্ব হলে সিরিজের নাম */
+  seriesName?: string;
+  /** আগে থেকে রেকর্ড করা ভয়েস/mp3 লিংক (ঐচ্ছিক) */
+  audioUrl?: string;
 };
 
 export type DSeries = {
@@ -50,6 +62,7 @@ type ShelfBook = {
   author: string;
   date: string;
   category: string;
+  typeLabel: string;
   tone: string;
   preview: string;
   badge: string;
@@ -74,6 +87,8 @@ export interface LibraryDesktopProps {
   onSort: (value: DSortMode) => void;
   readerItems: DReaderItem[];
   filteredSeries: DSeries[];
+  /** সব সিরিজ (ফিল্টার ছাড়া) — "সব স্মৃতি"-তে পর্বগুলো এক বইয়ে গুটিয়ে আনতে লাগে */
+  allSeries: DSeries[];
   currentSeries?: { name: string; episodes: unknown[] };
   onOpenSeries: (name: string) => void;
   onCloseSeries: () => void;
@@ -106,6 +121,12 @@ function validUrl(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** অডিও লিংক: পূর্ণ http(s) লিংক অথবা /public ফোল্ডারের রিলেটিভ পাথ (যেমন /audio/story1.mp3) */
+function validAudio(url?: string): boolean {
+  const value = normalize(url);
+  return /^(https?:\/\/|\/)/i.test(value);
 }
 
 function formatDate(value: string): string {
@@ -142,6 +163,12 @@ function getTone(category: string): string {
   return "blue";
 }
 
+/** স্পাইনে দেখানোর ছোট ধরন-লেবেল */
+function shortType(category: string): string {
+  if (/সিরিজ|series/i.test(category)) return "সিরিজ";
+  return normalize(category) || "আর্কাইভ";
+}
+
 function hashString(value: string): number {
   let hash = 7;
   for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
@@ -160,9 +187,10 @@ function readingMinutes(text: string): number {
 function getSpineSize(book: ShelfBook) {
   const h = hashString(`${book.key}${book.title}`);
   if (book.kind === "series") {
-    return { w: 68 + (h % 5) * 4, h: 204 + ((h >> 4) % 6) * 8 };
+    // সিরিজ = মোটা ও লম্বা বই
+    return { w: 76 + (h % 5) * 4, h: 226 + ((h >> 4) % 6) * 8 };
   }
-  return { w: 42 + (h % 6) * 4, h: 164 + ((h >> 4) % 7) * 8 };
+  return { w: 48 + (h % 6) * 4, h: 190 + ((h >> 4) % 7) * 8 };
 }
 
 function rectOf(el: HTMLElement): ShelfRect {
@@ -194,7 +222,7 @@ const SORT_OPTIONS: { value: DSortMode; label: string }[] = [
 type IconName =
   | "search" | "arrow" | "left" | "right" | "close" | "book" | "list" | "sort"
   | "copy" | "external" | "home" | "plus" | "minus" | "check" | "refresh"
-  | "layers" | "sparkles";
+  | "layers" | "sparkles" | "volume" | "pause" | "play" | "stop";
 
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
@@ -215,6 +243,10 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
     refresh: (<><path d="M20 11a8 8 0 0 0-14-5L4 8" /><path d="M4 4v4h4" /><path d="M4 13a8 8 0 0 0 14 5l2-2" /><path d="M20 20v-4h-4" /></>),
     layers: (<><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5" /><path d="m3 16 9 5 9-5" /></>),
     sparkles: (<><path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /><path d="m19 17 .7 1.3L21 19l-1.3.7L19 21l-.7-1.3L17 19l1.3-.7L19 17Z" /></>),
+    volume: (<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /></>),
+    pause: (<><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></>),
+    play: <polygon points="6 3 20 12 6 21 6 3" />,
+    stop: <rect x="5" y="5" width="14" height="14" rx="2" />,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -222,6 +254,492 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
       {paths[name]}
     </svg>
   );
+}
+
+/* ═════════════════════════════════════════════════════════════
+   🔊  পড়ে শোনানো (Text-to-Speech + রেকর্ড করা অডিও)
+   ─ মোবাইল ও পিসি দুই জায়গাতেই এটি ব্যবহার হয়
+   ═════════════════════════════════════════════════════════════ */
+
+export type SpeechItem = {
+  key: string;
+  title: string;
+  author: string;
+  summary: string;
+  content: string;
+  audioUrl?: string;
+};
+
+export type SpeechState = "idle" | "playing" | "paused";
+
+export type StorySpeech = {
+  supported: boolean;
+  state: SpeechState;
+  progress: number;
+  rate: number;
+  notice: string | null;
+  usingAudio: boolean;
+  toggle: () => void;
+  stop: () => void;
+  cycleRate: () => void;
+};
+
+const SPEECH_RATES = [0.85, 0.95, 1.1];
+
+function isBengaliText(text: string): boolean {
+  const bn = (text.match(/[\u0980-\u09FF]/g) || []).length;
+  const latin = (text.match(/[A-Za-z]/g) || []).length;
+  return bn >= latin;
+}
+
+const FEMALE_VOICE = /female|woman|tanishaa|nabanita|zira|samantha|susan|hazel|heera/i;
+const MALE_VOICE = /\bmale\b|pradeep|bashkar|bhaskar|ভাস্কর|প্রদীপ|david|guy|mark|daniel|george|james|ryan|alex|prabhat|ravi/i;
+
+function isMaleVoice(voice: SpeechSynthesisVoice): boolean {
+  return !FEMALE_VOICE.test(voice.name) && MALE_VOICE.test(voice.name);
+}
+
+/** ভাষা অনুযায়ী সেরা ভয়েস বেছে নেয় — ছেলেদের (পুরুষ) নামের ভয়েস আগে পাবে */
+function pickVoice(voices: SpeechSynthesisVoice[], lang: "bn" | "en"): SpeechSynthesisVoice | null {
+  const fix = (v: SpeechSynthesisVoice) => v.lang.toLowerCase().replace("_", "-");
+  const list = voices.filter((v) => fix(v).startsWith(lang));
+  if (!list.length) return null;
+
+  const score = (v: SpeechSynthesisVoice) => {
+    const name = v.name.toLowerCase();
+    let s = 0;
+    if (FEMALE_VOICE.test(name)) s -= 100;
+    if (isMaleVoice(v)) s += 50;
+    if (/natural|online|neural/.test(name)) s += 10;
+    if (/google/.test(name)) s += 6;
+    const code = fix(v);
+    if (code === "bn-bd" || code === "en-us") s += 3;
+    if (v.localService) s += 1;
+    return s;
+  };
+
+  return [...list].sort((a, b) => score(b) - score(a))[0] ?? null;
+}
+
+function buildSpeechText(item: SpeechItem): string {
+  const clean = (value: string) =>
+    value
+      .replace(/\r\n?/g, "\n")
+      .replace(/^সারসংক্ষেপ:\s*[^\n]*(?:\n|$)/i, "")
+      .replace(/[*#_`~]/g, "");
+
+  const body = clean(normalize(item.content)) || clean(normalize(item.summary));
+  const lines = body
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => (/[।!?,;:.…"”’)]$/.test(line) ? line : `${line}।`));
+
+  const author = normalize(item.author);
+  const head =
+    `${normalize(item.title)}।` +
+    (author && author !== "Unknown" && author !== "অজানা লেখক" ? ` লেখক, ${author}।` : "");
+
+  return [head, ...lines].join(" ");
+}
+
+/** লম্বা লেখা ছোট ছোট টুকরোয় ভাগ করে — Chrome লম্বা utterance মাঝপথে থামিয়ে দেয়, তাই */
+function toSpeechChunks(text: string, max = 170): string[] {
+  const sentences = text.match(/[^।!?.]+[।!?.]*/g) ?? [text];
+  const out: string[] = [];
+  let current = "";
+
+  for (const raw of sentences) {
+    const sentence = raw.trim();
+    if (!sentence) continue;
+
+    if (sentence.length > max) {
+      if (current) {
+        out.push(current);
+        current = "";
+      }
+      let piece = "";
+      for (const word of sentence.split(/\s+/)) {
+        if ((piece + " " + word).trim().length > max) {
+          if (piece) out.push(piece);
+          piece = word;
+        } else {
+          piece = (piece + " " + word).trim();
+        }
+      }
+      current = piece;
+      continue;
+    }
+
+    if ((current + " " + sentence).trim().length > max) {
+      if (current) out.push(current);
+      current = sentence;
+    } else {
+      current = (current + " " + sentence).trim();
+    }
+  }
+
+  if (current) out.push(current);
+  return out;
+}
+
+export function useStorySpeech(item: SpeechItem): StorySpeech {
+  const [state, setState] = useState<SpeechState>("idle");
+  const [progress, setProgress] = useState(0);
+  const [rate, setRate] = useState(0.95);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [ttsReady, setTtsReady] = useState(false);
+  const [audioFailed, setAudioFailed] = useState(false);
+
+  const runRef = useRef(0);
+  const idxRef = useRef(0);
+  const chunksRef = useRef<string[]>([]);
+  const rateRef = useRef(0.95);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  const utterRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const itemRef = useRef(item);
+  itemRef.current = item;
+
+  const audioSrc = validAudio(item.audioUrl) ? normalize(item.audioUrl) : "";
+
+  // ব্রাউজারের ভয়েস লিস্ট লোড (অনেক ব্রাউজারে দেরিতে আসে)
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
+    setTtsReady(true);
+    const load = () => {
+      voicesRef.current = synth.getVoices();
+    };
+    load();
+    synth.addEventListener?.("voiceschanged", load);
+    return () => synth.removeEventListener?.("voiceschanged", load);
+  }, []);
+
+  const stop = useCallback(() => {
+    runRef.current += 1;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    const audio = audioRef.current;
+    if (audio) {
+      audio.onended = null;
+      audio.onerror = null;
+      audio.ontimeupdate = null;
+      audio.pause();
+      audioRef.current = null;
+    }
+    idxRef.current = 0;
+    chunksRef.current = [];
+    setState("idle");
+    setProgress(0);
+  }, []);
+
+  // লেখা বদলালে বা কম্পোনেন্ট বন্ধ হলে পড়া থামবে
+  useEffect(() => {
+    setNotice(null);
+    setAudioFailed(false);
+    return () => stop();
+  }, [item.key, stop]);
+
+  const speakFrom = useCallback((start: number) => {
+    const synth = window.speechSynthesis;
+    const run = ++runRef.current;
+    const chunks = chunksRef.current;
+
+    const speakAt = (i: number) => {
+      if (run !== runRef.current) return;
+      if (i >= chunks.length) {
+        idxRef.current = 0;
+        setState("idle");
+        setProgress(0);
+        return;
+      }
+
+      idxRef.current = i;
+      setProgress(Math.round((i / chunks.length) * 100));
+
+      const text = chunks[i];
+      const bengali = isBengaliText(text);
+      const voices = voicesRef.current.length ? voicesRef.current : synth.getVoices();
+      const voice = pickVoice(voices, bengali ? "bn" : "en");
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = voice?.lang || (bengali ? "bn-BD" : "en-US");
+      if (voice) utterance.voice = voice;
+      utterance.rate = rateRef.current;
+      // ২৫–৩০ বছরের যুবকের মতো মাঝারি ভরাট স্বর: পুরুষ-নামের ভয়েস পেলে স্বাভাবিক, নইলে একটু নিচু পিচ
+      utterance.pitch = voice && isMaleVoice(voice) ? 1 : 0.82;
+
+      utterance.onend = () => {
+        if (run === runRef.current) speakAt(i + 1);
+      };
+      utterance.onerror = (event) => {
+        if (run !== runRef.current) return;
+        if (event.error === "canceled" || event.error === "interrupted") return;
+        setState("idle");
+        setNotice("পড়ে শোনাতে সমস্যা হয়েছে। আবার চেষ্টা করুন।");
+      };
+
+      utterRef.current = utterance; // GC থেকে বাঁচাতে রেফারেন্স ধরে রাখা
+      synth.speak(utterance);
+    };
+
+    synth.cancel();
+    window.setTimeout(() => {
+      if (run === runRef.current) speakAt(start);
+    }, 80);
+  }, []);
+
+  const startTts = useCallback(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      setNotice("আপনার ব্রাউজারে পড়ে শোনানোর সুবিধা নেই।");
+      setState("idle");
+      return;
+    }
+
+    const chunks = toSpeechChunks(buildSpeechText(itemRef.current));
+    if (!chunks.length) {
+      setNotice("পড়ে শোনানোর মতো লেখা পাওয়া যায়নি।");
+      setState("idle");
+      return;
+    }
+
+    chunksRef.current = chunks;
+    idxRef.current = 0;
+
+    const voices = voicesRef.current.length ? voicesRef.current : window.speechSynthesis.getVoices();
+    if (isBengaliText(chunks.join(" ")) && voices.length > 0 && !pickVoice(voices, "bn")) {
+      setNotice("এই ডিভাইসে বাংলা ভয়েস পাওয়া যায়নি। Chrome, Edge বা Android ফোনে সাধারণত বাংলা ভয়েস থাকে।");
+    }
+
+    setState("playing");
+    speakFrom(0);
+  }, [speakFrom]);
+
+  const toggle = useCallback(() => {
+    if (state === "playing") {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      } else {
+        // সব ব্রাউজারে নির্ভরযোগ্য হতে pause = cancel + বর্তমান টুকরোর জায়গা মনে রাখা
+        runRef.current += 1;
+        window.speechSynthesis.cancel();
+      }
+      setState("paused");
+      return;
+    }
+
+    if (state === "paused") {
+      if (audioRef.current) {
+        audioRef.current.play().catch(() => undefined);
+        setState("playing");
+      } else {
+        setState("playing");
+        speakFrom(idxRef.current);
+      }
+      return;
+    }
+
+    // idle → শুরু
+    setNotice(null);
+
+    if (audioSrc && !audioFailed) {
+      const audio = new Audio(audioSrc);
+      audio.playbackRate = rateRef.current;
+      audio.onended = () => {
+        audioRef.current = null;
+        setState("idle");
+        setProgress(0);
+      };
+      audio.ontimeupdate = () => {
+        if (audio.duration) setProgress(Math.round((audio.currentTime / audio.duration) * 100));
+      };
+
+      const fallback = () => {
+        if (audioRef.current !== audio) return;
+        audio.onerror = null;
+        audioRef.current = null;
+        setAudioFailed(true);
+        setNotice("রেকর্ড করা অডিও চালানো যায়নি — ব্রাউজারের ভয়েসে পড়া হচ্ছে।");
+        startTts();
+      };
+
+      audio.onerror = fallback;
+      audioRef.current = audio;
+      setState("playing");
+      audio.play().catch(fallback);
+      return;
+    }
+
+    startTts();
+  }, [state, audioSrc, audioFailed, speakFrom, startTts]);
+
+  const cycleRate = useCallback(() => {
+    const index = SPEECH_RATES.indexOf(rateRef.current);
+    const next = SPEECH_RATES[(index + 1) % SPEECH_RATES.length];
+    rateRef.current = next;
+    setRate(next);
+    if (audioRef.current) audioRef.current.playbackRate = next;
+    // TTS-এ নতুন গতি পরের টুকরো থেকে কাজ করবে
+  }, []);
+
+  return {
+    supported: ttsReady || !!audioSrc,
+    state,
+    progress,
+    rate,
+    notice,
+    usingAudio: !!audioSrc && !audioFailed,
+    toggle,
+    stop,
+    cycleRate,
+  };
+}
+
+export function SpeechBar({ speech }: { speech: StorySpeech }) {
+  if (!speech.supported) return null;
+  const playing = speech.state === "playing";
+  const paused = speech.state === "paused";
+
+  return (
+    <div className="sp-bar" role="group" aria-label="পড়ে শোনার নিয়ন্ত্রণ">
+      <button
+        type="button"
+        className={`sp-main ${playing ? "playing" : ""}`}
+        onClick={speech.toggle}
+        aria-label={playing ? "পড়া বিরতি দিন" : paused ? "আবার চালান" : "পড়ে শুনুন"}
+      >
+        <Icon name={playing ? "pause" : "play"} size={15} />
+        {playing ? "বিরতি দিন" : paused ? "আবার চালান" : "পড়ে শুনুন"}
+      </button>
+
+      {speech.state !== "idle" && (
+        <button type="button" className="sp-mini" onClick={speech.stop} aria-label="পড়া বন্ধ করুন" title="বন্ধ করুন">
+          <Icon name="stop" size={13} />
+        </button>
+      )}
+
+      <button type="button" className="sp-mini sp-rate" onClick={speech.cycleRate} title="পড়ার গতি বদলান" aria-label="পড়ার গতি বদলান">
+        {toBn(speech.rate)}×
+      </button>
+
+      <span className="sp-source">
+        <Icon name="volume" size={13} />
+        {speech.usingAudio ? "রেকর্ড করা ভয়েস" : "বাংলা ভয়েস (ব্রাউজার)"}
+      </span>
+
+      {speech.state !== "idle" && (
+        <div className="sp-track" aria-hidden="true">
+          <span style={{ width: `${speech.progress}%` }} />
+        </div>
+      )}
+
+      {speech.notice && <p className="sp-notice">{speech.notice}</p>}
+    </div>
+  );
+}
+
+/* ═════════════════════════════════════════════════════════════
+   ✧  সারমর্ম (বাম পাতার "ঝলক" অংশ)
+   ─ item.summary থাকলে সেটাই দেখায়।
+   ─ না থাকলে লেখা থেকে স্বয়ংক্রিয়ভাবে মূল লাইন + মূল ভাব-শব্দ বের করে।
+   ═════════════════════════════════════════════════════════════ */
+
+const BN_STOP = new Set(
+  (
+    "এবং কিন্তু আমি আমার আমাকে আমরা আমাদের তুমি তোমার তোমাকে তুই তোর সে তার তাকে তারা তাদের এই ওই এটা ওটা এটি সেটা " +
+    "যে যা যার কি কী না নি নেই হয় হয়ে হয়েছে হলো হল হবে হচ্ছে ছিল ছিলো আছে আছি থাকে থেকে করে করা করি করেছে করেছি " +
+    "করতে করবে দিয়ে দিয়েছে নিয়ে জন্য মধ্যে মাঝে পর পরে আগে সব সেই তাই তো ও আর বা তবে তখন যখন এখন কোন কোনো " +
+    "একটি একটা এক দুই কেউ কিছু আরও আরো খুব শুধু যেন তবু অথচ বলে বলল বলেন বলেছে সাথে সঙ্গে হতে হলে পারে পারি " +
+    "পেরে গেল গিয়ে গেছে যায় যাই যাবে এসে এল এলো আসে আসি দেখে দেখি দেখা তাহলে তাহলেও এমন এমনই ওকে ওর ওদের"
+  ).split(/\s+/)
+);
+
+type Sarmom = {
+  lead: string;
+  text: string;
+  themes: string[];
+  fromSummary: boolean;
+};
+
+function sarmomLead(item: DReaderItem): string {
+  switch (getTone(item.category)) {
+    case "cyan":
+      return "এই কবিতায় ফুটে উঠেছে";
+    case "pink":
+      return "এই গানে ফুটে উঠেছে";
+    case "green":
+      return "এই গল্পে উঠে এসেছে";
+    case "purple":
+      return item.number ? "এই পর্বে উঠে এসেছে" : "এই সিরিজে উঠে এসেছে";
+    case "gold":
+      return "এই স্মৃতিতে ধরা আছে";
+    default:
+      return "এই লেখায় ফুটে উঠেছে";
+  }
+}
+
+function buildSarmom(item: DReaderItem): Sarmom | null {
+  const lead = sarmomLead(item);
+  const tone = getTone(item.category);
+  const lineStyle = tone === "cyan" || tone === "pink";
+
+  const body = normalize(item.content)
+    .replace(/\r\n?/g, "\n")
+    .replace(/^সারসংক্ষেপ:\s*[^\n]*(?:\n|$)/i, "")
+    .replace(/[*#_]/g, "");
+
+  const sentences = (body.match(/[^।!?\n]+[।!?]?/g) || [])
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 12);
+
+  // শব্দ গুনে "মূল ভাব" শব্দ
+  const freq = new Map<string, number>();
+  const tokenize = (s: string) =>
+    s
+      .split(/[\s,;:"'“”‘’()[\]{}\-–—…।!?./\\|]+/)
+      .map((w) => w.trim())
+      .filter((w) => w.length >= 3 && !BN_STOP.has(w) && !/^[0-9০-৯]+$/.test(w));
+
+  sentences.forEach((s) => tokenize(s).forEach((w) => freq.set(w, (freq.get(w) || 0) + 1)));
+
+  const themes = Array.from(freq.entries())
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([word]) => word);
+
+  const written = normalize(item.summary).replace(/^সারসংক্ষেপ:\s*/i, "").replace(/[*#_]/g, "");
+  if (written) return { lead, text: written, themes, fromSummary: true };
+
+  if (!sentences.length) return null;
+
+  let picked: string[];
+  if (sentences.length <= 3) {
+    picked = sentences;
+  } else {
+    const avgLen = sentences.reduce((sum, s) => sum + s.length, 0) / sentences.length;
+    const count = lineStyle || avgLen < 45 ? 3 : 2;
+
+    const scored = sentences.map((s, index) => {
+      const tokens = tokenize(s);
+      const total = tokens.reduce((sum, w) => sum + (freq.get(w) || 0), 0);
+      const base = total / Math.pow(tokens.length || 1, 0.5);
+      return { index, s, score: index === 0 ? base * 1.3 : base };
+    });
+
+    picked = scored
+      .sort((a, b) => b.score - a.score)
+      .slice(0, count)
+      .sort((a, b) => a.index - b.index)
+      .map((x) => x.s);
+  }
+
+  let text = picked.join(lineStyle ? " / " : " ");
+  if (text.length > 320) text = `${text.slice(0, 320).trim()}…`;
+
+  return { lead, text, themes, fromSummary: false };
 }
 
 /* ───────────────────────── Story rendering ───────────────────────── */
@@ -309,7 +827,7 @@ function ShelfPreview({ book, rect }: { book: ShelfBook; rect: ShelfRect }) {
 
   return (
     <div className="pc-preview" style={style} role="tooltip">
-      <Badge category={book.category} />
+      <Badge category={book.kind === "series" ? "ধারাবাহিক সিরিজ" : book.category} />
       <strong>{book.title}</strong>
       <span className="pc-preview-meta">
         ✦ {book.author || "অজানা লেখক"}
@@ -321,7 +839,7 @@ function ShelfPreview({ book, rect }: { book: ShelfBook; rect: ShelfRect }) {
           {book.kind === "series" ? `${toBn(book.count || 0)} টি পর্ব` : `পড়তে প্রায় ${toBn(book.minutes)} মিনিট`}
         </span>
         <span>
-          খুলতে ক্লিক করুন <Icon name="arrow" size={13} />
+          {book.kind === "series" ? "পর্বগুলো দেখতে" : "খুলতে"} ক্লিক করুন <Icon name="arrow" size={13} />
         </span>
       </div>
     </div>
@@ -331,7 +849,7 @@ function ShelfPreview({ book, rect }: { book: ShelfBook; rect: ShelfRect }) {
 /* ───────────────────────── Open-book: left page ───────────────────────── */
 
 function LeftPage({
-  item, pageNo, minutes, prev, next, copied, onPrev, onNext, onCopy,
+  item, pageNo, minutes, prev, next, copied, speech, onPrev, onNext, onCopy,
 }: {
   item: DReaderItem;
   pageNo: string;
@@ -339,11 +857,12 @@ function LeftPage({
   prev: DReaderItem | null;
   next: DReaderItem | null;
   copied: boolean;
+  speech: StorySpeech;
   onPrev: () => void;
   onNext: () => void;
   onCopy: () => void;
 }) {
-  const glimpse = item.summary ? "" : excerpt(item.content, 280);
+  const sarmom = useMemo(() => buildSarmom(item), [item]);
 
   return (
     <div className="pc-left">
@@ -364,20 +883,32 @@ function LeftPage({
       <div className="pc-ornament"><span /><strong>✦</strong><span /></div>
 
       <div className="pc-left-body">
-        {item.summary ? (
+        {sarmom ? (
           <div className="pc-summary">
-            <span>✧ সারসংক্ষেপ</span>
-            <p>{renderInline(item.summary)}</p>
-          </div>
-        ) : glimpse ? (
-          <div className="pc-summary">
-            <span>✧ ঝলক</span>
-            <p>{glimpse}</p>
+            <span>✧ সারমর্ম</span>
+            {sarmom.fromSummary ? (
+              <p>{renderInline(sarmom.text)}</p>
+            ) : (
+              <p>
+                <b className="pc-summary-lead">{sarmom.lead} —</b> “{sarmom.text}”
+              </p>
+            )}
+            {sarmom.themes.length > 0 && (
+              <div className="pc-themes">
+                <small>মূল ভাব:</small>
+                {sarmom.themes.map((theme) => (
+                  <em key={theme}>{theme}</em>
+                ))}
+              </div>
+            )}
           </div>
         ) : null}
+
         <div className="pc-chips">
           <span><Icon name="book" size={13} /> পড়তে প্রায় {toBn(minutes)} মিনিট</span>
         </div>
+
+        <SpeechBar speech={speech} />
       </div>
 
       <div className="pc-left-nav">
@@ -444,6 +975,10 @@ function BookOverlay({
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // একটাই স্পিচ কন্ট্রোলার — বাম পাতা ও কভারের পেছনের পাতা দুটোই এটি ব্যবহার করে
+  const speech = useStorySpeech(item);
+  const stopSpeech = speech.stop;
+
   const go = useCallback((next: Stage) => {
     stageRef.current = next;
     setStage(next);
@@ -460,12 +995,13 @@ function BookOverlay({
 
   const requestClose = useCallback(() => {
     if (stageRef.current === "closing" || stageRef.current === "leaving") return;
+    stopSpeech();
     timers.current.forEach(clearTimeout);
     timers.current = [];
     go("closing");
     timers.current.push(setTimeout(() => go("leaving"), 950));
     timers.current.push(setTimeout(onClose, 1300));
-  }, [go, onClose]);
+  }, [go, onClose, stopSpeech]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -510,7 +1046,7 @@ function BookOverlay({
   const minutes = readingMinutes(item.content);
   const showLeft = stage !== "enter" && stage !== "opening";
 
-  const leftProps = { item, pageNo, minutes, prev, next, copied, onPrev, onNext, onCopy };
+  const leftProps = { item, pageNo, minutes, prev, next, copied, speech, onPrev, onNext, onCopy };
 
   return (
     <div
@@ -603,7 +1139,7 @@ function ShelfLoading() {
                 <span
                   key={i}
                   className="pc-skeleton"
-                  style={{ width: 42 + ((i * 7 + row * 3) % 5) * 5, height: 160 + ((i * 11 + row * 5) % 6) * 9 }}
+                  style={{ width: 48 + ((i * 7 + row * 3) % 5) * 5, height: 180 + ((i * 11 + row * 5) % 6) * 9 }}
                 />
               ))}
             </div>
@@ -617,10 +1153,31 @@ function ShelfLoading() {
 
 /* ───────────────────────── Main desktop library ───────────────────────── */
 
+function makeSeriesBook(series: DSeries): ShelfBook {
+  return {
+    key: `series-${series.name}`,
+    title: series.name,
+    author: series.author,
+    date: series.latestDate,
+    category: "ধারাবাহিক সিরিজ",
+    typeLabel: "সিরিজ",
+    tone: "purple",
+    preview: excerpt(
+      series.episodes.find((e) => normalize(e.summary))?.summary || series.episodes[0]?.Content || "",
+      150
+    ),
+    badge: `${toBn(series.episodes.length)} পর্ব`,
+    kind: "series",
+    minutes: 0,
+    count: series.episodes.length,
+    seriesName: series.name,
+  };
+}
+
 export function LibraryDesktop(props: LibraryDesktopProps) {
   const {
     loading, error, onRetry, mode, categories, categoryCounts, selectedCategory, onCategory,
-    searchQuery, onSearch, sortMode, onSort, readerItems, filteredSeries, currentSeries,
+    searchQuery, onSearch, sortMode, onSort, readerItems, filteredSeries, allSeries, currentSeries,
     onOpenSeries, onCloseSeries, onResetFilters, stats, contentRef, onScrollToContent,
     open, openRect, activeIndex, onOpenItem, onCloseReader, onPage, fontSize, onFontChange,
     copiedKey, onCopy,
@@ -651,39 +1208,49 @@ export function LibraryDesktop(props: LibraryDesktopProps) {
     setRowsShown(3);
   }, [mode, selectedCategory, searchQuery, sortMode, currentSeries?.name]);
 
+  const seriesLookup = useMemo(() => {
+    const map = new Map<string, DSeries>();
+    allSeries.forEach((series) => map.set(series.name, series));
+    return map;
+  }, [allSeries]);
+
   const books = useMemo<ShelfBook[]>(() => {
     if (mode === "series") {
-      return filteredSeries.map((series, index) => ({
-        key: `series-${series.name}`,
-        title: series.name,
-        author: series.author,
-        date: series.latestDate,
-        category: "ধারাবাহিক সিরিজ",
-        tone: "purple",
-        preview: excerpt(
-          series.episodes.find((e) => normalize(e.summary))?.summary || series.episodes[0]?.Content || "",
-          150
-        ),
-        badge: String(index + 1).padStart(2, "0"),
-        kind: "series" as const,
-        minutes: 0,
-        count: series.episodes.length,
-        seriesName: series.name,
-      }));
+      return filteredSeries.map((series) => makeSeriesBook(series));
     }
-    return readerItems.map((item, index) => ({
-      key: item.key,
-      title: item.title,
-      author: item.author,
-      date: item.date,
-      category: item.category,
-      tone: getTone(item.category),
-      preview: excerpt(item.summary || item.content, 170),
-      badge: item.number || String(index + 1).padStart(2, "0"),
-      kind: "item" as const,
-      minutes: readingMinutes(item.content),
-    }));
-  }, [mode, filteredSeries, readerItems]);
+
+    const out: ShelfBook[] = [];
+    const seenSeries = new Set<string>();
+
+    readerItems.forEach((item) => {
+      // "সব স্মৃতি"-তে একই সিরিজের সব পর্ব মিলে শেলফে মাত্র একটি বই
+      const seriesName = mode === "memories" ? normalize(item.seriesName) : "";
+      const group = seriesName ? seriesLookup.get(seriesName) : undefined;
+
+      if (group) {
+        if (seenSeries.has(seriesName)) return;
+        seenSeries.add(seriesName);
+        out.push(makeSeriesBook(group));
+        return;
+      }
+
+      out.push({
+        key: item.key,
+        title: item.title,
+        author: item.author,
+        date: item.date,
+        category: item.category,
+        typeLabel: item.number ? "পর্ব" : shortType(item.category),
+        tone: getTone(item.category),
+        preview: excerpt(item.summary || item.content, 170),
+        badge: item.number || String(out.length + 1).padStart(2, "0"),
+        kind: "item",
+        minutes: readingMinutes(item.content),
+      });
+    });
+
+    return out;
+  }, [mode, filteredSeries, readerItems, seriesLookup]);
 
   const rows = useMemo(() => {
     const available = Math.max(320, width - 140);
@@ -705,6 +1272,18 @@ export function LibraryDesktop(props: LibraryDesktopProps) {
   }, [books, width]);
 
   const visibleRows = rows.slice(0, rowsShown);
+
+  const legend = useMemo(
+    () =>
+      categories
+        .filter((category) => category !== "All")
+        .map((category) => ({
+          category,
+          tone: getTone(category),
+          count: categoryCounts.get(category) || 0,
+        })),
+    [categories, categoryCounts]
+  );
 
   const pick = (book: ShelfBook, el: HTMLElement | null) => {
     setHover(null);
@@ -891,6 +1470,33 @@ export function LibraryDesktop(props: LibraryDesktopProps) {
             </div>
           )}
 
+          {/* ───── রঙের পরিচয় (Legend) ───── */}
+          {!loading && books.length > 0 && legend.length > 0 && (
+            <div className="pc-legend" aria-label="বইয়ের রঙের পরিচয়">
+              <span className="pc-legend-title">
+                <Icon name="sparkles" size={13} />
+                বইয়ের রঙ চিনুন
+              </span>
+              <div className="pc-legend-list">
+                {legend.map((entry) => (
+                  <button
+                    key={entry.category}
+                    type="button"
+                    className={`pc-legend-chip ${selectedCategory === entry.category ? "active" : ""}`}
+                    onClick={() => onCategory(entry.category)}
+                    disabled={locked}
+                    title={`${entry.category} — ক্লিক করলে শুধু এগুলো দেখাবে`}
+                  >
+                    <span className={`pc-legend-swatch pc-t-${entry.tone}`} />
+                    {entry.category}
+                    <small>{toBn(entry.count)}</small>
+                  </button>
+                ))}
+              </div>
+              <span className="pc-legend-hint">মোটা ও লম্বা বই = একাধিক পর্বের সিরিজ</span>
+            </div>
+          )}
+
           <div ref={measureRef} className="pc-measure">
             {loading ? (
               <ShelfLoading />
@@ -924,7 +1530,7 @@ export function LibraryDesktop(props: LibraryDesktopProps) {
                               data-key={book.key}
                               className={`pc-spine pc-t-${book.tone} ${book.kind === "series" ? "series" : ""}`}
                               style={{ width: size.w, height: size.h, "--i": c + r * 4 } as CSSProperties}
-                              aria-label={`${book.title} — ${book.author}`}
+                              aria-label={`${book.typeLabel}: ${book.title} — ${book.author}`}
                               onClick={(event) => pick(book, event.currentTarget)}
                               onMouseEnter={(event) => setHover({ book, rect: rectOf(event.currentTarget) })}
                               onMouseLeave={() => setHover(null)}
@@ -932,8 +1538,11 @@ export function LibraryDesktop(props: LibraryDesktopProps) {
                               onBlur={() => setHover(null)}
                             >
                               <span className="pc-spine-band" />
-                              <span className="pc-spine-emblem">✦</span>
-                              <span className="pc-spine-title">{book.title}</span>
+                              <span className="pc-spine-type">{book.typeLabel}</span>
+                              <span className="pc-spine-text">
+                                <span className="pc-spine-title">{book.title}</span>
+                                <span className="pc-spine-author">{book.author || "অজানা লেখক"}</span>
+                              </span>
                               <span className="pc-spine-no">{book.badge}</span>
                               <span className="pc-spine-band" />
                             </button>
@@ -994,11 +1603,45 @@ export function LibraryDesktop(props: LibraryDesktopProps) {
       )}
 
       <style>{PC_STYLES}</style>
+      <style>{SPEECH_STYLES}</style>
     </div>
   );
 }
 
 /* ───────────────────────── Styles ───────────────────────── */
+
+/** পড়ে শোনানোর বার — মোবাইল পেজও এই স্টাইল import করে ব্যবহার করে */
+export const SPEECH_STYLES = `
+.sp-bar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding: 10px 12px;
+  border: 1px solid rgba(24,119,242,.24); border-radius: 12px; background: var(--mem-blue-soft);
+}
+.sp-main {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 7px 14px;
+  border: 1px solid #1877F2; border-radius: 10px; background: linear-gradient(135deg, #1877F2, #0866dc);
+  color: #fff; font-family: inherit; font-size: 12px; font-weight: 900; cursor: pointer;
+  box-shadow: 0 6px 16px rgba(24,119,242,.22); transition: transform .2s ease;
+}
+.sp-main:hover { transform: translateY(-1px); }
+.sp-main.playing { animation: fclSpPulse 1.6s ease-in-out infinite; }
+.sp-mini {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 9px;
+  border: 1px solid var(--mem-border); border-radius: 9px; background: var(--mem-card); color: var(--mem-text);
+  font-family: inherit; font-size: 11px; font-weight: 900; cursor: pointer;
+}
+.sp-mini:hover { color: #1877F2; border-color: rgba(24,119,242,.4); }
+.sp-source {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: var(--mem-muted);
+  font-size: 10.5px; font-weight: 800;
+}
+.sp-track { flex: 1 1 100%; height: 3px; overflow: hidden; border-radius: 3px; background: var(--mem-border); }
+.sp-track > span { display: block; height: 100%; background: linear-gradient(90deg, #1877F2, #22d3ee); transition: width .3s ease; }
+.sp-notice { flex: 1 1 100%; margin: 0; color: #d97706; font-size: 10.5px; font-weight: 700; line-height: 1.7; }
+@keyframes fclSpPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(24,119,242,.35); }
+  50% { box-shadow: 0 0 0 7px rgba(24,119,242,0); }
+}
+`;
 
 const PC_STYLES = `
 .fcl-memory-dark {
@@ -1209,8 +1852,34 @@ const PC_STYLES = `
 .pc-crumb > strong { flex: 1; min-width: 0; color: var(--mem-heading); font-size: 13px; font-weight: 900; }
 .pc-crumb > small { color: var(--mem-muted); font-size: 11px; }
 
+/* legend */
+.pc-legend {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; margin-top: 14px; padding: 11px 15px;
+  border: 1px solid var(--mem-border); border-radius: 12px; background: var(--mem-card);
+}
+.pc-legend-title {
+  display: inline-flex; align-items: center; gap: 7px; color: #d6a24a; font-size: 11px; font-weight: 950; white-space: nowrap;
+}
+.pc-legend-list { display: flex; flex-wrap: wrap; gap: 7px; flex: 1; min-width: 0; }
+.pc-legend-chip {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 30px; padding: 5px 11px 5px 8px;
+  border: 1px solid var(--mem-border); border-radius: 8px; background: var(--mem-secondary);
+  color: var(--mem-text); font-size: 11.5px; font-weight: 850; white-space: nowrap;
+  transition: border-color .2s, color .2s, transform .2s;
+}
+.pc-legend-chip:hover:not(:disabled) { border-color: rgba(24,119,242,.45); color: #1877F2; transform: translateY(-1px); }
+.pc-legend-chip.active { border-color: #1877F2; color: #1877F2; background: var(--mem-blue-soft); }
+.pc-legend-chip:disabled { opacity: .7; }
+.pc-legend-chip small { color: var(--mem-subtle); font-size: 10px; font-weight: 900; }
+.pc-legend-swatch {
+  width: 12px; height: 18px; flex-shrink: 0; border-radius: 2px;
+  background: linear-gradient(180deg, var(--tb), var(--ta));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 1px 0 0 rgba(0,0,0,.25);
+}
+.pc-legend-hint { color: var(--mem-subtle); font-size: 10.5px; font-weight: 800; white-space: nowrap; }
+
 /* bookcase */
-.pc-measure { margin-top: 20px; }
+.pc-measure { margin-top: 16px; }
 .pc-case {
   position: relative; padding: 14px 28px 28px; border-radius: 22px;
   background: linear-gradient(180deg, var(--pc-wood-1), var(--pc-wood-2));
@@ -1230,7 +1899,7 @@ const PC_STYLES = `
 }
 .pc-shelf { position: relative; }
 .pc-shelf-books {
-  display: flex; align-items: flex-end; gap: 8px; min-height: 256px; padding: 14px 4px 0;
+  display: flex; align-items: flex-end; gap: 8px; min-height: 290px; padding: 14px 4px 0;
 }
 .pc-shelf-board {
   position: relative; display: flex; align-items: center; height: 22px; margin: 0 -26px 26px; padding-left: 40px;
@@ -1251,7 +1920,7 @@ const PC_STYLES = `
 /* spine */
 .pc-spine {
   position: relative; flex: 0 0 auto; display: flex; flex-direction: column; align-items: center;
-  justify-content: space-between; padding: 12px 0; border: 0; border-radius: 3px 3px 2px 2px; color: #fff7e6;
+  justify-content: space-between; padding: 10px 0 8px; border: 0; border-radius: 3px 3px 2px 2px; color: #fff7e6;
   background:
     linear-gradient(90deg, rgba(0,0,0,.38), transparent 20%, transparent 78%, rgba(0,0,0,.32)),
     linear-gradient(180deg, var(--tb) -40%, var(--ta) 120%);
@@ -1272,14 +1941,25 @@ const PC_STYLES = `
   background: linear-gradient(90deg, #f7dc96, #b88a2c);
 }
 .pc-spine.series .pc-spine-band { height: 5px; }
-.pc-spine-emblem { color: #f7dc96; font-size: 11px; line-height: 1; }
-.pc-spine-title {
-  writing-mode: vertical-rl; flex: 1; min-height: 0; max-width: 100%; margin: 8px 0; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 900; line-height: 1.25;
-  text-shadow: 0 1px 2px rgba(0,0,0,.45);
+.pc-spine.series { box-shadow: 3px 0 0 rgba(0,0,0,.34), 5px 0 0 rgba(255,255,255,.07), inset 0 0 0 1px rgba(255,255,255,.12); }
+.pc-spine-type {
+  display: block; max-width: calc(100% - 8px); margin-top: 7px; padding: 2px 5px; overflow: hidden;
+  border-radius: 4px; background: rgba(0,0,0,.3); color: #f7dc96; font-size: 9.5px; font-weight: 900;
+  line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 1px rgba(0,0,0,.4);
 }
-.pc-spine.series .pc-spine-title { font-size: 14px; }
-.pc-spine-no { color: #f7dc96; font-size: 9px; font-weight: 900; letter-spacing: .04em; margin-bottom: 6px; }
+.pc-spine.series .pc-spine-type { background: rgba(247,220,150,.9); color: #3a2608; text-shadow: none; }
+.pc-spine-text {
+  display: flex; flex-direction: row-reverse; align-items: stretch; justify-content: center; gap: 6px;
+  flex: 1; width: 100%; min-height: 0; margin: 9px 0 7px; padding: 0 4px; overflow: hidden;
+}
+.pc-spine-title, .pc-spine-author {
+  writing-mode: vertical-rl; min-height: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  line-height: 1.25; text-shadow: 0 1px 2px rgba(0,0,0,.45);
+}
+.pc-spine-title { font-size: 12.5px; font-weight: 900; }
+.pc-spine.series .pc-spine-title { font-size: 14.5px; }
+.pc-spine-author { color: #f7dc96; font-size: 10px; font-weight: 700; opacity: .88; }
+.pc-spine-no { color: #f7dc96; font-size: 9px; font-weight: 900; letter-spacing: .02em; margin-bottom: 5px; white-space: nowrap; }
 
 .pc-skeleton {
   display: block; flex: 0 0 auto; border-radius: 3px;
@@ -1452,38 +2132,45 @@ const PC_STYLES = `
 .pc-book.stage-read::after { opacity: 1; }
 
 /* left page */
-.pc-left { display: flex; flex-direction: column; height: 100%; padding: 28px 34px 22px; }
+.pc-left { display: flex; flex-direction: column; height: 100%; padding: 26px 34px 20px; }
 .pc-left-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .pc-left-top > span:last-child { color: var(--mem-subtle); font-size: 9px; font-weight: 900; letter-spacing: .12em; }
-.pc-left-title { margin-top: 24px; text-align: center; }
+.pc-left-title { margin-top: 18px; text-align: center; }
 .pc-chapter { color: #b88637; font-size: 9px; font-weight: 950; letter-spacing: .17em; }
 .pc-left-title h2 {
-  display: -webkit-box; margin: 12px auto 0; overflow: hidden; color: var(--mem-heading);
-  font-size: clamp(22px, 2.1vw, 30px); line-height: 1.5; font-weight: 950; letter-spacing: -.025em;
-  overflow-wrap: anywhere; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+  display: -webkit-box; margin: 10px auto 0; overflow: hidden; color: var(--mem-heading);
+  font-size: clamp(21px, 2vw, 28px); line-height: 1.5; font-weight: 950; letter-spacing: -.025em;
+  overflow-wrap: anywhere; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
 }
 .pc-author-row {
   display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 16px;
-  margin-top: 12px; color: var(--mem-muted); font-size: 11.5px; font-weight: 750;
+  margin-top: 10px; color: var(--mem-muted); font-size: 11.5px; font-weight: 750;
 }
-.pc-ornament { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 20px 0 16px; }
+.pc-ornament { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 14px 0 12px; }
 .pc-ornament > span { width: 70px; height: 1px; background: var(--mem-book-line); }
 .pc-ornament > strong { color: #d6a24a; font-size: 13px; }
-.pc-left-body { flex: 1; min-height: 0; overflow: hidden; }
+.pc-left-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--mem-book-line) transparent; }
 .pc-summary {
-  padding: 14px 17px; border-left: 3px solid #d6a24a; border-radius: 0 8px 8px 0; background: rgba(245,158,11,.06);
+  padding: 13px 16px; border-left: 3px solid #d6a24a; border-radius: 0 8px 8px 0; background: rgba(245,158,11,.06);
 }
 .pc-summary > span { color: #d6a24a; font-size: 11px; font-weight: 950; }
 .pc-summary p {
-  display: -webkit-box; margin: 7px 0 0; overflow: hidden; color: var(--mem-book-ink); font-size: 12.5px; line-height: 1.9;
-  -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow-wrap: anywhere;
+  margin: 7px 0 0; color: var(--mem-book-ink); font-size: 12.5px; line-height: 1.9; overflow-wrap: anywhere;
 }
-.pc-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.pc-summary-lead { color: #b88637; font-weight: 950; }
+.pc-themes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.pc-themes small { color: var(--mem-muted); font-size: 10.5px; font-weight: 850; }
+.pc-themes em {
+  padding: 2px 9px; border: 1px solid rgba(214,162,74,.4); border-radius: 999px; background: rgba(245,158,11,.08);
+  color: #b88637; font-size: 11px; font-style: normal; font-weight: 850;
+}
+.pc-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .pc-chips span {
   display: inline-flex; align-items: center; gap: 7px; padding: 6px 10px; border: 1px solid var(--mem-book-line);
   border-radius: 8px; color: var(--mem-muted); font-size: 11px; font-weight: 800;
 }
-.pc-left-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.pc-left .sp-bar { margin-top: 12px; }
+.pc-left-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
 .pc-nav-btn {
   display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 12px;
   border: 1px solid var(--mem-border); border-radius: 11px; background: var(--mem-secondary); color: var(--mem-heading);
@@ -1590,6 +2277,7 @@ const PC_STYLES = `
   .pc-left { padding: 22px 22px 18px; }
   .pc-right-scroll { padding: 18px 24px 28px 28px; }
   .pc-case { padding: 12px 18px 22px; }
+  .pc-legend-hint { flex-basis: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

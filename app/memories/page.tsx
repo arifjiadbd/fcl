@@ -14,7 +14,14 @@ import {
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import { LibraryDesktop, useIsDesktop, type ShelfRect } from "./LibraryDesktop";
+import {
+  LibraryDesktop,
+  SPEECH_STYLES,
+  SpeechBar,
+  useIsDesktop,
+  useStorySpeech,
+  type ShelfRect,
+} from "./LibraryDesktop";
 
 interface Memory {
   id: number;
@@ -28,6 +35,8 @@ interface Memory {
   seriesName?: string;
   episodeNo?: number | string;
   summary?: string;
+  /** রেকর্ড করা ভয়েস/mp3 লিংক (ঐচ্ছিক) — API-তে audioUrl / audio_url / audio নামে দিলেই হবে */
+  audioUrl?: string;
 }
 
 interface SeriesEpisode {
@@ -40,6 +49,10 @@ interface SeriesEpisode {
   Content?: string;
   summary?: string;
   status?: string;
+  /** রেকর্ড করা ভয়েস/mp3 লিংক (ঐচ্ছিক) */
+  audioUrl?: string;
+  audio_url?: string;
+  audio?: string;
 }
 
 interface SeriesGroup {
@@ -63,6 +76,8 @@ type ReaderItem = {
   summary: string;
   url: string;
   number?: string;
+  seriesName?: string;
+  audioUrl?: string;
 };
 
 const LIST_PAGE_SIZE = 30;
@@ -201,7 +216,9 @@ type IconName =
   | "check"
   | "refresh"
   | "layers"
-  | "sparkles";
+  | "sparkles"
+  | "volume"
+  | "pause";
 
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactNode> = {
@@ -305,6 +322,19 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
       <>
         <path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" />
         <path d="m19 17 .7 1.3L21 19l-1.3.7L19 21l-.7-1.3L17 19l1.3-.7L19 17Z" />
+      </>
+    ),
+    volume: (
+      <>
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+      </>
+    ),
+    pause: (
+      <>
+        <rect x="6" y="4" width="4" height="16" />
+        <rect x="14" y="4" width="4" height="16" />
       </>
     ),
   };
@@ -523,6 +553,16 @@ function BookReader({
   const scrollRef = useRef<HTMLDivElement>(null);
   const pageNumber = String(index + 1).padStart(2, "0");
 
+  // 🔊 পড়ে শোনানো — রেকর্ড করা অডিও (audioUrl) থাকলে সেটা, নইলে ব্রাউজারের বাংলা ভয়েস
+  const speech = useStorySpeech(item);
+  const speaking = speech.state === "playing";
+
+  // মোবাইলে রিডার বন্ধ করলে পড়াও থামবে
+  useEffect(() => {
+    if (!mobileOpen) speech.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobileOpen]);
+
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
@@ -570,6 +610,20 @@ function BookReader({
             {pageNumber}
             <span> / {total}</span>
           </span>
+
+          {/* 🌟 পড়ে শোনানোর দ্রুত বাটন (কার্ডের ভেতরের প্লেয়ারের সাথে একই কন্ট্রোল) */}
+          {speech.supported && (
+            <button
+              type="button"
+              className={`fcl-reader-icon-button speech-btn ${speaking ? "speaking" : ""}`}
+              onClick={speech.toggle}
+              aria-label={speaking ? "পড়া বিরতি দিন" : "পড়ে শুনুন"}
+              title={speaking ? "বিরতি দিন" : "পড়ে শুনুন"}
+            >
+              <Icon name={speaking ? "pause" : "volume"} size={16} />
+            </button>
+          )}
+
           <button
             type="button"
             className="fcl-reader-icon-button"
@@ -620,6 +674,11 @@ function BookReader({
                   <span>✦ {item.author || "অজানা লেখক"}</span>
                   {item.date && <span>{formatDate(item.date)}</span>}
                 </div>
+              </div>
+
+              {/* 🔊 কার্ডের ভেতরের প্লে / পজ প্লেয়ার */}
+              <div className="fcl-reader-speech">
+                <SpeechBar speech={speech} />
               </div>
 
               <div className="fcl-reader-ornament">
@@ -780,19 +839,22 @@ function MemoriesPageInner() {
               : Array.isArray(data?.memories)
               ? data.memories
               : [];
-            loadedMemories = raw.map((item: Partial<Memory>, index: number) => ({
-              id: Number(item.id) || index + 1,
-              category: normalize(item.category),
-              title: normalize(item.title),
-              author: normalize(item.author),
-              date: normalize(item.date),
-              fbPostUrl: normalize(item.fbPostUrl),
-              content: normalize(item.content),
-              summary: normalize(item.summary),
-              isSeries: item.isSeries,
-              seriesName: normalize(item.seriesName),
-              episodeNo: item.episodeNo,
-            }));
+            loadedMemories = raw.map(
+              (item: Partial<Memory> & Record<string, unknown>, index: number) => ({
+                id: Number(item.id) || index + 1,
+                category: normalize(item.category),
+                title: normalize(item.title),
+                author: normalize(item.author),
+                date: normalize(item.date),
+                fbPostUrl: normalize(item.fbPostUrl),
+                content: normalize(item.content),
+                summary: normalize(item.summary),
+                isSeries: item.isSeries,
+                seriesName: normalize(item.seriesName),
+                episodeNo: item.episodeNo,
+                audioUrl: normalize(item.audioUrl ?? item.audio_url ?? item.audio),
+              })
+            );
           } catch {
             memoriesFailed = true;
           }
@@ -819,6 +881,7 @@ function MemoriesPageInner() {
               Content: normalize(item.Content),
               summary: normalize(item.summary),
               status: normalize(item.status),
+              audioUrl: normalize(item.audioUrl ?? item.audio_url ?? item.audio),
             }));
           } catch {
             seriesFailed = true;
@@ -948,8 +1011,9 @@ function MemoriesPageInner() {
             content: item.Content || "",
             summary: item.summary || "",
             isSeries: true,
-            seriesName: item.series_name,
+            seriesName: normalize(item.series_name) || "ধারাবাহিক গল্প",
             episodeNo: item.episode_no,
+            audioUrl: normalize(item.audioUrl),
           }))
         : [];
 
@@ -1013,6 +1077,8 @@ function MemoriesPageInner() {
         summary: normalize(episode.summary),
         url: normalize(episode.facebook_link),
         number: normalize(episode.episode_no || index + 1),
+        seriesName: currentSeries?.name,
+        audioUrl: normalize(episode.audioUrl),
       }));
     }
 
@@ -1028,6 +1094,8 @@ function MemoriesPageInner() {
       summary: memory.summary || "",
       url: memory.fbPostUrl,
       number: memory.isSeries ? normalize(memory.episodeNo) : undefined,
+      seriesName: memory.seriesName || undefined,
+      audioUrl: memory.audioUrl || undefined,
     }));
   }, [mode, currentSeries, filteredMemories]);
 
@@ -1165,11 +1233,14 @@ function MemoriesPageInner() {
   };
 
   const openSeries = (name: string) => {
+    // "সব স্মৃতি" শেলফ থেকে সিরিজের বই খুললেও যেন সিরিজের পর্ব-তালিকা দেখায়
+    setSelectedCategory("ধারাবাহিক সিরিজ");
     setSelectedSeriesName(name);
     setSelectedItemKey(null);
     setSearchQuery("");
     setVisibleCount(LIST_PAGE_SIZE);
     setMobileReaderOpen(false);
+    setPcOpen(false);
     setReadingProgress(0);
     if (listRef.current) listRef.current.scrollTop = 0;
   };
@@ -1307,6 +1378,7 @@ function MemoriesPageInner() {
           onSort={handleSort}
           readerItems={readerItems}
           filteredSeries={filteredSeries}
+          allSeries={seriesGroups}
           currentSeries={currentSeries}
           onOpenSeries={openSeries}
           onCloseSeries={closeSeries}
@@ -1703,7 +1775,7 @@ function MemoriesPageInner() {
       )}
 
       <style jsx global>
-        {MEMORY_BOOK_STYLES}
+        {PAGE_STYLES}
       </style>
     </div>
   );
@@ -2673,12 +2745,19 @@ const MEMORY_BOOK_STYLES = `
   border-radius: 9px;
   background: var(--mem-secondary);
   color: var(--mem-text);
-  transition: color .2s ease, border-color .2s ease;
+  transition: color .2s ease, border-color .2s ease, background .2s ease;
 }
 
 .fcl-reader-icon-button:hover {
   color: #1877F2;
   border-color: rgba(24,119,242,.4);
+}
+
+.fcl-reader-icon-button.speech-btn.speaking {
+  background: #1877F2;
+  color: #ffffff;
+  border-color: #1877F2;
+  animation: fclBookPulse 1.5s infinite;
 }
 
 .fcl-reader-icon-button:disabled {
@@ -2838,6 +2917,20 @@ const MEMORY_BOOK_STYLES = `
   color: var(--mem-muted);
   font-size: 11px;
   font-weight: 750;
+}
+
+.fcl-reader-speech {
+  max-width: 560px;
+  margin: 16px auto 0;
+}
+
+.fcl-reader-speech .sp-bar {
+  margin-top: 0;
+  justify-content: center;
+}
+
+.fcl-reader-speech .sp-source {
+  margin-left: 0;
 }
 
 .fcl-reader-ornament {
@@ -4026,7 +4119,6 @@ const MEMORY_BOOK_STYLES = `
   }
 }
 
-/* ───── Mobile tuning: কমপ্যাক্ট হিরো, ফিল্টার স্ক্রিনের মাপে, কম লাইন গ্যাপ ───── */
 @media (max-width: 767px) {
   .fcl-book-hero { padding-top: 56px; }
   .fcl-book-hero-layout { padding: 22px 0 16px; }
@@ -4054,6 +4146,7 @@ const MEMORY_BOOK_STYLES = `
   .fcl-reader-paper { padding: 18px 16px 26px; }
   .fcl-reader-title-section { margin-top: 14px; }
   .fcl-reader-title-section h2 { font-size: 21px; line-height: 1.38; }
+  .fcl-reader-speech { margin-top: 12px; }
   .fcl-reader-ornament { margin: 14px 0; }
   .fcl-reader-summary { padding: 11px 13px; margin-bottom: 14px; }
   .fcl-reader-summary p { line-height: 1.7; }
@@ -4113,3 +4206,6 @@ const MEMORY_BOOK_STYLES = `
   }
 }
 `;
+
+// মূল পেজের স্টাইল + পড়ে শোনানোর বারের স্টাইল (LibraryDesktop থেকে আসা)
+const PAGE_STYLES = MEMORY_BOOK_STYLES + SPEECH_STYLES;
