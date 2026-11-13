@@ -126,8 +126,6 @@ function useIsMobile() {
 
 /* ================================================================
    PRELOADER
-   ✅ মোবাইলে সময় ৩.২ সেকেন্ড → ১.৫ সেকেন্ড
-   ✅ ভারী blur(110px) গ্লো সরিয়ে হালকা gradient
 ================================================================ */
 function Preloader({
   onFinish,
@@ -165,7 +163,6 @@ function Preloader({
     const tick = (now: number) => {
       const p = Math.min((now - start) / DURATION, 1);
       const value = Math.round(p * 100);
-      // শুধু সংখ্যা বদলালে রি-রেন্ডার (অকারণ রেন্ডার কমানো)
       if (value !== lastPct) {
         lastPct = value;
         setPct(value);
@@ -253,9 +250,6 @@ function Preloader({
 
 /* ================================================================
    📱 MOBILE VIEW
-   ✅ prefetch বন্ধ (ডাটা সাশ্রয়)
-   ✅ hero ছবি: হালকা WebP (না থাকলে আসল PNG)
-   ✅ blur / backdrop-filter / ভারী infinite এনিমেশন বন্ধ
 ================================================================ */
 type Portal = {
   href: string;
@@ -363,7 +357,6 @@ function ArrowIcon({ back = false }: { back?: boolean }) {
   );
 }
 
-/** হালকা মোবাইল ছবি (ঐচ্ছিক) — ফাইল না থাকলে আসল PNG তে ফিরে যাবে */
 const HERO_LIGHT = "/fcl-room.png";
 const HERO_FULL = "/fcl-room.png";
 
@@ -834,7 +827,7 @@ function MobileHome({
 }
 
 /* ================================================================
-   🖥️ DESKTOP VIEW — (অপরিবর্তিত)
+   🖥️ DESKTOP VIEW
 ================================================================ */
 function useReveal<T extends HTMLElement>(threshold = 0.15) {
   const ref = useRef<T>(null);
@@ -1045,7 +1038,6 @@ const ROT_WORDS = [
   { t: "THE GAME", c: "#22c55e" },
 ];
 
-/* FX canvas — শুধু পিসিতে: স্পার্ক, মাউস অরা, এম্বার */
 const FX_COLORS = ["#60a5fa", "#22d3ee", "#f59e0b", "#a855f7", "#f472b6", "#22c55e", "#fde047"];
 
 function FxCanvas({ isDark }: { isDark: boolean }) {
@@ -1288,7 +1280,6 @@ function ScrollBar() {
   );
 }
 
-/** স্পার্ক বার্স্ট একটু দেখিয়ে তারপর নেভিগেট করে */
 function SparkLink({
   href,
   children,
@@ -1393,15 +1384,32 @@ function FilterChips({
 }
 
 function HeroArt() {
+  const [imgSrc, setImgSrc] = useState("/fcl-room.png");
+  const [hasError, setHasError] = useState(false);
+
   return (
     <div className="relative h-[480px] w-full lg:h-[550px]">
       <div className="fcl-frame absolute inset-0 flex items-center justify-center overflow-hidden rounded-[3rem] p-4">
-        <img
-          src="/fcl-room.png"
-          alt="FCL Room"
-          className="h-full w-full object-contain object-center"
-          decoding="async"
-        />
+        {hasError ? (
+          <div className="text-center p-6">
+            <span className="text-4xl">🏟️</span>
+            <p className="mt-2 text-sm font-bold">FCL Room Image</p>
+          </div>
+        ) : (
+          <img
+            src={imgSrc}
+            alt="FCL Room"
+            className="h-full w-full object-contain object-center"
+            decoding="async"
+            onError={() => {
+              if (imgSrc !== "/fcl-room.png") {
+                setImgSrc("/fcl-room.png");
+              } else {
+                setHasError(true);
+              }
+            }}
+          />
+        )}
       </div>
 
       <div className="fcl-chip fcl-pill fcl-pill-line absolute -left-6 top-10 flex items-center gap-2.5 rounded-2xl border px-4 py-2.5 backdrop-blur-xl">
@@ -1558,7 +1566,6 @@ function DesktopHome({ isDark, ready }: { isDark: boolean; ready: boolean }) {
           ready ? "block" : "hidden"
         }`}
       >
-        {/* ================= DESKTOP HERO ================= */}
         <section
           className="fcl-hero relative overflow-hidden border-b"
           onPointerMove={(e) => {
@@ -1647,7 +1654,6 @@ function DesktopHome({ isDark, ready }: { isDark: boolean; ready: boolean }) {
             </div>
           </div>
 
-          {/* marquee */}
           <div className="relative border-t py-3" style={{ borderColor: "var(--line)" }}>
             <div className="mq">
               <div className="mq-track">
@@ -1672,7 +1678,6 @@ function DesktopHome({ isDark, ready }: { isDark: boolean; ready: boolean }) {
           </div>
         </section>
 
-        {/* ================= DESKTOP PORTALS (bento) ================= */}
         <section id="gateways" className="fcl-section relative scroll-mt-20 overflow-hidden px-6 py-14">
           <div className="absolute inset-0 fcl-grid-bg opacity-60" />
           <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 blur-[150px]" />
@@ -1755,7 +1760,6 @@ export default function Home() {
 
 /* ================================================================
    STYLES — PRELOADER
-   ✅ blur(110px) / blur(100px) → হালকা radial-gradient (একই লুক)
 ================================================================ */
 const PRELOADER_STYLES = `
 .pl-root {
@@ -1843,7 +1847,6 @@ const PRELOADER_STYLES = `
 
 @media (max-width: 760px) {
   .pl-title { font-size: 21px; }
-  /* মোবাইলে লোগোর drop-shadow filter বন্ধ — GPU সাশ্রয় */
   .pl-logo { filter: none; }
 }
 
@@ -1857,13 +1860,7 @@ const PRELOADER_STYLES = `
 `;
 
 /* ================================================================
-   STYLES — MOBILE (অপটিমাইজড)
-   ❌ backdrop-filter বন্ধ        (panel আরও অপাক করা হয়েছে)
-   ❌ filter: blur() বন্ধ         (glow = radial-gradient, square = blur ছাড়া)
-   ❌ mask-image গ্রিডে বন্ধ
-   ❌ অসীম এনিমেশন বন্ধ: orbit spin, runner, connector flow, core halo, square float
-   ✅ চিপ ফ্লোট (শুধু transform) আর লাইভ ডট থাকছে
-   ✅ will-change সরানো
+   STYLES — MOBILE
 ================================================================ */
 const MOBILE_STYLES = `
 .fcl-universe.fu-hidden { display: none; }
@@ -1938,7 +1935,6 @@ const MOBILE_STYLES = `
   opacity: .8;
 }
 
-/* blur(100px) ফিল্টার সরিয়ে radial-gradient — দেখতে একই, GPU তে প্রায় ফ্রি */
 .fu-glow { position: absolute; width: 520px; height: 520px; border-radius: 50%; opacity: .16; }
 .fu-glow-a { background: radial-gradient(circle, #2563eb, transparent 68%); top: -230px; left: -80px; }
 .fu-glow-b { background: radial-gradient(circle, #9333ea, transparent 68%); bottom: -280px; right: -120px; }
@@ -1960,7 +1956,6 @@ const MOBILE_STYLES = `
   padding: calc(64px + 12px) 12px max(12px, env(safe-area-inset-bottom));
 }
 
-/* ================= HERO ================= */
 .fh-hero { position: relative; margin-bottom: 14px; }
 
 .fh-badge {
@@ -2087,7 +2082,6 @@ const MOBILE_STYLES = `
 }
 .fh-btn-primary:active, .fh-btn-play:active { transform: scale(.96); }
 
-/* ================= FLOWER MENU ================= */
 .fu-dashboard { display: block; scroll-margin-top: calc(64px + 4px); }
 
 .fu-console {
@@ -2127,7 +2121,6 @@ const MOBILE_STYLES = `
   pointer-events: none;
 }
 
-/* অরবিটের ঘূর্ণন বন্ধ — স্ট্যাটিক রিং (লুক একই) */
 .fu-orbit { position: absolute; border-radius: 50%; pointer-events: none; }
 .fu-orbit-outer { inset: 9%; border: 1px dashed var(--fu-line); }
 .fu-orbit-inner { inset: 28%; border: 1px solid var(--fu-line); }
@@ -2241,7 +2234,6 @@ const MOBILE_STYLES = `
 .fu-instruction > span { color: #3b82f6; font-size: 12px; }
 .fu-step { font-size: 7px; font-weight: 850; letter-spacing: .1em; color: var(--fu-muted); white-space: nowrap; }
 
-/* 📱 মোবাইল ডক */
 .fu-dock {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2328,10 +2320,9 @@ const MOBILE_STYLES = `
 `;
 
 /* ================================================================
-   STYLES — DESKTOP (অপরিবর্তিত)
+   STYLES — DESKTOP
 ================================================================ */
 const DESKTOP_STYLES = `
-/* ============ THEME TOKENS ============ */
 .fcl-root {
   --bg: #ffffff;
   --bg-alt: #f1f5f9;
@@ -2382,7 +2373,6 @@ const DESKTOP_STYLES = `
   --grid-line: rgba(148, 163, 184, 0.06);
 }
 
-/* ============ THEMED UTILITIES ============ */
 .fcl-head { color: var(--head); }
 .fcl-body { color: var(--text); }
 .fcl-muted { color: var(--muted); }
@@ -2403,7 +2393,6 @@ const DESKTOP_STYLES = `
 .no-sb { scrollbar-width: none; -ms-overflow-style: none; }
 .no-sb::-webkit-scrollbar { display: none; }
 
-/* ============ KEYFRAMES ============ */
 @keyframes fcl-spin { to { transform: rotate(360deg); } }
 @keyframes float-a { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(24px,-32px) scale(1.05); } }
 @keyframes float-b { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-28px,26px) scale(1.06); } }
@@ -2438,7 +2427,6 @@ const DESKTOP_STYLES = `
 }
 @keyframes fcl-icon-float { 0%,100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-12px) rotate(4deg); } }
 
-/* ============ ENTRY WORDS / GRADIENT ============ */
 .fcl-wd {
   display: inline-block;
   opacity: 0;
@@ -2473,7 +2461,6 @@ const DESKTOP_STYLES = `
 .fcl-rot { display: inline-block; overflow: hidden; height: 1.35em; line-height: 1.35em; vertical-align: bottom; min-width: 7.5ch; text-shadow: 0 0 22px currentColor; }
 .fcl-rot-w { display: inline-block; animation: fcl-rot 2200ms both; }
 
-/* ============ BACKGROUND ============ */
 .fcl-grid-bg {
   background-image:
     linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
@@ -2498,12 +2485,10 @@ const DESKTOP_STYLES = `
 .sq-2 { width: 90px; height: 90px; right: 8%; bottom: 20%; --r: -18deg; animation-delay: -5s; }
 .sq-3 { width: 70px; height: 70px; left: 46%; top: 8%; --r: 30deg; animation-delay: -9s; }
 
-/* ============ HERO CHIPS ============ */
 .fcl-chip { animation: chip-float 5s ease-in-out infinite; }
 .fcl-chip-delay { animation-delay: 1.4s; }
 .fcl-live { display: inline-block; animation: fcl-live-ring 1.6s ease-out infinite; }
 
-/* ============ BUTTONS ============ */
 .btn-primary {
   position: relative; overflow: hidden; display: inline-flex; align-items: center;
   padding: 14px 28px; border-radius: 14px; font-size: 14px; font-weight: 800; color: #fff;
@@ -2529,7 +2514,6 @@ const DESKTOP_STYLES = `
 .btn-ghost:hover { background: #1877F2; color: #fff; }
 .btn-primary:active, .btn-play:active, .btn-ghost:active { transform: scale(.96); }
 
-/* ============ MARQUEE ============ */
 .mq {
   overflow: hidden;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
@@ -2546,7 +2530,6 @@ const DESKTOP_STYLES = `
 }
 .mq-item:hover { transform: translateY(-2px) scale(1.05); background: color-mix(in srgb, var(--c) 22%, var(--card-a)); }
 
-/* ============ FILTER CHIPS ============ */
 .fchip {
   display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 999px;
   font-size: 12px; font-weight: 800; white-space: nowrap; cursor: pointer;
@@ -2560,7 +2543,6 @@ const DESKTOP_STYLES = `
 }
 .fchip b { font-size: 10px; padding: 1px 6px; border-radius: 99px; background: rgba(127,127,127,.2); }
 
-/* ============ PORTAL CARD ============ */
 .pc {
   --rx: 0deg; --ry: 0deg;
   position: relative; display: flex; flex-direction: column; height: 100%; min-height: 190px;
@@ -2641,7 +2623,6 @@ const DESKTOP_STYLES = `
 }
 .pc-cta-shine { position: absolute; inset: 0 auto 0 0; width: 40%; background: rgba(255,255,255,.3); animation: fcl-shine 3s ease-in-out infinite; }
 
-/* ============ REDUCED MOTION ============ */
 @media (prefers-reduced-motion: reduce) {
   .fcl-root *, .fcl-root *::before, .fcl-root *::after {
     animation-duration: .001ms !important;
