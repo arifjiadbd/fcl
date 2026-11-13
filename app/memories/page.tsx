@@ -14,6 +14,8 @@ import {
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
+import { LibraryDesktop, useIsDesktop, type ShelfRect } from "./LibraryDesktop";
+
 interface Memory {
   id: number;
   category: string;
@@ -711,6 +713,7 @@ function BookReader({
 
 function MemoriesPageInner() {
   const isDark = useIsDark();
+  const isDesktop = useIsDesktop();
 
   const [memories, setMemories] = useState<Memory[]>([]);
   const [seriesData, setSeriesData] = useState<SeriesEpisode[]>([]);
@@ -729,6 +732,10 @@ function MemoriesPageInner() {
   const [readingProgress, setReadingProgress] = useState(0);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [listExpanded, setListExpanded] = useState(false);
+
+  // Desktop library reader state
+  const [pcOpen, setPcOpen] = useState(false);
+  const [pcRect, setPcRect] = useState<ShelfRect | null>(null);
 
   const contentRef = useRef<HTMLElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -1124,6 +1131,8 @@ function MemoriesPageInner() {
     setReadingProgress(0);
     setVisibleCount((prev) => Math.max(prev, index + 1));
     setMobileReaderOpen(isMobile);
+    setPcOpen(!isMobile);
+    setPcRect(null);
     scrollToContent();
 
     window.setTimeout(() => {
@@ -1144,6 +1153,7 @@ function MemoriesPageInner() {
     setVisibleCount(LIST_PAGE_SIZE);
     setReadingProgress(0);
     setMobileReaderOpen(false);
+    setPcOpen(false);
     if (listRef.current) listRef.current.scrollTop = 0;
   };
 
@@ -1216,7 +1226,7 @@ function MemoriesPageInner() {
   };
 
   useEffect(() => {
-    if (!mobileReaderOpen) return;
+    if (!mobileReaderOpen && !pcOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const handleEscape = (event: KeyboardEvent) => {
@@ -1227,7 +1237,7 @@ function MemoriesPageInner() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleEscape);
     };
-  }, [mobileReaderOpen]);
+  }, [mobileReaderOpen, pcOpen]);
 
   useEffect(() => {
     return () => {
@@ -1235,19 +1245,22 @@ function MemoriesPageInner() {
     };
   }, []);
 
-  useEffect(() => {
-    const container = document.querySelector(".fcl-book-category-scroll");
-    const active = container?.querySelector(".fcl-book-category-tab.active");
-    active?.scrollIntoView({
-      behavior: "smooth",
-      inline: "center",
-      block: "nearest",
-    });
-  }, [selectedCategory]);
-
   const updateProgress = useCallback((value: number) => {
     setReadingProgress(value);
   }, []);
+
+  // Desktop handlers
+  const openPcItem = (key: string, rect: ShelfRect | null) => {
+    setSelectedItemKey(key);
+    setReadingProgress(0);
+    setPcRect(rect);
+    setPcOpen(true);
+  };
+  const closePc = useCallback(() => setPcOpen(false), []);
+  const changeFont = useCallback(
+    (delta: number) => setFontSize((p) => Math.max(13, Math.min(22, p + delta))),
+    []
+  );
 
   const themeStyle = {
     colorScheme: isDark ? "dark" : "light",
@@ -1278,378 +1291,416 @@ function MemoriesPageInner() {
       className={`fcl-memory-book-page ${isDark ? "fcl-memory-dark" : "fcl-memory-light"}`}
       style={themeStyle}
     >
-      <header className="fcl-book-hero">
-        <div className="fcl-book-hero-grid" />
-        <div className="fcl-book-hero-glow glow-one" />
-        <div className="fcl-book-hero-glow glow-two" />
-        <div className="fcl-book-hero-square square-one" />
-        <div className="fcl-book-hero-square square-two" />
-        <div className="fcl-book-hero-square square-three" />
+      {isDesktop ? (
+        <LibraryDesktop
+          loading={loading}
+          error={error}
+          onRetry={handleRetry}
+          mode={mode}
+          categories={categories}
+          categoryCounts={categoryCounts}
+          selectedCategory={selectedCategory}
+          onCategory={changeCategory}
+          searchQuery={searchQuery}
+          onSearch={handleSearch}
+          sortMode={sortMode}
+          onSort={handleSort}
+          readerItems={readerItems}
+          filteredSeries={filteredSeries}
+          currentSeries={currentSeries}
+          onOpenSeries={openSeries}
+          onCloseSeries={closeSeries}
+          onResetFilters={resetFilters}
+          stats={{ regular: totalRegular, series: seriesGroups.length, episodes: totalEpisodes }}
+          contentRef={contentRef}
+          onScrollToContent={scrollToContent}
+          open={pcOpen}
+          openRect={pcRect}
+          activeIndex={activeIndex}
+          onOpenItem={openPcItem}
+          onCloseReader={closePc}
+          onPage={changeReaderPage}
+          fontSize={fontSize}
+          onFontChange={changeFont}
+          copiedKey={copiedKey}
+          onCopy={handleCopy}
+        />
+      ) : (
+        <>
+          <header className="fcl-book-hero">
+            <div className="fcl-book-hero-grid" />
+            <div className="fcl-book-hero-glow glow-one" />
+            <div className="fcl-book-hero-glow glow-two" />
+            <div className="fcl-book-hero-square square-one" />
+            <div className="fcl-book-hero-square square-two" />
+            <div className="fcl-book-hero-square square-three" />
 
-        <div className="fcl-book-container">
-          <div className="fcl-book-hero-layout">
-            <div className="fcl-book-hero-content">
-              <div className="fcl-book-hero-eyebrow">
-                <span className="fcl-book-live-dot" />
-                FCL DIGITAL MEMORY ARCHIVE
-              </div>
+            <div className="fcl-book-container">
+              <div className="fcl-book-hero-layout">
+                <div className="fcl-book-hero-content">
+                  <div className="fcl-book-hero-eyebrow">
+                    <span className="fcl-book-live-dot" />
+                    FCL DIGITAL MEMORY ARCHIVE
+                  </div>
 
-              <h1>
-                স্মৃতির পাতায়
-                <span>Facebook Cricket League</span>
-              </h1>
+                  <h1>
+                    স্মৃতির পাতায়
+                    <span>Facebook Cricket League</span>
+                  </h1>
 
-              <p>
-                বন্ধুত্ব, আবেগ, গল্প, কবিতা আর অসংখ্য স্মরণীয় মুহূর্ত। ফিরে দেখুন FCL-এর
-                ভালোবাসায় লেখা ইতিহাস।
-              </p>
+                  <p>
+                    বন্ধুত্ব, আবেগ, গল্প, কবিতা আর অসংখ্য স্মরণীয় মুহূর্ত। ফিরে দেখুন FCL-এর
+                    ভালোবাসায় লেখা ইতিহাস।
+                  </p>
 
-              <div className="fcl-book-hero-actions">
-                <button
-                  type="button"
-                  onClick={scrollToContent}
-                  className="fcl-book-primary"
-                >
-                  <Icon name="book" size={17} />
-                  স্মৃতির বই খুলুন
-                  <Icon name="arrow" size={16} />
-                </button>
+                  <div className="fcl-book-hero-actions">
+                    <button
+                      type="button"
+                      onClick={scrollToContent}
+                      className="fcl-book-primary"
+                    >
+                      <Icon name="book" size={17} />
+                      স্মৃতির বই খুলুন
+                      <Icon name="arrow" size={16} />
+                    </button>
 
-                <Link href="/" className="fcl-book-secondary">
-                  <Icon name="home" size={16} />
-                  FCL হোম
-                </Link>
-              </div>
-            </div>
+                    <Link href="/" className="fcl-book-secondary">
+                      <Icon name="home" size={16} />
+                      FCL হোম
+                    </Link>
+                  </div>
+                </div>
 
-            <div className="fcl-book-hero-art">
-              <div className="fcl-book-art-orbit orbit-one" />
-              <div className="fcl-book-art-orbit orbit-two" />
-              <div className="fcl-book-art-main">
-                <div className="fcl-book-art-page page-back" />
-                <div className="fcl-book-art-page page-middle" />
-                <div className="fcl-book-art-cover">
-                  <span>THE FCL ARCHIVE</span>
-                  <strong>FCL</strong>
-                  <div className="fcl-book-art-line" />
-                  <b>2013</b>
-                  <small>MEMORIES FOREVER</small>
+                <div className="fcl-book-hero-art">
+                  <div className="fcl-book-art-orbit orbit-one" />
+                  <div className="fcl-book-art-orbit orbit-two" />
+                  <div className="fcl-book-art-main">
+                    <div className="fcl-book-art-page page-back" />
+                    <div className="fcl-book-art-page page-middle" />
+                    <div className="fcl-book-art-cover">
+                      <span>THE FCL ARCHIVE</span>
+                      <strong>FCL</strong>
+                      <div className="fcl-book-art-line" />
+                      <b>2013</b>
+                      <small>MEMORIES FOREVER</small>
+                    </div>
+                  </div>
+                  <div className="fcl-book-art-caption">EVERY STORY MATTERS</div>
                 </div>
               </div>
-              <div className="fcl-book-art-caption">EVERY STORY MATTERS</div>
             </div>
-          </div>
-        </div>
-      </header>
+          </header>
 
-      <section className="fcl-book-stats-section">
-        <div className="fcl-book-container">
-          <div className="fcl-book-stats">
-            <div className="fcl-book-stat">
-              <span className="fcl-book-stat-icon">
-                <Icon name="book" size={17} />
-              </span>
-              <div>
-                <strong>{loading ? "—" : totalRegular}</strong>
-                <span>সংরক্ষিত লেখা</span>
+          <section className="fcl-book-stats-section">
+            <div className="fcl-book-container">
+              <div className="fcl-book-stats">
+                <div className="fcl-book-stat">
+                  <span className="fcl-book-stat-icon">
+                    <Icon name="book" size={17} />
+                  </span>
+                  <div>
+                    <strong>{loading ? "—" : totalRegular}</strong>
+                    <span>সংরক্ষিত লেখা</span>
+                  </div>
+                </div>
+
+                <div className="fcl-book-stat">
+                  <span className="fcl-book-stat-icon">
+                    <Icon name="layers" size={17} />
+                  </span>
+                  <div>
+                    <strong>{loading ? "—" : seriesGroups.length}</strong>
+                    <span>সাহিত্য সিরিজ</span>
+                  </div>
+                </div>
+
+                <div className="fcl-book-stat">
+                  <span className="fcl-book-stat-icon">
+                    <Icon name="list" size={17} />
+                  </span>
+                  <div>
+                    <strong>{loading ? "—" : totalEpisodes}</strong>
+                    <span>প্রকাশিত পর্ব</span>
+                  </div>
+                </div>
+
+                <div className="fcl-book-stat">
+                  <span className="fcl-book-stat-icon">
+                    <Icon name="sparkles" size={17} />
+                  </span>
+                  <div>
+                    <strong>2013</strong>
+                    <span>FCL প্রতিষ্ঠা</span>
+                  </div>
+                </div>
               </div>
             </div>
+          </section>
 
-            <div className="fcl-book-stat">
-              <span className="fcl-book-stat-icon">
-                <Icon name="layers" size={17} />
-              </span>
-              <div>
-                <strong>{loading ? "—" : seriesGroups.length}</strong>
-                <span>সাহিত্য সিরিজ</span>
-              </div>
-            </div>
-
-            <div className="fcl-book-stat">
-              <span className="fcl-book-stat-icon">
-                <Icon name="list" size={17} />
-              </span>
-              <div>
-                <strong>{loading ? "—" : totalEpisodes}</strong>
-                <span>প্রকাশিত পর্ব</span>
-              </div>
-            </div>
-
-            <div className="fcl-book-stat">
-              <span className="fcl-book-stat-icon">
-                <Icon name="sparkles" size={17} />
-              </span>
-              <div>
-                <strong>2013</strong>
-                <span>FCL প্রতিষ্ঠা</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section ref={contentRef} id="fcl-memory-workspace" className="fcl-book-workspace-section">
-        <div className="fcl-book-container">
-          <div className="fcl-book-section-heading">
-            <div>
-              <span className="fcl-book-section-eyebrow">✦ EXPLORE THE ARCHIVE</span>
-              <h2>স্মৃতি ও সাহিত্য সংগ্রহ</h2>
-            </div>
-
-            <div className="fcl-book-section-right">
-              <span className="fcl-book-count-badge">
-                {loading ? "..." : resultCount}
-                <small>{mode === "series" ? "SERIES" : "ENTRIES"}</small>
-              </span>
-            </div>
-          </div>
-
-          <div className="fcl-book-filter-panel">
-            <div className="fcl-book-category-scroll">
-              {categories.map((category) => {
-                const active = selectedCategory === category;
-                return (
-                  <button
-                    key={category}
-                    type="button"
-                    onClick={() => changeCategory(category)}
-                    className={`fcl-book-category-tab ${active ? "active" : ""}`}
-                    aria-pressed={active}
-                  >
-                    {category === "All" ? "সব স্মৃতি" : category}
-                    <small>{categoryCounts.get(category) || 0}</small>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="fcl-book-filter-bottom">
-              <div className="fcl-book-search">
-                <Icon name="search" size={18} />
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => handleSearch(event.target.value)}
-                  disabled={mode === "episodes"}
-                  placeholder={
-                    mode === "series"
-                      ? "সিরিজ বা লেখক খুঁজুন..."
-                      : mode === "episodes"
-                      ? "সিরিজের পর্বসমূহ"
-                      : "স্মৃতি, গল্প, লেখক খুঁজুন..."
-                  }
-                  aria-label="Search archive"
-                />
-                {searchQuery && (
-                  <button type="button" onClick={() => handleSearch("")} aria-label="Clear search">
-                    <Icon name="close" size={15} />
-                  </button>
-                )}
-              </div>
-
-              <div className="fcl-book-sort">
-                <Icon name="sort" size={17} />
-                <select
-                  value={sortMode}
-                  onChange={(event) => handleSort(event.target.value as SortMode)}
-                  aria-label="Sort archive"
-                  disabled={mode === "episodes"}
-                >
-                  <option value="newest">নতুন আগে</option>
-                  <option value="oldest"> পুরোনো আগে</option>
-                  <option value="az">নাম A–Z</option>
-                  <option value="za">নাম Z–A</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {error && !loading && (
-            <div className="fcl-book-error" role="alert">
-              <div>
-                <strong>আর্কাইভ নোটিশ</strong>
-                <p>{error}</p>
-              </div>
-              <button type="button" onClick={handleRetry}>
-                <Icon name="refresh" size={15} />
-                আবার চেষ্টা
-              </button>
-            </div>
-          )}
-
-          {loading ? (
-            <LoadingState />
-          ) : mode === "series" ? (
-            <div className="fcl-book-series-area">
-              <div className="fcl-book-area-heading">
+          <section ref={contentRef} id="fcl-memory-workspace" className="fcl-book-workspace-section">
+            <div className="fcl-book-container">
+              <div className="fcl-book-section-heading">
                 <div>
-                  <span>SERIALISED COLLECTION</span>
-                  <h3>ধারাবাহিক সিরিজসমূহ</h3>
+                  <span className="fcl-book-section-eyebrow">✦ EXPLORE THE ARCHIVE</span>
+                  <h2>স্মৃতি ও সাহিত্য সংগ্রহ</h2>
                 </div>
-                <small>{filteredSeries.length} টি সিরিজ</small>
+
+                <div className="fcl-book-section-right">
+                  <span className="fcl-book-count-badge">
+                    {loading ? "..." : resultCount}
+                    <small>{mode === "series" ? "SERIES" : "ENTRIES"}</small>
+                  </span>
+                </div>
               </div>
 
-              {filteredSeries.length === 0 ? (
-                <EmptyState
-                  title="কোনো সিরিজ পাওয়া যায়নি"
-                  description="অন্য শব্দ দিয়ে খুঁজুন অথবা ফিল্টার পরিবর্তন করুন।"
-                  onReset={resetFilters}
-                />
-              ) : (
-                <div className="fcl-book-series-grid">
-                  {filteredSeries.map((series, index) => {
-                    const completed = /complete|completed|শেষ|সমাপ্ত/i.test(series.status);
+              <div className="fcl-book-filter-panel">
+                <div className="fcl-book-category-scroll">
+                  {categories.map((category) => {
+                    const active = selectedCategory === category;
                     return (
                       <button
-                        key={series.name}
+                        key={category}
                         type="button"
-                        className="fcl-book-series-card"
-                        onClick={() => openSeries(series.name)}
+                        onClick={() => changeCategory(category)}
+                        className={`fcl-book-category-tab ${active ? "active" : ""}`}
+                        aria-pressed={active}
                       >
-                        <div className="fcl-book-series-top">
-                          <span>SERIES {String(index + 1).padStart(2, "0")}</span>
-                          <span className={`fcl-book-series-status ${completed ? "completed" : ""}`}>
-                            <span />
-                            {series.status}
-                          </span>
-                        </div>
-
-                        <div className="fcl-book-series-symbol">
-                          <Icon name="book" size={23} />
-                          <strong>{String(index + 1).padStart(2, "0")}</strong>
-                        </div>
-
-                        <h3>{series.name}</h3>
-                        <p>{series.author}</p>
-
-                        <div className="fcl-book-series-footer">
-                          <span>{series.episodes.length} টি পর্ব</span>
-                          <span>
-                            পড়ুন
-                            <Icon name="arrow" size={16} />
-                          </span>
-                        </div>
+                        {category === "All" ? "সব স্মৃতি" : category}
+                        <small>{categoryCounts.get(category) || 0}</small>
                       </button>
                     );
                   })}
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="fcl-book-main-area">
-              {mode === "episodes" && currentSeries && (
-                <div className="fcl-book-series-breadcrumb">
-                  <button type="button" onClick={closeSeries}>
-                    <Icon name="left" size={16} />
-                    সকল সিরিজ
+
+                <div className="fcl-book-filter-bottom">
+                  <div className="fcl-book-search">
+                    <Icon name="search" size={18} />
+                    <input
+                      type="search"
+                      value={searchQuery}
+                      onChange={(event) => handleSearch(event.target.value)}
+                      disabled={mode === "episodes"}
+                      placeholder={
+                        mode === "series"
+                          ? "সিরিজ বা লেখক খুঁজুন..."
+                          : mode === "episodes"
+                          ? "সিরিজের পর্বসমূহ"
+                          : "স্মৃতি, গল্প, লেখক খুঁজুন..."
+                      }
+                      aria-label="Search archive"
+                    />
+                    {searchQuery && (
+                      <button type="button" onClick={() => handleSearch("")} aria-label="Clear search">
+                        <Icon name="close" size={15} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="fcl-book-sort">
+                    <Icon name="sort" size={17} />
+                    <select
+                      value={sortMode}
+                      onChange={(event) => handleSort(event.target.value as SortMode)}
+                      aria-label="Sort archive"
+                      disabled={mode === "episodes"}
+                    >
+                      <option value="newest">নতুন আগে</option>
+                      <option value="oldest"> পুরোনো আগে</option>
+                      <option value="az">নাম A–Z</option>
+                      <option value="za">নাম Z–A</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {error && !loading && (
+                <div className="fcl-book-error" role="alert">
+                  <div>
+                    <strong>আর্কাইভ নোটিশ</strong>
+                    <p>{error}</p>
+                  </div>
+                  <button type="button" onClick={handleRetry}>
+                    <Icon name="refresh" size={15} />
+                    আবার চেষ্টা
                   </button>
-                  <span>/</span>
-                  <strong>{currentSeries.name}</strong>
-                  <small>{currentSeries.episodes.length} পর্ব</small>
                 </div>
               )}
 
-              {readerItems.length === 0 ? (
-                <EmptyState
-                  title="কোনো স্মৃতি পাওয়া যায়নি"
-                  description="আপনার অনুসন্ধানের সঙ্গে কোনো লেখা মেলেনি। অন্য শব্দ দিয়ে চেষ্টা করুন।"
-                  onReset={resetFilters}
-                />
-              ) : (
-                <div className="fcl-book-workspace">
-                  <aside className="fcl-book-library">
-                    <div className="fcl-library-header">
-                      <div>
-                        <span>{mode === "episodes" ? "EPISODE LIBRARY" : "MEMORY LIBRARY"}</span>
-                        <h3>{mode === "episodes" ? "পর্বের তালিকা" : "স্মৃতির তালিকা"}</h3>
-                      </div>
-                      <span className="fcl-library-count">{readerItems.length}</span>
+              {loading ? (
+                <LoadingState />
+              ) : mode === "series" ? (
+                <div className="fcl-book-series-area">
+                  <div className="fcl-book-area-heading">
+                    <div>
+                      <span>SERIALISED COLLECTION</span>
+                      <h3>ধারাবাহিক সিরিজসমূহ</h3>
                     </div>
+                    <small>{filteredSeries.length} টি সিরিজ</small>
+                  </div>
 
-                    <div
-                      ref={listRef}
-                      className={`fcl-library-list ${listExpanded ? "expanded" : ""}`}
-                    >
-                      {visibleItems.map((item, index) => (
-                        <LibraryItem
-                          key={item.key}
-                          item={item}
-                          index={index}
-                          active={activeIndex === index}
-                          onClick={() => selectItem(item.key)}
-                        />
-                      ))}
+                  {filteredSeries.length === 0 ? (
+                    <EmptyState
+                      title="কোনো সিরিজ পাওয়া যায়নি"
+                      description="অন্য শব্দ দিয়ে খুঁজুন অথবা ফিল্টার পরিবর্তন করুন।"
+                      onReset={resetFilters}
+                    />
+                  ) : (
+                    <div className="fcl-book-series-grid">
+                      {filteredSeries.map((series, index) => {
+                        const completed = /complete|completed|শেষ|সমাপ্ত/i.test(series.status);
+                        return (
+                          <button
+                            key={series.name}
+                            type="button"
+                            className="fcl-book-series-card"
+                            onClick={() => openSeries(series.name)}
+                          >
+                            <div className="fcl-book-series-top">
+                              <span>SERIES {String(index + 1).padStart(2, "0")}</span>
+                              <span className={`fcl-book-series-status ${completed ? "completed" : ""}`}>
+                                <span />
+                                {series.status}
+                              </span>
+                            </div>
 
-                      {hasMore && (
-                        <button
-                          type="button"
-                          className="fcl-library-load-more"
-                          onClick={() =>
-                            setVisibleCount((previous) => previous + LIST_PAGE_SIZE)
-                          }
+                            <div className="fcl-book-series-symbol">
+                              <Icon name="book" size={23} />
+                              <strong>{String(index + 1).padStart(2, "0")}</strong>
+                            </div>
+
+                            <h3>{series.name}</h3>
+                            <p>{series.author}</p>
+
+                            <div className="fcl-book-series-footer">
+                              <span>{series.episodes.length} টি পর্ব</span>
+                              <span>
+                                পড়ুন
+                                <Icon name="arrow" size={16} />
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="fcl-book-main-area">
+                  {mode === "episodes" && currentSeries && (
+                    <div className="fcl-book-series-breadcrumb">
+                      <button type="button" onClick={closeSeries}>
+                        <Icon name="left" size={16} />
+                        সকল সিরিজ
+                      </button>
+                      <span>/</span>
+                      <strong>{currentSeries.name}</strong>
+                      <small>{currentSeries.episodes.length} পর্ব</small>
+                    </div>
+                  )}
+
+                  {readerItems.length === 0 ? (
+                    <EmptyState
+                      title="কোনো স্মৃতি পাওয়া যায়নি"
+                      description="আপনার অনুসন্ধানের সঙ্গে কোনো লেখা মেলেনি। অন্য শব্দ দিয়ে চেষ্টা করুন।"
+                      onReset={resetFilters}
+                    />
+                  ) : (
+                    <div className="fcl-book-workspace">
+                      <aside className="fcl-book-library">
+                        <div className="fcl-library-header">
+                          <div>
+                            <span>{mode === "episodes" ? "EPISODE LIBRARY" : "MEMORY LIBRARY"}</span>
+                            <h3>{mode === "episodes" ? "পর্বের তালিকা" : "স্মৃতির তালিকা"}</h3>
+                          </div>
+                          <span className="fcl-library-count">{readerItems.length}</span>
+                        </div>
+
+                        <div
+                          ref={listRef}
+                          className={`fcl-library-list ${listExpanded ? "expanded" : ""}`}
                         >
-                          আরও স্মৃতি দেখুন
-                          <Icon name="plus" size={16} />
-                        </button>
+                          {visibleItems.map((item, index) => (
+                            <LibraryItem
+                              key={item.key}
+                              item={item}
+                              index={index}
+                              active={activeIndex === index}
+                              onClick={() => selectItem(item.key)}
+                            />
+                          ))}
+
+                          {hasMore && (
+                            <button
+                              type="button"
+                              className="fcl-library-load-more"
+                              onClick={() =>
+                                setVisibleCount((previous) => previous + LIST_PAGE_SIZE)
+                              }
+                            >
+                              আরও স্মৃতি দেখুন
+                              <Icon name="plus" size={16} />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="fcl-library-footer">
+                          <span>
+                            <Icon name="book" size={15} />
+                            FCL ARCHIVE
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setListExpanded((previous) => !previous)}
+                          >
+                            {listExpanded ? "কমপ্যাক্ট" : "তালিকা বড় করুন"}
+                          </button>
+                        </div>
+                      </aside>
+
+                      {activeItem && (
+                        <BookReader
+                          item={activeItem}
+                          index={activeIndex}
+                          total={readerItems.length}
+                          fontSize={fontSize}
+                          progress={readingProgress}
+                          copied={copiedKey === activeItem.key}
+                          onPrevious={() => changeReaderPage(-1)}
+                          onNext={() => changeReaderPage(1)}
+                          onFontIncrease={() =>
+                            setFontSize((previous) => Math.min(22, previous + 1))
+                          }
+                          onFontDecrease={() =>
+                            setFontSize((previous) => Math.max(13, previous - 1))
+                          }
+                          onCopy={handleCopy}
+                          onProgress={updateProgress}
+                          mobileOpen={mobileReaderOpen}
+                          onMobileClose={() => setMobileReaderOpen(false)}
+                        />
                       )}
                     </div>
-
-                    <div className="fcl-library-footer">
-                      <span>
-                        <Icon name="book" size={15} />
-                        FCL ARCHIVE
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setListExpanded((previous) => !previous)}
-                      >
-                        {listExpanded ? "কমপ্যাক্ট" : "তালিকা বড় করুন"}
-                      </button>
-                    </div>
-                  </aside>
-
-                  {activeItem && (
-                    <BookReader
-                      item={activeItem}
-                      index={activeIndex}
-                      total={readerItems.length}
-                      fontSize={fontSize}
-                      progress={readingProgress}
-                      copied={copiedKey === activeItem.key}
-                      onPrevious={() => changeReaderPage(-1)}
-                      onNext={() => changeReaderPage(1)}
-                      onFontIncrease={() =>
-                        setFontSize((previous) => Math.min(22, previous + 1))
-                      }
-                      onFontDecrease={() =>
-                        setFontSize((previous) => Math.max(13, previous - 1))
-                      }
-                      onCopy={handleCopy}
-                      onProgress={updateProgress}
-                      mobileOpen={mobileReaderOpen}
-                      onMobileClose={() => setMobileReaderOpen(false)}
-                    />
                   )}
                 </div>
               )}
-            </div>
-          )}
 
-          <div className="fcl-book-bottom-note">
-            <div>
-              <span className="fcl-book-bottom-symbol">✦</span>
-              <p>
-                কিছু গল্প শেষ হয় না,
-                <strong> স্মৃতি হয়ে থেকে যায়।</strong>
-              </p>
+              <div className="fcl-book-bottom-note">
+                <div>
+                  <span className="fcl-book-bottom-symbol">✦</span>
+                  <p>
+                    কিছু গল্প শেষ হয় না,
+                    <strong> স্মৃতি হয়ে থেকে যায়।</strong>
+                  </p>
+                </div>
+                <Link href="/">
+                  FCL হোমপেজ
+                  <Icon name="arrow" size={16} />
+                </Link>
+              </div>
             </div>
-            <Link href="/">
-              FCL হোমপেজ
-              <Icon name="arrow" size={16} />
-            </Link>
-          </div>
-        </div>
-      </section>
+          </section>
+        </>
+      )}
 
       <style jsx global>
         {MEMORY_BOOK_STYLES}
@@ -3973,6 +4024,46 @@ const MEMORY_BOOK_STYLES = `
   .fcl-book-bottom-note > a {
     font-size: 10px;
   }
+}
+
+/* ───── Mobile tuning: কমপ্যাক্ট হিরো, ফিল্টার স্ক্রিনের মাপে, কম লাইন গ্যাপ ───── */
+@media (max-width: 767px) {
+  .fcl-book-hero { padding-top: 56px; }
+  .fcl-book-hero-layout { padding: 22px 0 16px; }
+  .fcl-book-hero-content h1 { margin-top: 9px; line-height: 1.18; }
+  .fcl-book-hero-content > p { margin-top: 8px; line-height: 1.6; }
+  .fcl-book-hero-actions { margin-top: 12px; }
+  .fcl-book-stat { padding: 8px 2px; }
+  .fcl-book-workspace-section { padding: 14px 0 22px; }
+  .fcl-book-section-heading { margin-bottom: 9px; }
+
+  .fcl-book-filter-panel { position: static; padding: 8px; }
+  .fcl-book-category-scroll { flex-wrap: wrap; overflow: visible; gap: 5px; padding: 0 0 8px; }
+  .fcl-book-category-tab { min-height: 30px; padding: 5px 8px; gap: 5px; font-size: 10px; }
+  .fcl-book-category-tab small { min-width: 17px; height: 16px; font-size: 8px; }
+  .fcl-book-filter-bottom { gap: 6px; padding-top: 8px; width: 100%; }
+  .fcl-book-search { min-width: 0; }
+  .fcl-book-search input { min-width: 0; min-height: 36px; padding: 6px 30px 6px 32px; }
+  .fcl-book-search > svg { left: 10px; }
+  .fcl-book-sort > svg { left: 9px; }
+  .fcl-book-sort select { min-height: 36px; max-width: 104px; padding: 6px 16px 6px 28px; font-size: 10px; }
+
+  .fcl-library-list { max-height: 380px; }
+  .fcl-library-item { padding: 10px 12px; }
+  .fcl-library-item-main > strong { line-height: 1.4; }
+  .fcl-reader-paper { padding: 18px 16px 26px; }
+  .fcl-reader-title-section { margin-top: 14px; }
+  .fcl-reader-title-section h2 { font-size: 21px; line-height: 1.38; }
+  .fcl-reader-ornament { margin: 14px 0; }
+  .fcl-reader-summary { padding: 11px 13px; margin-bottom: 14px; }
+  .fcl-reader-summary p { line-height: 1.7; }
+  .fcl-reader-story-content { line-height: 1.75; }
+  .fcl-book-paragraph + .fcl-book-paragraph { margin-top: 5px; }
+  .fcl-book-space { height: 7px; }
+  .fcl-book-story-heading { margin: 14px 0 8px; padding-bottom: 6px; }
+  .fcl-book-dialogue { margin: 6px 0; padding: 7px 10px; }
+  .fcl-reader-story-end { margin-top: 26px; padding-top: 16px; }
+  .fcl-book-bottom-note { margin-top: 12px; padding: 11px; }
 }
 
 @media (max-width: 380px) {
