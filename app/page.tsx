@@ -125,7 +125,9 @@ function useIsMobile() {
 }
 
 /* ================================================================
-   PRELOADER (২য় কোডের হুবহু)
+   PRELOADER
+   ✅ মোবাইলে সময় ৩.২ সেকেন্ড → ১.৫ সেকেন্ড
+   ✅ ভারী blur(110px) গ্লো সরিয়ে হালকা gradient
 ================================================================ */
 function Preloader({
   onFinish,
@@ -154,19 +156,26 @@ function Preloader({
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const DURATION = reduced ? 900 : 3200;
+    const small = window.matchMedia("(max-width: 760px)").matches;
+    const DURATION = reduced ? 700 : small ? 1500 : 3200;
     const start = performance.now();
     let raf = 0;
+    let lastPct = -1;
 
     const tick = (now: number) => {
       const p = Math.min((now - start) / DURATION, 1);
-      setPct(Math.round(p * 100));
+      const value = Math.round(p * 100);
+      // শুধু সংখ্যা বদলালে রি-রেন্ডার (অকারণ রেন্ডার কমানো)
+      if (value !== lastPct) {
+        lastPct = value;
+        setPct(value);
+      }
       if (p < 1) raf = requestAnimationFrame(tick);
     };
 
     raf = requestAnimationFrame(tick);
 
-    const t1 = setTimeout(() => setFadeOut(true), DURATION - 500);
+    const t1 = setTimeout(() => setFadeOut(true), DURATION - 400);
     const t2 = setTimeout(finish, DURATION);
 
     return () => {
@@ -180,7 +189,7 @@ function Preloader({
   const skip = () => {
     if (fadeOut) return;
     setFadeOut(true);
-    skipTimer.current = setTimeout(finish, 350);
+    skipTimer.current = setTimeout(finish, 300);
   };
 
   return (
@@ -208,6 +217,8 @@ function Preloader({
                 src="/fcl-logo.png"
                 alt="FCL Logo"
                 className="pl-logo"
+                width={64}
+                height={64}
                 draggable={false}
                 onError={() => setLogoError(true)}
               />
@@ -241,7 +252,10 @@ function Preloader({
 }
 
 /* ================================================================
-   📱 MOBILE VIEW — ২য় কোডের ফুলের মেনু (হিরো হালকা করা হয়েছে)
+   📱 MOBILE VIEW
+   ✅ prefetch বন্ধ (ডাটা সাশ্রয়)
+   ✅ hero ছবি: হালকা WebP (না থাকলে আসল PNG)
+   ✅ blur / backdrop-filter / ভারী infinite এনিমেশন বন্ধ
 ================================================================ */
 type Portal = {
   href: string;
@@ -349,6 +363,10 @@ function ArrowIcon({ back = false }: { back?: boolean }) {
   );
 }
 
+/** হালকা মোবাইল ছবি (ঐচ্ছিক) — ফাইল না থাকলে আসল PNG তে ফিরে যাবে */
+const HERO_LIGHT = "/fcl-room.png";
+const HERO_FULL = "/fcl-room.png";
+
 function MobileHome({
   isDark,
   reducedMotion,
@@ -361,6 +379,7 @@ function MobileHome({
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [logoError, setLogoError] = useState(false);
+  const [heroSrc, setHeroSrc] = useState(HERO_LIGHT);
   const [bursts, setBursts] = useState<SparkBurst[]>([]);
   const [announcement, setAnnouncement] = useState("");
 
@@ -451,14 +470,14 @@ function MobileHome({
     const id = ++burstId.current;
 
     setBursts((previous) => [
-      ...previous.slice(-2),
+      ...previous.slice(-1),
       { id, x: event.clientX, y: event.clientY, color },
     ]);
 
     const timer = setTimeout(() => {
       setBursts((previous) => previous.filter((burst) => burst.id !== id));
       timers.current.delete(timer);
-    }, 720);
+    }, 600);
 
     timers.current.add(timer);
   }
@@ -492,9 +511,7 @@ function MobileHome({
         </div>
 
         <div className="fu-shell">
-          {/* ================================================================
-              HERO — MOBILE (হালকা: ১ম কোডের চিপ সিস্টেম, কোনো JS টাইমার নেই)
-          ================================================================ */}
+          {/* ================= HERO — MOBILE ================= */}
           <section className="fh-hero fh-mob" aria-label="FCL hero">
             <div className="fh-badge">
               <span className="fh-live" />
@@ -511,10 +528,16 @@ function MobileHome({
             <div className="fh-mob-art">
               <div className="fh-frame">
                 <img
-                  src="/fcl-room.png"
+                  src={heroSrc}
                   alt="FCL Online"
+                  width={460}
+                  height={175}
                   draggable={false}
                   decoding="async"
+                  fetchPriority="high"
+                  onError={() => {
+                    if (heroSrc !== HERO_FULL) setHeroSrc(HERO_FULL);
+                  }}
                 />
               </div>
 
@@ -560,16 +583,19 @@ function MobileHome({
               >
                 Explore Menu ↓
               </button>
-              <Link href="/play" className="fh-btn-play" data-accent="#22c55e">
+              <Link
+                href="/play"
+                prefetch={false}
+                className="fh-btn-play"
+                data-accent="#22c55e"
+              >
                 <span className="fh-live" />
                 🎮 Play
               </Link>
             </div>
           </section>
 
-          {/* ================================================================
-              FLOWER MENU (২য় কোডের হুবহু)
-          ================================================================ */}
+          {/* ================= FLOWER MENU ================= */}
           <section className="fu-dashboard" aria-label="FCL interactive navigation">
             <div className="fu-console" id="fu-menu">
               <div className="fu-console-top">
@@ -652,6 +678,7 @@ function MobileHome({
                           >
                             <Link
                               href={item.href}
+                              prefetch={false}
                               className="fu-petal fu-leaf"
                               data-accent={activeGroup.color}
                             >
@@ -733,7 +760,7 @@ function MobileHome({
               </div>
             </div>
 
-            {/* 📱 মোবাইল ডক — ৪টি ক্যাটেগরি বাটন */}
+            {/* 📱 মোবাইল ডক */}
             <nav className="fu-dock" aria-label="দ্রুত ক্যাটেগরি নেভিগেশন">
               {MENU_GROUPS.map((group) => {
                 const isActive = activeGroupId === group.id;
@@ -781,8 +808,8 @@ function MobileHome({
               }
             >
               <span className="fu-spark-ring" />
-              {Array.from({ length: 12 }, (_, index) => {
-                const angle = (index / 12) * Math.PI * 2;
+              {Array.from({ length: 8 }, (_, index) => {
+                const angle = (index / 8) * Math.PI * 2;
                 const distance = 30 + (index % 3) * 13;
 
                 return (
@@ -792,7 +819,7 @@ function MobileHome({
                       {
                         "--dx": `${Math.cos(angle) * distance}px`,
                         "--dy": `${Math.sin(angle) * distance}px`,
-                        "--turn": `${index * 30}deg`,
+                        "--turn": `${index * 45}deg`,
                       } as CSSVars
                     }
                   />
@@ -807,8 +834,7 @@ function MobileHome({
 }
 
 /* ================================================================
-   🖥️ DESKTOP VIEW — ৩য় কোডের পিসি ভিউ
-   (হিরো ইমেজের উপরের এনিমেশন = ১ম কোডের হালকা চিপ সিস্টেম)
+   🖥️ DESKTOP VIEW — (অপরিবর্তিত)
 ================================================================ */
 function useReveal<T extends HTMLElement>(threshold = 0.15) {
   const ref = useRef<T>(null);
@@ -1366,7 +1392,6 @@ function FilterChips({
   );
 }
 
-/* হিরো ইমেজ + ১ম কোডের হালকা ফ্লোটিং চিপ (কোনো সিমুলেশন/টাইমার নেই) */
 function HeroArt() {
   return (
     <div className="relative h-[480px] w-full lg:h-[550px]">
@@ -1729,7 +1754,8 @@ export default function Home() {
 }
 
 /* ================================================================
-   STYLES — PRELOADER (২য় কোডের হুবহু)
+   STYLES — PRELOADER
+   ✅ blur(110px) / blur(100px) → হালকা radial-gradient (একই লুক)
 ================================================================ */
 const PRELOADER_STYLES = `
 .pl-root {
@@ -1745,7 +1771,7 @@ const PRELOADER_STYLES = `
   color: #fff;
   cursor: pointer;
   opacity: 1;
-  transition: opacity .5s ease;
+  transition: opacity .4s ease;
   -webkit-tap-highlight-color: transparent;
 }
 .pl-root.pl-light { background: #f8fafc; color: #0f172a; }
@@ -1768,10 +1794,10 @@ const PRELOADER_STYLES = `
     linear-gradient(to bottom, rgba(100, 116, 139, .12) 1px, transparent 1px);
 }
 .pl-glow { position: absolute; border-radius: 50%; pointer-events: none; }
-.pl-glow-a { width: 288px; height: 288px; background: rgba(37, 99, 235, .25); filter: blur(110px); }
-.pl-glow-b { width: 208px; height: 208px; right: -40px; top: 40px; background: rgba(147, 51, 234, .2); filter: blur(100px); }
-.pl-light .pl-glow-a { background: rgba(96, 165, 250, .3); }
-.pl-light .pl-glow-b { background: rgba(167, 139, 250, .25); }
+.pl-glow-a { width: 420px; height: 420px; background: radial-gradient(circle, rgba(37, 99, 235, .28), transparent 68%); }
+.pl-glow-b { width: 340px; height: 340px; right: -110px; top: -20px; background: radial-gradient(circle, rgba(147, 51, 234, .22), transparent 68%); }
+.pl-light .pl-glow-a { background: radial-gradient(circle, rgba(96, 165, 250, .32), transparent 68%); }
+.pl-light .pl-glow-b { background: radial-gradient(circle, rgba(167, 139, 250, .26), transparent 68%); }
 
 .pl-center { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; padding: 0 16px; text-align: center; }
 .pl-logo-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 112px; height: 112px; }
@@ -1817,6 +1843,8 @@ const PRELOADER_STYLES = `
 
 @media (max-width: 760px) {
   .pl-title { font-size: 21px; }
+  /* মোবাইলে লোগোর drop-shadow filter বন্ধ — GPU সাশ্রয় */
+  .pl-logo { filter: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1829,7 +1857,13 @@ const PRELOADER_STYLES = `
 `;
 
 /* ================================================================
-   STYLES — MOBILE (২য় কোডের ফুলের মেনু + হালকা হিরো)
+   STYLES — MOBILE (অপটিমাইজড)
+   ❌ backdrop-filter বন্ধ        (panel আরও অপাক করা হয়েছে)
+   ❌ filter: blur() বন্ধ         (glow = radial-gradient, square = blur ছাড়া)
+   ❌ mask-image গ্রিডে বন্ধ
+   ❌ অসীম এনিমেশন বন্ধ: orbit spin, runner, connector flow, core halo, square float
+   ✅ চিপ ফ্লোট (শুধু transform) আর লাইভ ডট থাকছে
+   ✅ will-change সরানো
 ================================================================ */
 const MOBILE_STYLES = `
 .fcl-universe.fu-hidden { display: none; }
@@ -1840,17 +1874,17 @@ const MOBILE_STYLES = `
   --fu-text: #14213b;
   --fu-muted: #64748b;
   --fu-line: rgba(51, 65, 85, .12);
-  --fu-panel: rgba(255, 255, 255, .7);
+  --fu-panel: rgba(255, 255, 255, .94);
   --fu-petal: #ffffff;
   --fu-core: #ffffff;
   --fu-field: rgba(255, 255, 255, .86);
-  --fu-shadow: 0 18px 50px -25px rgba(30, 58, 138, .24);
+  --fu-shadow: 0 10px 28px -18px rgba(30, 58, 138, .24);
   --fu-grid: rgba(30, 64, 175, .055);
   --fu-accent: #60a5fa;
   --fu-blue: #1d4ed8;
   --fu-amber: #b45309;
   --fu-rose: #e11d48;
-  --fu-pill: rgba(255, 255, 255, .96);
+  --fu-pill: rgba(255, 255, 255, .98);
   --fu-frame: #ffffff;
 
   position: relative;
@@ -1859,7 +1893,6 @@ const MOBILE_STYLES = `
   background: var(--fu-bg);
   color: var(--fu-text);
   font-family: inherit;
-  transition: background .3s, color .3s;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -1868,16 +1901,16 @@ const MOBILE_STYLES = `
   --fu-text: #f1f5ff;
   --fu-muted: #94a3bd;
   --fu-line: rgba(148, 163, 184, .15);
-  --fu-panel: rgba(10, 18, 34, .66);
+  --fu-panel: rgba(10, 18, 34, .94);
   --fu-petal: #101b30;
   --fu-core: #0b1426;
   --fu-field: rgba(9, 17, 32, .9);
-  --fu-shadow: 0 25px 65px -25px rgba(0, 0, 0, .65);
+  --fu-shadow: 0 14px 34px -18px rgba(0, 0, 0, .65);
   --fu-grid: rgba(148, 163, 184, .045);
   --fu-blue: #93c5fd;
   --fu-amber: #f59e0b;
   --fu-rose: #fb7185;
-  --fu-pill: rgba(11, 18, 32, .94);
+  --fu-pill: rgba(11, 18, 32, .97);
   --fu-frame: #080d17;
 }
 
@@ -1902,23 +1935,23 @@ const MOBILE_STYLES = `
     linear-gradient(var(--fu-grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--fu-grid) 1px, transparent 1px);
   background-size: 44px 44px;
-  mask-image: radial-gradient(ellipse at center, black, transparent 80%);
+  opacity: .8;
 }
 
-.fu-glow { position: absolute; width: 400px; height: 400px; border-radius: 50%; filter: blur(100px); opacity: .12; }
-.fu-glow-a { background: #2563eb; top: -140px; left: 10%; }
-.fu-glow-b { background: #9333ea; bottom: -200px; right: 5%; }
+/* blur(100px) ফিল্টার সরিয়ে radial-gradient — দেখতে একই, GPU তে প্রায় ফ্রি */
+.fu-glow { position: absolute; width: 520px; height: 520px; border-radius: 50%; opacity: .16; }
+.fu-glow-a { background: radial-gradient(circle, #2563eb, transparent 68%); top: -230px; left: -80px; }
+.fu-glow-b { background: radial-gradient(circle, #9333ea, transparent 68%); bottom: -280px; right: -120px; }
 
 .fu-square {
   position: absolute;
   border: 1px solid rgba(96, 165, 250, .2);
   border-radius: 27%;
-  background: linear-gradient(135deg, #3b82f633, #a855f71a);
-  filter: blur(8px);
-  animation: fu-float 13s ease-in-out infinite;
+  background: linear-gradient(135deg, #3b82f626, #a855f712);
+  transform: rotate(var(--rotation, 15deg));
 }
 .fu-square-a { width: 80px; height: 80px; top: 18%; left: -20px; --rotation: 20deg; }
-.fu-square-b { width: 100px; height: 100px; right: -30px; bottom: 10%; --rotation: -22deg; animation-delay: -5s; }
+.fu-square-b { width: 100px; height: 100px; right: -30px; bottom: 10%; --rotation: -22deg; }
 
 .fu-shell {
   width: min(1220px, 100%);
@@ -1927,9 +1960,7 @@ const MOBILE_STYLES = `
   padding: calc(64px + 12px) 12px max(12px, env(safe-area-inset-bottom));
 }
 
-/* ================================================================
-   HERO — হালকা (কোনো JS টাইমার/ভারী এনিমেশন নেই)
-================================================================ */
+/* ================= HERO ================= */
 .fh-hero { position: relative; margin-bottom: 14px; }
 
 .fh-badge {
@@ -1971,8 +2002,8 @@ const MOBILE_STYLES = `
   height: 8px;
   border-radius: 50%;
   background: #22c55e;
-  box-shadow: 0 0 10px rgba(34, 197, 94, .7);
-  animation: fh-pulse 1.6s ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(34, 197, 94, .7);
+  animation: fh-pulse 1.8s ease-in-out infinite;
 }
 
 .fh-mob-art { position: relative; margin-top: 14px; }
@@ -1982,11 +2013,10 @@ const MOBILE_STYLES = `
   border-radius: 22px;
   border: 1px solid var(--fu-line);
   background: var(--fu-frame);
-  box-shadow: 0 18px 40px -22px rgba(15, 23, 42, .3);
+  box-shadow: 0 10px 24px -16px rgba(15, 23, 42, .3);
 }
 .fh-frame img { display: block; width: 100%; height: 175px; object-fit: cover; object-position: center; }
 
-/* ১ম কোডের ফ্লোটিং চিপ */
 .fh-chip {
   position: absolute;
   display: flex;
@@ -1996,9 +2026,8 @@ const MOBILE_STYLES = `
   border: 1px solid var(--fu-line);
   border-radius: 12px;
   background: var(--fu-pill);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, .16);
-  animation: fh-chip-float 5s ease-in-out infinite;
-  will-change: transform;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, .14);
+  animation: fh-chip-float 6s ease-in-out infinite;
 }
 .fh-chip-delay { animation-delay: 1.4s; }
 .fh-chip-1 { left: -4px; top: 14px; }
@@ -2039,7 +2068,7 @@ const MOBILE_STYLES = `
   color: #fff !important;
   font-size: 13px;
   font-weight: 800;
-  box-shadow: 0 14px 40px -10px rgba(24, 119, 242, .6);
+  box-shadow: 0 8px 20px -10px rgba(24, 119, 242, .6);
   transition: transform .2s;
 }
 .fh-btn-play {
@@ -2058,9 +2087,7 @@ const MOBILE_STYLES = `
 }
 .fh-btn-primary:active, .fh-btn-play:active { transform: scale(.96); }
 
-/* ================================================================
-   FLOWER MENU (২য় কোডের হুবহু)
-================================================================ */
+/* ================= FLOWER MENU ================= */
 .fu-dashboard { display: block; scroll-margin-top: calc(64px + 4px); }
 
 .fu-console {
@@ -2070,7 +2097,6 @@ const MOBILE_STYLES = `
   border-radius: 24px;
   background: var(--fu-panel);
   box-shadow: var(--fu-shadow);
-  backdrop-filter: blur(18px);
 }
 
 .fu-console-top, .fu-console-bottom {
@@ -2101,17 +2127,18 @@ const MOBILE_STYLES = `
   pointer-events: none;
 }
 
+/* অরবিটের ঘূর্ণন বন্ধ — স্ট্যাটিক রিং (লুক একই) */
 .fu-orbit { position: absolute; border-radius: 50%; pointer-events: none; }
-.fu-orbit-outer { inset: 9%; border: 1px dashed var(--fu-line); animation: fu-spin 90s linear infinite; }
-.fu-orbit-inner { inset: 28%; border: 1px solid var(--fu-line); box-shadow: 0 0 35px color-mix(in srgb, var(--fu-accent) 6%, transparent); }
-.fu-orbit-runner { position: absolute; inset: 9%; border-radius: 50%; animation: fu-spin 17s linear infinite; pointer-events: none; }
+.fu-orbit-outer { inset: 9%; border: 1px dashed var(--fu-line); }
+.fu-orbit-inner { inset: 28%; border: 1px solid var(--fu-line); }
+.fu-orbit-runner { position: absolute; inset: 9%; border-radius: 50%; pointer-events: none; }
 .fu-orbit-runner i {
   position: absolute; left: 50%; top: -3px; width: 6px; height: 6px; border-radius: 50%;
-  background: var(--fu-accent); box-shadow: 0 0 12px var(--fu-accent);
+  background: var(--fu-accent); box-shadow: 0 0 8px var(--fu-accent);
 }
 
 .fu-connectors { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: var(--fu-accent); stroke-width: 1; opacity: .2; pointer-events: none; }
-.fu-connectors path { stroke-dasharray: 4 9; animation: fu-flow 6s linear infinite; }
+.fu-connectors path { stroke-dasharray: 4 9; }
 .fu-connectors circle { opacity: .35; }
 
 .fu-core {
@@ -2129,13 +2156,8 @@ const MOBILE_STYLES = `
   color: var(--fu-text);
   box-shadow:
     0 0 0 8px color-mix(in srgb, var(--fu-accent) 5%, transparent),
-    0 0 45px color-mix(in srgb, var(--fu-accent) 16%, transparent);
+    0 0 24px color-mix(in srgb, var(--fu-accent) 14%, transparent);
   transition: box-shadow .3s, border-color .3s;
-}
-.fu-core:hover {
-  box-shadow:
-    0 0 0 11px color-mix(in srgb, var(--fu-accent) 8%, transparent),
-    0 0 50px color-mix(in srgb, var(--fu-accent) 25%, transparent);
 }
 .fu-core:active { transform: translate(-50%, -50%) scale(.94); }
 
@@ -2144,10 +2166,9 @@ const MOBILE_STYLES = `
   border-top-color: var(--fu-accent);
   border-bottom-color: color-mix(in srgb, var(--fu-accent) 35%, transparent);
   border-radius: 50%;
-  animation: fu-spin 9s linear infinite;
 }
 .fu-core-inner { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 2px; }
-.fu-core img { display: block; width: 57%; height: auto; aspect-ratio: 1; object-fit: contain; filter: drop-shadow(0 3px 9px #3b82f635); }
+.fu-core img { display: block; width: 57%; height: auto; aspect-ratio: 1; object-fit: contain; }
 .fu-core-inner > span { font-size: 6px; font-weight: 900; letter-spacing: .15em; color: var(--fu-muted); }
 .fu-logo-fallback { font-size: 22px; font-style: italic; color: #3b82f6; }
 
@@ -2173,9 +2194,9 @@ const MOBILE_STYLES = `
   background: linear-gradient(145deg, color-mix(in srgb, var(--item-color) 13%, var(--fu-petal)), var(--fu-petal));
   color: var(--fu-text);
   box-shadow:
-    0 12px 25px -17px color-mix(in srgb, var(--item-color) 70%, transparent),
+    0 8px 16px -14px color-mix(in srgb, var(--item-color) 70%, transparent),
     inset 0 1px 0 rgba(255,255,255,.08);
-  animation: fu-bloom .6s cubic-bezier(.2,.85,.2,1) both;
+  animation: fu-bloom .5s cubic-bezier(.2,.85,.2,1) both;
   animation-delay: var(--delay);
   transition: border-color .2s, box-shadow .2s, filter .2s;
 }
@@ -2204,7 +2225,7 @@ const MOBILE_STYLES = `
 @media (hover: hover) {
   .fu-petal:hover {
     border-color: var(--item-color);
-    box-shadow: 0 0 25px -9px var(--item-color), inset 0 0 20px color-mix(in srgb, var(--item-color) 9%, transparent);
+    box-shadow: 0 0 18px -9px var(--item-color), inset 0 0 20px color-mix(in srgb, var(--item-color) 9%, transparent);
     filter: brightness(1.05);
   }
   .fu-petal:hover .fu-petal-icon { transform: translateY(-3px) rotate(-8deg) scale(1.12); }
@@ -2230,7 +2251,6 @@ const MOBILE_STYLES = `
   border: 1px solid var(--fu-line);
   border-radius: 18px;
   background: var(--fu-panel);
-  backdrop-filter: blur(18px);
   box-shadow: var(--fu-shadow);
 }
 .fu-dock button {
@@ -2262,13 +2282,13 @@ const MOBILE_STYLES = `
 .fu-burst { position: absolute; width: 0; height: 0; }
 .fu-burst i {
   position: absolute; left: -2px; top: -2px; width: 4px; height: 7px; border-radius: 3px;
-  background: var(--spark-color); box-shadow: 0 0 7px var(--spark-color);
-  animation: fu-spark .65s cubic-bezier(.1,.6,.3,1) both;
+  background: var(--spark-color);
+  animation: fu-spark .55s cubic-bezier(.1,.6,.3,1) both;
 }
 .fu-spark-ring {
   position: absolute; left: -11px; top: -11px; width: 22px; height: 22px;
   border: 1px solid var(--spark-color); border-radius: 50%;
-  animation: fu-ring .6s ease-out both;
+  animation: fu-ring .5s ease-out both;
 }
 
 .fu-sr-only {
@@ -2276,11 +2296,6 @@ const MOBILE_STYLES = `
   overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
 }
 
-@keyframes fu-flow { to { stroke-dashoffset: -78; } }
-@keyframes fu-float {
-  0%, 100% { transform: translate(0,0) rotate(var(--rotation, 15deg)); }
-  50% { transform: translate(15px,-20px) rotate(calc(var(--rotation, 15deg) + 12deg)); }
-}
 @keyframes fu-bloom {
   from { opacity: 0; transform: translate(var(--from-x),var(--from-y)) scale(.38) rotate(-12deg); }
   to { opacity: 1; transform: translate(0,0) scale(1) rotate(0); }
@@ -2291,7 +2306,7 @@ const MOBILE_STYLES = `
 }
 @keyframes fu-ring { from { opacity: .8; transform: scale(.3); } to { opacity: 0; transform: scale(3.2); } }
 @keyframes fh-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-@keyframes fh-chip-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes fh-chip-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
 @media (max-width: 350px) {
   .fu-shell { padding-left: 8px; padding-right: 8px; }
@@ -2313,7 +2328,7 @@ const MOBILE_STYLES = `
 `;
 
 /* ================================================================
-   STYLES — DESKTOP (৩য় কোডের পিসি ভিউ)
+   STYLES — DESKTOP (অপরিবর্তিত)
 ================================================================ */
 const DESKTOP_STYLES = `
 /* ============ THEME TOKENS ============ */
