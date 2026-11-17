@@ -9,6 +9,9 @@ import {
 } from "react";
 
 import Link from "next/link";
+import MatchHighlightsModal from "@/components/MatchHighlightsModal";
+import type { ReplayMatch } from "@/lib/matchReplay";
+import { summaryToReplay } from "@/lib/summaryToReplay";
 
 /* ================================================================
    TYPES
@@ -810,11 +813,16 @@ function MobileMatchRow({
 function MatchModal({
   match,
   onClose,
+  onOpenHighlights,
 }: {
   match: MatchItem;
   onClose: () => void;
+  onOpenHighlights: (replay: ReplayMatch) => void;
 }) {
   const style = getCategoryStyle(match.category);
+
+  // Parse only THIS match summary; never show a canned demo for other matches.
+  const replay = useMemo(() => summaryToReplay(match), [match]);
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -1013,6 +1021,23 @@ function MatchModal({
             )}
           </div>
 
+          {/* Highlights: only show when this match's summary has a readable scorecard */}
+          {replay && (
+            <div className="mt-5 rounded-[20px] border border-emerald-500/25 bg-emerald-500/5 p-4 sm:p-5">
+              <p className="mb-2 text-xs font-black text-emerald-500">📺 FCL VIRTUAL MATCH HIGHLIGHTS</p>
+              <p className="match-muted mb-4 text-xs leading-6">
+                এই ম্যাচের সামারি থেকে তৈরি কাল্পনিক রিপ্লে। এটি আসল ম্যাচ ফুটেজ নয়।
+              </p>
+              <button
+                type="button"
+                onClick={() => onOpenHighlights(replay)}
+                className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-500 sm:w-auto"
+              >
+                ▶ Play Highlights
+              </button>
+            </div>
+          )}
+
           {/* Mobile Bottom Info */}
 
           <div className="mt-5 flex items-center justify-center gap-2 sm:hidden">
@@ -1144,6 +1169,8 @@ export default function MatchesPage() {
   const [selectedMatch, setSelectedMatch] =
     useState<MatchItem | null>(null);
 
+  const [activeReplay, setActiveReplay] = useState<ReplayMatch | null>(null);
+
   const pageSize = isDesktop ? 18 : 15;
 
   /* ================================================================
@@ -1258,6 +1285,12 @@ export default function MatchesPage() {
 
   const closeModal = useCallback(() => {
     setSelectedMatch(null);
+  }, []);
+
+  const openHighlights = useCallback((replay: ReplayMatch) => {
+    // Replace the details modal rather than nesting two Escape/focus handlers.
+    setSelectedMatch(null);
+    setActiveReplay(replay);
   }, []);
 
   /* ================================================================
@@ -2763,6 +2796,14 @@ export default function MatchesPage() {
         <MatchModal
           match={selectedMatch}
           onClose={closeModal}
+          onOpenHighlights={openHighlights}
+        />
+      )}
+      {activeReplay && (
+        <MatchHighlightsModal
+          match={activeReplay}
+          open={true}
+          onClose={() => setActiveReplay(null)}
         />
       )}
     </div>
