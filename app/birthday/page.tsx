@@ -659,6 +659,8 @@ export default function BirthdayPage() {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const detailRef = useRef<HTMLDivElement | null>(null);
   const calendarRef = useRef<HTMLElement | null>(null);
+  const photoSectionRef = useRef<HTMLElement | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => {
     fetch("/api/fcl-data")
@@ -810,6 +812,19 @@ export default function BirthdayPage() {
     const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
     window.scrollTo({ top: y, behavior: "smooth" });
   };
+
+  const scrollToPhotoSection = () => {
+    photoSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
+  useEffect(() => {
+    const update = () => setShowBackToTop(window.scrollY > 360);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, []);
 
   const pickStar = (i: number) => {
     setActiveStar(i);
@@ -1032,7 +1047,7 @@ export default function BirthdayPage() {
 
       <audio ref={audioRef} src="https://actions.google.com/sounds/v1/ambiences/birthday_party.ogg" loop />
 
-      <header className="bd-header sticky top-0 z-30 border-b backdrop-blur-xl">
+      <header className="bd-header sticky top-[52px] z-30 border-b backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-3 py-2.5 sm:px-6">
           <Link href="/" className="bd-btn inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition">
             ← হোম
@@ -1058,9 +1073,9 @@ export default function BirthdayPage() {
         {loading ? (
           <div className="bd-sky2 flex h-64 items-center justify-center font-bold animate-pulse">বার্থডে ডেটা লোড হচ্ছে...</div>
         ) : (
-          <div className="space-y-8 sm:space-y-12">
+          <div className="space-y-6 sm:space-y-8">
             {todayStars.length === 0 ? (
-              <section className="bd-panel-empty rounded-3xl border p-5 sm:p-10 lg:flex lg:items-center lg:justify-between lg:gap-10">
+              <section className="bd-panel-empty min-h-[230px] sm:min-h-[250px] rounded-3xl border p-5 sm:p-10 lg:flex lg:items-center lg:justify-between lg:gap-10">
                 <div className="text-center lg:text-left">
                   <p className="text-4xl">📅</p>
                   <h1 className="bd-head mt-2 text-2xl font-black sm:text-4xl">আজ কারো জন্মদিন নেই</h1>
@@ -1246,126 +1261,34 @@ export default function BirthdayPage() {
               </section>
             )}
 
-            <section className="space-y-4">
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
-                {[
-                  { icon: "👥", label: "মোট প্লেয়ার", value: stats.total, color: "bd-head" },
-                  { icon: "🎂", label: "জন্মদিন নথিভুক্ত", value: stats.bdayCount, color: "bd-sky2" },
-                  { icon: "📸", label: "ছবি আছে", value: stats.withPhoto, color: "bd-em2" },
-                  { icon: "🙈", label: "ছবি নেই", value: stats.missing.length, color: "bd-amber", onClick: () => setShowMissing((v) => !v) },
-                  { icon: "🗓️", label: "এই মাসে জন্মদিন", value: stats.thisMonth, color: "bd-head" },
-                  { icon: "⏰", label: "আগামী ৭ দিনে", value: stats.next7, color: "bd-sky2" },
-                ].map((s) => {
-                  const Tag: any = s.onClick ? "button" : "div";
-                  return (
-                    <Tag
-                      key={s.label}
-                      onClick={s.onClick}
-                      className={`bd-glass rounded-2xl border p-3 text-center backdrop-blur transition ${s.onClick ? "cursor-pointer hover:brightness-110 active:scale-[0.98]" : ""}`}
-                    >
-                      <p className="text-lg">{s.icon}</p>
-                      <p className={`text-2xl font-black leading-tight sm:text-3xl ${s.color}`}>{s.value}</p>
-                      <p className="bd-sub mt-0.5 text-[10px] font-semibold sm:text-[11px]">{s.label}</p>
-                    </Tag>
-                  );
-                })}
-              </div>
-
-              <div className="bd-panel relative overflow-hidden rounded-[2rem] border p-4 sm:p-6">
-                <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-blue-500/15 blur-3xl" />
-                <div className="relative z-10">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <h2 className="bd-head text-base font-black sm:text-xl">📸 ছবি সংগ্রহ অভিযান</h2>
-                      <p className="bd-text2 mt-1 text-xs leading-relaxed sm:text-sm">
-                        মোট <b className="bd-head">{stats.total}</b> জনের মধ্যে{" "}
-                        <b className="bd-em2">{stats.withPhoto} জনের</b> ছবি আছে,{" "}
-                        <b className="bd-amber">{stats.missing.length} জনের</b> ছবি নেই। ছবি না থাকলে নিচের বাটনে সরাসরি Messenger-এ পাঠিয়ে দিন — আমরা কার্ডে বসিয়ে দেব।
-                      </p>
-
-                      <div className="mt-3 flex items-center gap-3">
-                        <div className="bd-track h-2.5 flex-1 overflow-hidden rounded-full">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 transition-all duration-700"
-                            style={{ width: `${stats.pct}%` }}
-                          />
-                        </div>
-                        <span className="bd-head text-xs font-black">{stats.pct}%</span>
-                      </div>
-
-                      <p className="bd-faint mt-2 text-[11px]">
-                        {stats.busiest >= 0 && (
-                          <>
-                            📊 সবচেয়ে বেশি জন্মদিন: <b className="bd-text2">{MONTH_BN[stats.busiest]}</b> মাসে ({stats.maxC} জন)
-                          </>
-                        )}
-                        {stats.noBirthday > 0 && (
-                          <>
-                            {stats.busiest >= 0 ? " • " : ""}🎈 জন্মতারিখ নেই: <b className="bd-text2">{stats.noBirthday} জনের</b> — তারাও মেসেজ দিয়ে জানাতে পারেন
-                          </>
-                        )}
-                      </p>
-                    </div>
-
-                    <div className="flex w-full flex-col gap-2.5 sm:flex-row lg:w-auto lg:flex-col">
-                      <button
-                        onClick={() => openMessenger()}
-                        className="flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#0084ff] to-[#a334fa] px-6 py-3 text-sm font-black text-white shadow-xl shadow-blue-600/30 transition hover:brightness-110 active:scale-[0.98]"
-                      >
-                        <MessengerIcon size={18} /> Messenger-এ ছবি পাঠান
-                      </button>
-                      <a
-                        href={FB_PROFILE_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bd-sky-btn flex items-center justify-center gap-2 rounded-2xl border px-6 py-3 text-sm font-black transition active:scale-[0.98]"
-                      >
-                        👤 Facebook প্রোফাইল
-                      </a>
-                    </div>
-                  </div>
-
-                  {stats.missing.length > 0 && (
-                    <div className="mt-4">
-                      <button
-                        onClick={() => setShowMissing((v) => !v)}
-                        className="bd-btn inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition"
-                      >
-                        {showMissing ? "▲ তালিকা লুকান" : `▼ যাদের ছবি নেই (${stats.missing.length} জন) দেখুন`}
-                      </button>
-
-                      {showMissing && (
-                        <div className="bd-scroll mt-3 max-h-60 overflow-y-auto rounded-2xl pr-1">
-                          <div className="flex flex-wrap gap-2">
-                            {stats.missing.map((p, i) => (
-                              <div
-                                key={pKey(p) + i}
-                                className="bd-row flex items-center overflow-hidden rounded-full border text-[11px] font-bold"
-                              >
-                                <button
-                                  onClick={() => setSelectedPlayerForModal(p)}
-                                  title="প্লেয়ার কার্ড খুলুন"
-                                  className="bd-head max-w-[170px] truncate py-1.5 pl-3 pr-2 transition hover:opacity-80"
-                                >
-                                  {p.name}
-                                </button>
-                                <button
-                                  onClick={() => openMessenger(p.name)}
-                                  title="Messenger-এ ছবি পাঠান"
-                                  className="flex h-full items-center bg-[#0084ff] px-2.5 py-1.5 text-white transition hover:brightness-110"
-                                >
-                                  <MessengerIcon size={12} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
+             <section aria-label="বার্থডে পরিসংখ্যান" className="space-y-2.5">
+               <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                 {[
+                   { icon: "👥", label: "মোট প্লেয়ার", value: stats.total, color: "bd-head" },
+                   { icon: "🎂", label: "জন্মদিন নথিভুক্ত", value: stats.bdayCount, color: "bd-sky2" },
+                   { icon: "📸", label: "ছবি আছে", value: stats.withPhoto, color: "bd-em2" },
+                   { icon: "🙈", label: "ছবি নেই", value: stats.missing.length, color: "bd-amber", onClick: scrollToPhotoSection },
+                   { icon: "🗓️", label: "এই মাসে জন্মদিন", value: stats.thisMonth, color: "bd-head" },
+                   { icon: "⏰", label: "আগামী ৭ দিনে", value: stats.next7, color: "bd-sky2" },
+                 ].map((s) => {
+                   const Tag: any = s.onClick ? "button" : "div";
+                   return (
+                     <Tag key={s.label} onClick={s.onClick}
+                       className={`bd-glass min-w-0 rounded-xl border px-1.5 py-2 text-center backdrop-blur transition sm:px-2 sm:py-2.5 ${s.onClick ? "cursor-pointer hover:brightness-110" : ""}`}>
+                       <p className="text-sm leading-none sm:text-base">{s.icon}</p>
+                       <p className={`mt-1 text-lg font-black leading-none sm:text-2xl ${s.color}`}>{s.value}</p>
+                       <p className="bd-sub mt-1 text-[9px] font-semibold leading-tight sm:text-[10px]">{s.label}</p>
+                     </Tag>
+                   );
+                 })}
+               </div>
+               <div className="flex items-center justify-between gap-2 rounded-xl border border-sky-400/20 bg-sky-500/5 px-3 py-2">
+                 <p className="bd-text2 min-w-0 text-[10px] leading-snug sm:text-xs">📸 আপনার ছবি বা জন্মতারিখ নেই? আমাদের জানাতে পারেন।</p>
+                 <button onClick={scrollToPhotoSection} className="bd-sky-btn shrink-0 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold transition hover:brightness-110 sm:text-xs">
+                   ছবি/তথ্য দিন ↓
+                 </button>
+               </div>
+             </section>
 
             {upcoming.length > 0 && (
               <section>
@@ -1585,20 +1508,119 @@ export default function BirthdayPage() {
                 </div>
               </div>
             </section>
+
+             {/* ছবি ও তথ্য জমা দেওয়ার অংশ — ক্যালেন্ডারের পরে */}
+             <section ref={photoSectionRef} id="photo-submit" className="scroll-mt-24 space-y-2">
+
+              <div className="bd-panel relative overflow-hidden rounded-2xl border p-3 sm:p-4">
+                <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-blue-500/15 blur-3xl" />
+                <div className="relative z-10">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="bd-head text-sm font-black sm:text-base">📸 ছবি সংগ্রহ অভিযান</h2>
+                      <p className="bd-text2 mt-1 text-[11px] leading-relaxed sm:text-xs">
+                        মোট <b className="bd-head">{stats.total}</b> জনের মধ্যে{" "}
+                        <b className="bd-em2">{stats.withPhoto} জনের</b> ছবি আছে,{" "}
+                        <b className="bd-amber">{stats.missing.length} জনের</b> ছবি নেই। ছবি না থাকলে নিচের বাটনে সরাসরি Messenger-এ পাঠিয়ে দিন — আমরা কার্ডে বসিয়ে দেব।
+                      </p>
+
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="bd-track h-1.5 flex-1 overflow-hidden rounded-full">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-blue-600 to-emerald-500 transition-all duration-700"
+                            style={{ width: `${stats.pct}%` }}
+                          />
+                        </div>
+                        <span className="bd-head text-xs font-black">{stats.pct}%</span>
+                      </div>
+
+                      <p className="bd-faint mt-1.5 text-[10px]">
+                        {stats.busiest >= 0 && (
+                          <>
+                            📊 সবচেয়ে বেশি জন্মদিন: <b className="bd-text2">{MONTH_BN[stats.busiest]}</b> মাসে ({stats.maxC} জন)
+                          </>
+                        )}
+                        {stats.noBirthday > 0 && (
+                          <>
+                            {stats.busiest >= 0 ? " • " : ""}🎈 জন্মতারিখ নেই: <b className="bd-text2">{stats.noBirthday} জনের</b> — তারাও মেসেজ দিয়ে জানাতে পারেন
+                          </>
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="flex w-full flex-wrap gap-2 lg:w-auto lg:flex-nowrap">
+                      <button
+                        onClick={() => openMessenger()}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0084ff] to-[#a334fa] px-3 py-2 text-xs font-black text-white shadow-xl shadow-blue-600/30 transition hover:brightness-110 active:scale-[0.98]"
+                      >
+                        <MessengerIcon size={18} /> Messenger-এ ছবি পাঠান
+                      </button>
+                      <a
+                        href={FB_PROFILE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bd-sky-btn flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition active:scale-[0.98]"
+                      >
+                        👤 Facebook প্রোফাইল
+                      </a>
+                    </div>
+                  </div>
+
+                  {stats.missing.length > 0 && (
+                    <div className="mt-3">
+                      <button
+                        onClick={() => setShowMissing((v) => !v)}
+                        className="bd-btn inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition"
+                      >
+                        {showMissing ? "▲ তালিকা লুকান" : `▼ যাদের ছবি নেই (${stats.missing.length} জন) দেখুন`}
+                      </button>
+
+                      {showMissing && (
+                        <div className="bd-scroll mt-3 max-h-60 overflow-y-auto rounded-2xl pr-1">
+                          <div className="flex flex-wrap gap-2">
+                            {stats.missing.map((p, i) => (
+                              <div
+                                key={pKey(p) + i}
+                                className="bd-row flex items-center overflow-hidden rounded-full border text-[11px] font-bold"
+                              >
+                                <button
+                                  onClick={() => setSelectedPlayerForModal(p)}
+                                  title="প্লেয়ার কার্ড খুলুন"
+                                  className="bd-head max-w-[170px] truncate py-1.5 pl-3 pr-2 transition hover:opacity-80"
+                                >
+                                  {p.name}
+                                </button>
+                                <button
+                                  onClick={() => openMessenger(p.name)}
+                                  title="Messenger-এ ছবি পাঠান"
+                                  className="flex h-full items-center bg-[#0084ff] px-2.5 py-1.5 text-white transition hover:brightness-110"
+                                >
+                                  <MessengerIcon size={12} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+               <div className="flex justify-end">
+                 <button onClick={scrollToTop} className="bd-btn inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold transition hover:brightness-110">↑ এক ক্লিকে উপরে যান</button>
+               </div>
+             </section>
           </div>
         )}
       </main>
 
-      {/* ফ্লোটিং ক্যালেন্ডার বাটন */}
-      <button
-        onClick={scrollToCalendar}
-        title="বার্থডে ক্যালেন্ডারে যান"
-        aria-label="বার্থডে ক্যালেন্ডারে যান"
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-1.5 rounded-full border border-sky-400/50 bg-sky-500/90 px-4 py-2.5 text-xs font-black text-white shadow-2xl backdrop-blur transition hover:scale-110 hover:bg-sky-600 active:scale-95 sm:bottom-8 sm:right-8"
-      >
-        <span>📅 ক্যালেন্ডার</span>
-        <span className="animate-bounce">⬇</span>
-      </button>
+       {/* নিচে স্ক্রল করলে ডান পাশে উপরে যাওয়ার বাটন */}
+       {showBackToTop && !cardEntry && !selectedPlayerForModal && (
+         <button onClick={scrollToTop} title="উপরে যান" aria-label="পেজের উপরে যান"
+           className="fixed bottom-5 right-4 z-40 flex items-center gap-1 rounded-full border border-sky-400/50 bg-sky-600 px-3 py-2 text-xs font-black text-white shadow-xl transition hover:scale-105 hover:bg-sky-700 active:scale-95 sm:bottom-8 sm:right-8">
+           ↑ উপরে
+         </button>
+       )}
 
       {cardEntry && (
         <CardStudio

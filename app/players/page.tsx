@@ -6,12 +6,14 @@ import {
   useMemo,
   useCallback,
   useRef,
+  Suspense,
   type CSSProperties,
   type ReactNode,
   type MouseEvent,
 } from "react";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import PlayerCardModal from "../../components/PlayerCardModal";
 
 /* ============================================================
@@ -189,6 +191,15 @@ function getRoleStyle(role: string) {
     ROLE_STYLE[role] ||
     ROLE_STYLE["Promising Player"]
   );
+}
+
+/** Normalize player names and nicknames for consistent directory searches. */
+function normalizePlayerSearch(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /* ============================================================
@@ -1077,8 +1088,14 @@ function PlayerSkeleton() {
    MAIN PAGE
 ============================================================ */
 
-export default function PlayersPage() {
+function PlayersPageContent() {
   const isDark = useIsDark();
+  const searchParams = useSearchParams();
+  // The existing Global Search sends /players?player=PLAYER_NAME&s=TIMESTAMP.
+  const incomingPlayer = searchParams.get("player")?.trim() ?? "";
+  const incomingSearchStamp = searchParams.get("s") ?? "";
+  const searchToolbarRef = useRef<HTMLDivElement>(null);
+  const [pendingSearchScroll, setPendingSearchScroll] = useState<string | null>(null);
 
   const [players, setPlayers] = useState<Player[]>([]);
 
@@ -1110,6 +1127,46 @@ export default function PlayersPage() {
 
   const [showSortSheet, setShowSortSheet] =
     useState(false);
+
+  /* ============================================================
+     GLOBAL SEARCH → PLAYER DIRECTORY
+     Prefill the local search, show ALL matching players, and
+     scroll to the results after the API finishes loading.
+  ============================================================ */
+
+  useEffect(() => {
+    if (!incomingPlayer) return;
+
+    setSearchQuery(incomingPlayer);
+    setSelectedRole("All");
+    setSortBy("name");
+    setVisibleCount(PAGE_SIZE);
+    setPendingSearchScroll(incomingPlayer);
+  }, [incomingPlayer, incomingSearchStamp]);
+
+  useEffect(() => {
+    if (
+      loading ||
+      error ||
+      !pendingSearchScroll ||
+      searchQuery !== pendingSearchScroll
+    ) {
+      return;
+    }
+
+    // Give React a moment to paint the filtered player cards.
+    const timer = window.setTimeout(() => {
+      searchToolbarRef.current?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      });
+      setPendingSearchScroll(null);
+    }, 400);
+
+    return () => window.clearTimeout(timer);
+  }, [loading, error, pendingSearchScroll, searchQuery]);
 
   /* ============================================================
      FETCH DATA
@@ -1269,19 +1326,13 @@ export default function PlayersPage() {
   ============================================================ */
 
   const filteredPlayers = useMemo(() => {
-    const query = searchQuery
-      .trim()
-      .toLowerCase();
+    const query = normalizePlayerSearch(searchQuery);
 
     const filtered = players.filter((player) => {
       const matchesSearch =
         !query ||
-        player.name
-          .toLowerCase()
-          .includes(query) ||
-        (player.nickName || "")
-          .toLowerCase()
-          .includes(query);
+        normalizePlayerSearch(player.name).includes(query) ||
+        normalizePlayerSearch(player.nickName || "").includes(query);
 
       const matchesRole =
         selectedRole === "All" ||
@@ -2298,7 +2349,11 @@ export default function PlayersPage() {
             SEARCH TOOLBAR
         ====================================================== */}
 
-        <div className="fcl-toolbar rounded-[18px] border p-2.5 sm:p-3">
+        <div
+          ref={searchToolbarRef}
+          id="player-directory-search"
+          className="fcl-toolbar scroll-mt-20 rounded-[18px] border p-2.5 sm:scroll-mt-24 sm:p-3"
+        >
           <div className="flex items-center gap-2">
             {/* Search */}
 
@@ -2649,5 +2704,14 @@ export default function PlayersPage() {
         allPlayers={players}
       />
     </div>
+  );
+}
+
+/** Suspense keeps useSearchParams safe during Next.js static builds. */
+export default function PlayersPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <PlayersPageContent />
+    </Suspense>
   );
 }
