@@ -91,12 +91,47 @@ export function summaryToReplay(match: {
 
   const result = match.summary.match(/(?:RESULTS?|MATCH RESULT)\s*(?:~>|:|\-)?\s*([^\n]+)/i)?.[1]?.trim();
   const venue = match.summary.match(/Venue\s*:\s*([^\n]+)/i)?.[1]?.trim();
+  const text = match.summary;
+  const meta = (label: string) => {
+    const found = text.split('\n').find(line => line.toLowerCase().includes(label.toLowerCase() + ':'));
+    return found?.split(':').slice(1).join(':').trim();
+  };
+  const awards = (label: string) => {
+    const line = text.split('\n').find(item => new RegExp(`(?:^|\\s)${label}\\s*:`, 'i').test(item));
+    if (!line) return undefined;
+    const value = line.slice(line.indexOf(':') + 1).trim();
+    const name = value.replace(/\s*\(\s*Impact\s*:\s*[^)]+\)/i, '').trim();
+    const impact = value.match(/Impact\s*:\s*([\d,.]+\s*(?:pts|points)?)/i)?.[1]?.trim();
+    return name ? { name, impact } : undefined;
+  };
+  const squads: Record<string, string[]> = {};
+  let activeSquad: string | null = null;
+  for (const line of text.replace(/\r/g, '').split('\n')) {
+    const heading = line.match(/(?:💥\s*)?(.+?)\s+SQUAD\s*:/i);
+    if (heading) {
+      activeSquad = heading[1].replace(/[💥♦️]/g, '').trim().toUpperCase();
+      squads[activeSquad] = [];
+      continue;
+    }
+    if (activeSquad && /(?:MATCH INFO|1ST INNINGS|TOSS|2ND INNINGS)/i.test(line)) activeSquad = null;
+    if (activeSquad) {
+      const name = line.match(/^\s*\d+[.)]\s*(.+)/)?.[1];
+      if (name) squads[activeSquad].push(name.trim());
+    }
+  }
   return {
     id: String(match.id),
     title: match.title,
-    date: match.date,
+    date: text.match(/(?:^|\n)\s*(?:🗓️\s*)?Date\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i)?.[1] || match.date,
     venue,
     result,
+    squads,
+    mom: awards('MOM'),
+    cpom: awards('CPOM'),
+    format: meta('Format'),
+    startTime: meta('Start Time'),
+    endTime: meta('Closing Time'),
+    duration: meta('Match Duration'),
     innings: [innings[0], innings[1]],
   };
 }

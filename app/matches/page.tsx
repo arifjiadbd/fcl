@@ -1224,13 +1224,37 @@ export default function MatchesPage() {
           const query = params.get("q");
 
           if (matchId) {
-            const found = list.find(
-              (match) =>
-                String(match.id) === matchId
+            // The Global Search match link is a one-time popup trigger.
+            const currentUrl = new URL(window.location.href);
+            const navigation = performance.getEntriesByType(
+              "navigation"
+            )[0] as PerformanceNavigationTiming | undefined;
+
+            // Ignore a stale match parameter on an actual browser reload.
+            const isReload =
+              navigation?.type === "reload" &&
+              navigation.name.split("#")[0] === currentUrl.href.split("#")[0];
+
+            // Consume only match; preserve q, other parameters and the hash.
+            currentUrl.searchParams.delete("match");
+            window.history.replaceState(
+              window.history.state,
+              "",
+              currentUrl.pathname + currentUrl.search + currentUrl.hash
             );
 
-            if (found) {
-              setSelectedMatch(found);
+            if (!isReload) {
+              const found = list.find(
+                (match) => String(match.id) === matchId
+              );
+
+              if (found) {
+                setSelectedMatch(found);
+              } else if (query) {
+                setSearchQuery(query);
+              }
+            } else if (query) {
+              setSearchQuery(query);
             }
           } else if (query) {
             setSearchQuery(query);

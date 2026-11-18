@@ -35,6 +35,14 @@ export type ReplayMatch = {
   winner?: string;
   result?: string;
   innings: [ReplayInnings, ReplayInnings];
+  format?: string;
+  powerplay?: string;
+  squads?: Record<string, string[]>;
+  mom?: { name: string; impact?: string };
+  cpom?: { name: string; impact?: string };
+  startTime?: string;
+  endTime?: string;
+  duration?: string;
 };
 
 export type ReplayBall = ReplayDelivery & {
