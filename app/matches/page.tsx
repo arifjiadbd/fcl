@@ -8,7 +8,6 @@ import {
   useRef,
 } from "react";
 
-import Link from "next/link";
 import MatchHighlightsModal from "@/components/MatchHighlightsModal";
 import type { ReplayMatch } from "@/lib/matchReplay";
 import { summaryToReplay } from "@/lib/summaryToReplay";
@@ -39,6 +38,47 @@ type CatKey =
 /* ================================================================
    CONSTANTS
 ================================================================ */
+
+// Stadium background image (put the file in /public and set its path here).
+const MATCH_BG = "/fcl-header-stadium.webp";
+
+const SIDE_LABEL: Record<string, string> = {
+  all: "All Matches",
+  tournament: "Tournaments",
+  series: "Series",
+  friendly: "Friendlies",
+  test: "Test Matches",
+};
+
+const TILE_LABEL: Record<string, string> = {
+  all: "Total Matches",
+  tournament: "Tournaments",
+  series: "Series",
+  friendly: "Friendlies",
+  test: "Test",
+};
+
+const TAG_LABEL: Record<string, string> = {
+  tournament: "Tournament",
+  series: "Series",
+  friendly: "Friendly",
+  test: "Test",
+  other: "Match",
+};
+
+function pageList(current: number, total: number): (number | "…")[] {
+  if (total <= 6) return Array.from({ length: total }, (_, i) => i + 1);
+  const set = new Set([1, total, current - 1, current, current + 1]);
+  const nums = Array.from(set)
+    .filter((n) => n >= 1 && n <= total)
+    .sort((a, b) => a - b);
+  const out: (number | "…")[] = [];
+  nums.forEach((n, i) => {
+    if (i > 0 && n - nums[i - 1] > 1) out.push("…");
+    out.push(n);
+  });
+  return out;
+}
 
 const MONTHS = [
   "January",
@@ -107,92 +147,6 @@ const CATEGORIES = [
     color: "#f43f5e",
   },
 ] as const;
-
-/* ================================================================
-   FCL THEME DETECTION
-   Matches Home Page Theme System
-================================================================ */
-
-function useIsDark() {
-  const [isDark, setIsDark] = useState(true);
-
-  useEffect(() => {
-    const read = () => {
-      const h = document.documentElement;
-      const b = document.body;
-
-      const dt = (
-        h.getAttribute("data-theme") ||
-        h.getAttribute("data-mode") ||
-        b.getAttribute("data-theme") ||
-        ""
-      ).toLowerCase();
-
-      if (dt === "dark" || dt === "light") {
-        return dt === "dark";
-      }
-
-      const cls = `${h.className} ${b.className}`.toLowerCase();
-
-      if (/\blight\b/.test(cls)) return false;
-      if (/\bdark\b/.test(cls)) return true;
-
-      const scheme = h.style.colorScheme;
-
-      if (scheme === "light" || scheme === "dark") {
-        return scheme === "dark";
-      }
-
-      try {
-        const saved = localStorage.getItem("theme");
-
-        if (saved === "light" || saved === "dark") {
-          return saved === "dark";
-        }
-      } catch {}
-
-      return window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-    };
-
-    const update = () => setIsDark(read());
-
-    update();
-
-    const observer = new MutationObserver(update);
-
-    const options = {
-      attributes: true,
-      attributeFilter: [
-        "class",
-        "data-theme",
-        "data-mode",
-        "style",
-      ],
-    };
-
-    observer.observe(document.documentElement, options);
-
-    observer.observe(document.body, options);
-
-    window.addEventListener("storage", update);
-
-    const media = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    );
-
-    media.addEventListener("change", update);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("storage", update);
-      media.removeEventListener("change", update);
-    };
-  }, []);
-
-  return isDark;
-}
 
 /* ================================================================
    MEDIA QUERY
@@ -587,6 +541,37 @@ function DateBox({
 }
 
 /* ================================================================
+   ANIMATED NUMBER
+================================================================ */
+
+function AnimatedNumber({ value }: { value: number }) {
+  const [shown, setShown] = useState(0);
+  const current = useRef(0);
+
+  useEffect(() => {
+    const from = current.current;
+    const to = value;
+    const duration = 750;
+    const t0 = performance.now();
+    let raf = 0;
+
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - t0) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const v = Math.round(from + (to - from) * eased);
+      current.current = v;
+      setShown(v);
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+
+  return <>{shown}</>;
+}
+
+/* ================================================================
    STATISTICS TILE
 ================================================================ */
 
@@ -606,69 +591,29 @@ function StatTile({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`match-stat group relative flex min-w-0 flex-col items-center justify-center overflow-hidden rounded-2xl border px-1.5 pb-3 pt-3 text-center transition-all duration-300 active:scale-95 lg:flex-row lg:justify-start lg:gap-3 lg:rounded-[22px] lg:px-4 lg:py-4 lg:text-left lg:hover:-translate-y-1 ${
-        active ? "match-stat-active" : ""
+      className={`mx-tile flex min-w-[118px] flex-1 items-center gap-3 px-3.5 py-3 text-left xl:min-w-0 ${
+        active ? "mx-tile-active" : ""
       }`}
-      style={
-        {
-          "--accent": category.color,
-        } as React.CSSProperties
-      }
+      style={{ "--accent": category.color } as React.CSSProperties}
     >
-      {/* Top Accent */}
-
       <span
-        className={`absolute inset-x-0 top-0 h-[3px] transition-opacity ${
-          active ? "opacity-100" : "opacity-40"
-        }`}
-        style={{
-          backgroundColor: category.color,
-        }}
-      />
-
-      {/* Icon */}
-
-      <span
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border text-base lg:h-12 lg:w-12 lg:text-[22px]"
-        style={{
-          backgroundColor: `${category.color}13`,
-          borderColor: `${category.color}40`,
-        }}
+        className="mx-tile-ico"
+        style={{ borderColor: `${category.color}66`, backgroundColor: `${category.color}22` }}
       >
         {category.icon}
       </span>
 
-      {/* Stats */}
-
-      <span className="mt-2 flex min-w-0 flex-col items-center lg:mt-0 lg:items-start">
-        <span
-          className="text-[19px] font-black tabular-nums leading-none lg:text-[30px]"
-          style={{
-            color: category.color,
-          }}
-        >
-          {count}
+      <span className="relative z-10 flex min-w-0 flex-col">
+        <span className="text-[26px] font-black leading-none tabular-nums text-white">
+          <AnimatedNumber value={count} />
         </span>
-
-        <span className="match-muted mt-1 max-w-full truncate text-[9px] font-bold lg:text-xs">
-          <span className="lg:hidden">
-            {category.short}
-          </span>
-
-          <span className="hidden lg:inline">
-            {category.key === "all"
-              ? "Total Matches"
-              : category.short}
-          </span>
+        <span className="mt-1 truncate text-[11px] font-semibold text-slate-300">
+          {TILE_LABEL[category.key]}
         </span>
       </span>
     </button>
   );
 }
-
-/* ================================================================
-   DESKTOP MATCH CARD
-================================================================ */
 
 // Shared replay eligibility: cards and modal use exactly the same result.
 const replayCache = new WeakMap<MatchItem, ReplayMatch | null>();
@@ -711,11 +656,13 @@ function MatchMeta({match}: {match: MatchItem}) {
   </div>;
 }
 
-function DesktopMatchCard({
+function MatchCard({
   match,
+  index,
   onOpen,
 }: {
   match: MatchItem;
+  index: number;
   onOpen: (match: MatchItem) => void;
 }) {
   const style = getCategoryStyle(match.category);
@@ -724,127 +671,48 @@ function DesktopMatchCard({
     <button
       type="button"
       onClick={() => onOpen(match)}
-      className="match-card group relative flex h-full min-h-[170px] flex-col justify-between overflow-hidden rounded-[20px] border p-4 text-left transition-all duration-500 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1877F2]"
+      className="mx-card group"
       style={
         {
           "--accent": style.color,
+          animationDelay: `${Math.min(index, 11) * 55}ms`,
         } as React.CSSProperties
       }
     >
-      {/* Top Accent */}
-
-      <span
-        className="absolute inset-x-0 top-0 h-[3px] opacity-80"
-        style={{
-          background: `linear-gradient(90deg, ${style.color}, transparent)`,
-        }}
-      />
-
-      {/* Ambient Glow */}
-
-      <div
-        className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full opacity-20 blur-[65px] transition-opacity duration-500 group-hover:opacity-50"
-        style={{
-          backgroundColor: style.color,
-        }}
-      />
-
-      {/* Card Content */}
-
-      <div className="relative z-10">
-        <div className="flex items-center gap-3.5">
-          <DateBox match={match} />
-
-          <div className="min-w-0 flex-1">
-            <CatBadge category={match.category} />
-
-            <p className="match-muted mt-2 truncate text-[11px] font-semibold">
-              📅 {formatExcelDate(match.date)}
-            </p>
-          </div>
-        </div>
-
-        <h3 className="match-heading mt-3 line-clamp-2 break-words text-[17px] font-black leading-snug tracking-tight transition-colors duration-300 group-hover:text-[#1877F2]">
-          {match.title}
-        </h3>
-        <MatchMeta match={match} />
-      </div>
-
-      {/* Footer */}
-
-      <div className="match-card-footer relative z-10 mt-3 flex items-center justify-between border-t pt-2">
-        <span className="match-blue text-[11px] font-black">
-          View Match Details
-        </span>
-
-        <span className="match-arrow flex h-8 w-8 items-center justify-center rounded-xl border text-base font-black transition-all duration-300 group-hover:translate-x-1 group-hover:bg-[#1877F2] group-hover:text-white">
-          →
-        </span>
-      </div>
-    </button>
-  );
-}
-
-/* ================================================================
-   MOBILE MATCH CARD
-================================================================ */
-
-function MobileMatchRow({
-  match,
-  onOpen,
-}: {
-  match: MatchItem;
-  onOpen: (match: MatchItem) => void;
-}) {
-  const style = getCategoryStyle(match.category);
-
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(match)}
-      className="match-mobile-card group relative flex w-full items-center gap-3 overflow-hidden rounded-[20px] border p-3 pl-4 text-left transition-all duration-300 active:scale-[0.98]"
-      style={
-        {
-          "--accent": style.color,
-        } as React.CSSProperties
-      }
-    >
-      {/* Left Accent */}
-
-      <span
-        className="absolute inset-y-0 left-0 w-[3px]"
-        style={{
-          backgroundColor: style.color,
-        }}
-      />
-
-      {/* Date */}
-
       <DateBox match={match} size="sm" />
 
-      {/* Content */}
+      <div className="relative z-10 min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="mx-dot" />
+          <span
+            className="truncate text-[11px] font-extrabold"
+            style={{ color: style.color }}
+          >
+            {match.category || "Match"}
+          </span>
+        </div>
 
-      <div className="min-w-0 flex-1">
-        <CatBadge
-          category={match.category}
-          small
-        />
-
-        <h3 className="match-heading mt-2 line-clamp-2 break-words text-[13px] font-black leading-snug">
+        <h3 className="mt-1 line-clamp-2 break-words text-[15px] font-black leading-snug text-white sm:text-base">
           {match.title}
         </h3>
 
-        <p className="match-muted mt-1 text-[9px] font-semibold">
-          {formatExcelDate(match.date)}
-        </p>
         <MatchMeta match={match} />
       </div>
 
-      {/* Arrow */}
+      <div className="relative z-10 flex shrink-0 flex-col items-end justify-center gap-3 self-stretch sm:justify-between">
+        <span
+          className="mx-tag hidden sm:inline-flex"
+          style={{
+            color: style.color,
+            borderColor: `${style.color}66`,
+            backgroundColor: `${style.color}1f`,
+          }}
+        >
+          {style.icon} {TAG_LABEL[style.key]}
+        </span>
 
-      <span className="match-blue flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#1877F2]/10 text-lg font-black">
-        ›
-      </span>
+        <span className="mx-go">›</span>
+      </div>
     </button>
   );
 }
@@ -1073,39 +941,19 @@ function MatchSkeleton({
   isDesktop: boolean;
 }) {
   return (
-    <div
-      className={`grid gap-3 ${
-        isDesktop
-          ? "grid-cols-2 gap-3 xl:grid-cols-3"
-          : "grid-cols-1"
-      }`}
-    >
-      {Array.from({
-        length: isDesktop ? 9 : 7,
-      }).map((_, index) => (
+    <div className="grid gap-3 md:grid-cols-2">
+      {Array.from({ length: isDesktop ? 6 : 4 }).map((_, index) => (
         <div
           key={index}
-          className={`match-skeleton overflow-hidden rounded-[22px] border p-4 ${
-            isDesktop ? "h-[230px]" : "h-[95px]"
-          }`}
+          className="match-skeleton flex h-[104px] items-center gap-3 overflow-hidden rounded-2xl border p-3"
         >
-          <div className="flex items-center gap-3">
-            <div className="match-skeleton-line h-14 w-14 shrink-0 animate-pulse rounded-xl" />
+          <div className="match-skeleton-line h-[58px] w-[58px] shrink-0 animate-pulse rounded-2xl" />
 
-            <div className="flex-1 space-y-3">
-              <div className="match-skeleton-line h-3 w-1/2 animate-pulse rounded-full" />
-
-              <div className="match-skeleton-line h-3 w-3/4 animate-pulse rounded-full" />
-            </div>
+          <div className="flex-1 space-y-3">
+            <div className="match-skeleton-line h-3 w-1/3 animate-pulse rounded-full" />
+            <div className="match-skeleton-line h-4 w-3/4 animate-pulse rounded-full" />
+            <div className="match-skeleton-line h-3 w-1/2 animate-pulse rounded-full" />
           </div>
-
-          {isDesktop && (
-            <div className="mt-6 space-y-3">
-              <div className="match-skeleton-line h-4 w-5/6 animate-pulse rounded-full" />
-
-              <div className="match-skeleton-line h-4 w-2/3 animate-pulse rounded-full" />
-            </div>
-          )}
         </div>
       ))}
     </div>
@@ -1117,8 +965,6 @@ function MatchSkeleton({
 ================================================================ */
 
 export default function MatchesPage() {
-  const isDark = useIsDark();
-
   const isDesktop = useMediaQuery(
     "(min-width: 1024px)"
   );
@@ -1143,14 +989,20 @@ export default function MatchesPage() {
   const [searchQuery, setSearchQuery] =
     useState("");
 
-  const [pages, setPages] = useState(1);
+  const [page, setPage] = useState(1);
+
+  const [showAll, setShowAll] = useState(false);
+
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [selectedMatch, setSelectedMatch] =
     useState<MatchItem | null>(null);
 
   const [activeReplay, setActiveReplay] = useState<ReplayMatch | null>(null);
 
-  const pageSize = isDesktop ? 12 : 8;
+  const pageSize = isDesktop ? 6 : 5;
 
   /* ================================================================
      FETCH MATCHES
@@ -1274,7 +1126,8 @@ export default function MatchesPage() {
   ================================================================ */
 
   useEffect(() => {
-    setPages(1);
+    setPage(1);
+    setShowAll(false);
   }, [
     selectedCategory,
     selectedYear,
@@ -1462,43 +1315,31 @@ export default function MatchesPage() {
      PAGINATION
   ================================================================ */
 
-  const visibleMatches = useMemo(
-    () =>
-      filteredMatches.slice(
-        0,
-        pages * pageSize
-      ),
-    [filteredMatches, pages, pageSize]
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredMatches.length / pageSize)
   );
 
-  const remaining =
-    filteredMatches.length -
-    visibleMatches.length;
+  const safePage = Math.min(page, totalPages);
 
-  /* ================================================================
-     GROUP MATCHES
-  ================================================================ */
+  const visibleMatches = useMemo(
+    () =>
+      showAll
+        ? filteredMatches
+        : filteredMatches.slice(
+            (safePage - 1) * pageSize,
+            safePage * pageSize
+          ),
+    [filteredMatches, safePage, pageSize, showAll]
+  );
 
-  const groups = useMemo(() => {
-    const map = new Map<
-      string,
-      MatchItem[]
-    >();
+  const rangeStart = filteredMatches.length
+    ? (showAll ? 1 : (safePage - 1) * pageSize + 1)
+    : 0;
 
-    visibleMatches.forEach((match) => {
-      const label = getGroupLabel(match);
-
-      const existing = map.get(label);
-
-      if (existing) {
-        existing.push(match);
-      } else {
-        map.set(label, [match]);
-      }
-    });
-
-    return Array.from(map.entries());
-  }, [visibleMatches]);
+  const rangeEnd = showAll
+    ? filteredMatches.length
+    : Math.min(safePage * pageSize, filteredMatches.length);
 
   /* ================================================================
      ACTIVE FILTERS
@@ -1557,24 +1398,36 @@ export default function MatchesPage() {
   };
 
   /* ================================================================
+     PERIOD LABEL
+  ================================================================ */
+
+  const periodLabel =
+    selectedMonth !== "All" || selectedYear !== "All"
+      ? [
+          selectedMonth !== "All" ? selectedMonth : "",
+          selectedYear !== "All" ? selectedYear : "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+      : "All Time";
+
+  /* ================================================================
      SEARCH BOX
   ================================================================ */
 
   const SearchBox = (
     <div className="relative w-full">
-      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-base">
+      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm">
         🔍
       </span>
 
       <input
         type="search"
         aria-label="Search matches"
-        placeholder="Search match title or summary..."
+        placeholder="Search matches..."
         value={searchQuery}
-        onChange={(event) =>
-          setSearchQuery(event.target.value)
-        }
-        className="match-input w-full rounded-2xl border py-3.5 pl-11 pr-11 text-xs font-medium outline-none sm:text-sm"
+        onChange={(event) => setSearchQuery(event.target.value)}
+        className="mx-input w-full rounded-xl py-2.5 pl-10 pr-9 text-xs font-semibold outline-none"
       />
 
       {searchQuery && (
@@ -1582,7 +1435,7 @@ export default function MatchesPage() {
           type="button"
           onClick={() => setSearchQuery("")}
           aria-label="Clear search"
-          className="match-muted absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-xs transition hover:bg-[#1877F2]/10 hover:text-[#1877F2]"
+          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-[11px] text-slate-400 transition hover:bg-white/10 hover:text-white"
         >
           ✕
         </button>
@@ -1596,9 +1449,7 @@ export default function MatchesPage() {
 
   return (
     <div
-      className={`match-root ${
-        isDark ? "match-dark" : "match-light"
-      } relative min-h-screen overflow-x-clip pb-28 font-sans transition-colors duration-300 sm:pb-20`}
+      className="match-root match-dark relative min-h-screen overflow-x-clip pb-8 font-sans"
     >
       {/* ============================================================
           GLOBAL CSS
@@ -2220,588 +2071,813 @@ export default function MatchesPage() {
           }
         }
 
+
+        /* ============================================================
+           MX — STADIUM DASHBOARD THEME
+        ============================================================ */
+
+        .mx-stage {
+          position: absolute;
+          inset: 0;
+          overflow: hidden;
+          pointer-events: none;
+          z-index: 0;
+          background: linear-gradient(180deg, #04102a 0%, #020617 55%, #01040d 100%);
+        }
+
+        .mx-stage-img {
+          position: absolute;
+          inset: -4%;
+          background-size: cover;
+          background-position: center top;
+          background-repeat: no-repeat;
+          opacity: 0.6;
+          animation: mxKen 30s ease-in-out infinite alternate;
+        }
+
+        .mx-stage-shade {
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(ellipse at 50% 0%, rgba(24, 119, 242, 0.18), transparent 55%),
+            linear-gradient(180deg, rgba(2, 6, 23, 0.3) 0%, rgba(2, 6, 23, 0.75) 40%, #020617 100%);
+        }
+
+        .mx-flood {
+          position: absolute;
+          top: -90px;
+          width: 420px;
+          height: 420px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(200, 228, 255, 0.55), rgba(56, 130, 255, 0.2) 38%, transparent 68%);
+          filter: blur(10px);
+          animation: mxFlood 5s ease-in-out infinite;
+        }
+
+        .mx-flood-l { left: -140px; }
+        .mx-flood-r { right: -140px; animation-delay: 1.8s; }
+
+        @keyframes mxFlood {
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.12); }
+        }
+
+        @keyframes mxKen {
+          from { transform: scale(1); }
+          to { transform: scale(1.08) translateY(-1.5%); }
+        }
+
+        .mx-glass {
+          background: linear-gradient(160deg, rgba(14, 28, 64, 0.78), rgba(6, 14, 36, 0.84));
+          border: 1px solid rgba(70, 120, 255, 0.28);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+          -webkit-backdrop-filter: blur(14px);
+          backdrop-filter: blur(14px);
+        }
+
+        .mx-title-grad {
+          background: linear-gradient(90deg, #22c55e, #a3e635, #22c55e);
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: mxShine 5s linear infinite;
+        }
+
+        @keyframes mxShine { to { background-position: 200% center; } }
+
+        .mx-emblem {
+          position: relative;
+          display: flex;
+          height: 64px;
+          width: 64px;
+          flex-shrink: 0;
+          align-items: center;
+          justify-content: center;
+          border-radius: 9999px;
+          font-size: 30px;
+          background: radial-gradient(circle at 30% 25%, rgba(34, 197, 94, 0.35), rgba(8, 20, 50, 0.9));
+          border: 1px solid rgba(34, 197, 94, 0.55);
+          box-shadow: 0 0 28px rgba(34, 197, 94, 0.35);
+          animation: mxBob 3.4s ease-in-out infinite;
+        }
+
+        .mx-emblem::after {
+          content: "";
+          position: absolute;
+          inset: -6px;
+          border-radius: 9999px;
+          border: 1px dashed rgba(34, 197, 94, 0.45);
+          animation: mxSpin 14s linear infinite;
+        }
+
+        @keyframes mxSpin { to { transform: rotate(360deg); } }
+        @keyframes mxBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+        /* Stat tiles */
+
+        .mx-tile {
+          position: relative;
+          overflow: hidden;
+          border-radius: 16px;
+          border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+          background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 20%, #07122b), rgba(6, 12, 30, 0.88));
+          -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+          transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .mx-tile:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 14px 34px color-mix(in srgb, var(--accent) 35%, transparent);
+        }
+
+        .mx-tile::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.16) 50%, transparent 65%);
+          transform: translateX(-130%);
+        }
+
+        .mx-tile:hover::after { animation: mxSweep 0.9s ease; }
+        @keyframes mxSweep { to { transform: translateX(130%); } }
+
+        .mx-tile-active {
+          box-shadow: 0 0 0 2px var(--accent), 0 12px 34px color-mix(in srgb, var(--accent) 38%, transparent);
+        }
+
+        .mx-tile-ico {
+          position: relative;
+          z-index: 10;
+          display: flex;
+          height: 44px;
+          width: 44px;
+          flex-shrink: 0;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+          border: 1px solid;
+          font-size: 22px;
+        }
+
+        /* Sidebar */
+
+        .mx-cat {
+          display: flex;
+          width: auto;
+          flex-shrink: 0;
+          align-items: center;
+          gap: 10px;
+          border-radius: 12px;
+          padding: 10px 12px;
+          color: #cbd5e1;
+          font-size: 13px;
+          font-weight: 700;
+          white-space: nowrap;
+          transition: background 0.25s, transform 0.25s, color 0.25s;
+        }
+
+        @media (min-width: 1024px) { .mx-cat { width: 100%; } }
+        .mx-cat:hover { background: rgba(255, 255, 255, 0.07); color: #fff; }
+        @media (min-width: 1024px) { .mx-cat:hover { transform: translateX(3px); } }
+
+        .mx-cat-active {
+          background: linear-gradient(90deg, #1877f2, #2f6bff);
+          color: #fff;
+          box-shadow: 0 8px 22px rgba(24, 119, 242, 0.45);
+        }
+
+        .mx-cat-count {
+          margin-left: auto;
+          min-width: 26px;
+          border-radius: 9999px;
+          background: rgba(255, 255, 255, 0.1);
+          padding: 2px 8px;
+          text-align: center;
+          font-size: 11px;
+          font-weight: 900;
+        }
+
+        .mx-cat-active .mx-cat-count { background: rgba(2, 6, 23, 0.55); }
+
+        .mx-noscroll { scrollbar-width: none; }
+        .mx-noscroll::-webkit-scrollbar { display: none; }
+
+        .mx-input, .mx-select {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(120, 150, 255, 0.25);
+          color: #fff;
+          transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+
+        .mx-input::placeholder { color: #94a3b8; }
+
+        .mx-input:focus, .mx-select:focus {
+          border-color: #22c55e;
+          box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .mx-select option { background: #0b1220; color: #fff; }
+
+        .mx-green-btn {
+          display: flex;
+          width: 100%;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          border-radius: 12px;
+          padding: 11px 14px;
+          font-size: 13px;
+          font-weight: 900;
+          color: #04130a;
+          background: linear-gradient(90deg, #16a34a, #22c55e, #4ade80);
+          background-size: 200% auto;
+          box-shadow: 0 8px 24px rgba(34, 197, 94, 0.35);
+          transition: transform 0.2s, background-position 0.5s, box-shadow 0.2s;
+        }
+
+        .mx-green-btn:hover { background-position: 100% center; transform: translateY(-2px); box-shadow: 0 12px 30px rgba(34, 197, 94, 0.5); }
+        .mx-green-btn:active { transform: scale(0.97); }
+
+        /* Records panel */
+
+        .mx-seg {
+          display: inline-flex;
+          border-radius: 12px;
+          padding: 3px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .mx-seg button {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          border-radius: 9px;
+          padding: 7px 14px;
+          font-size: 12px;
+          font-weight: 800;
+          color: #cbd5e1;
+          transition: background 0.25s, color 0.25s, box-shadow 0.25s;
+        }
+
+        .mx-seg button[aria-pressed="true"] {
+          background: #1877f2;
+          color: #fff;
+          box-shadow: 0 6px 18px rgba(24, 119, 242, 0.5);
+        }
+
+        .mx-card {
+          position: relative;
+          display: flex;
+          width: 100%;
+          align-items: center;
+          gap: 14px;
+          overflow: hidden;
+          border-radius: 16px;
+          padding: 12px 14px;
+          text-align: left;
+          border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+          background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, #08122b), rgba(7, 14, 34, 0.92));
+          transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+          animation: mxIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+        }
+
+        .mx-card::before {
+          content: "";
+          position: absolute;
+          right: -50px;
+          top: -50px;
+          height: 150px;
+          width: 150px;
+          border-radius: 9999px;
+          background: var(--accent);
+          opacity: 0.14;
+          filter: blur(40px);
+          transition: opacity 0.4s;
+        }
+
+        .mx-card:hover {
+          transform: translateY(-4px);
+          border-color: var(--accent);
+          box-shadow: 0 16px 40px color-mix(in srgb, var(--accent) 30%, transparent);
+        }
+
+        .mx-card:hover::before { opacity: 0.4; }
+        .mx-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        @keyframes mxIn {
+          from { opacity: 0; transform: translateY(16px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .mx-card .match-date-box { color: #fff; }
+
+        .mx-card .match-meta-chip {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(255, 255, 255, 0.14);
+          color: #e2e8f0;
+        }
+
+        .mx-card .match-replay-chip { animation: mxGlow 2.4s ease-in-out infinite; }
+
+        @keyframes mxGlow {
+          0%, 100% { box-shadow: 0 0 0 rgba(16, 185, 129, 0); }
+          50% { box-shadow: 0 0 12px rgba(16, 185, 129, 0.5); }
+        }
+
+        .mx-dot {
+          height: 7px;
+          width: 7px;
+          flex-shrink: 0;
+          border-radius: 9999px;
+          background: var(--accent);
+          box-shadow: 0 0 8px var(--accent);
+          animation: mxPulse 1.8s ease-in-out infinite;
+        }
+
+        @keyframes mxPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.5); } }
+
+        .mx-tag {
+          align-items: center;
+          gap: 4px;
+          border: 1px solid;
+          border-radius: 9px;
+          padding: 4px 9px;
+          font-size: 10px;
+          font-weight: 900;
+          white-space: nowrap;
+        }
+
+        .mx-go {
+          display: flex;
+          height: 34px;
+          width: 34px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 11px;
+          background: rgba(24, 119, 242, 0.25);
+          border: 1px solid rgba(96, 165, 250, 0.4);
+          color: #fff;
+          font-size: 20px;
+          font-weight: 900;
+          line-height: 1;
+          transition: transform 0.3s, background 0.3s;
+        }
+
+        .mx-card:hover .mx-go { transform: translateX(4px); background: #1877f2; }
+
+        .mx-scroll {
+          max-height: min(60vh, 620px);
+          overflow-y: auto;
+          padding-right: 6px;
+          scrollbar-width: thin;
+          scrollbar-color: #1877f2 transparent;
+        }
+
+        .mx-pg {
+          display: inline-flex;
+          height: 32px;
+          min-width: 32px;
+          align-items: center;
+          justify-content: center;
+          border-radius: 9px;
+          padding: 0 8px;
+          font-size: 12px;
+          font-weight: 800;
+          color: #cbd5e1;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          transition: background 0.2s, transform 0.2s;
+        }
+
+        .mx-pg:hover:not(:disabled) { background: rgba(24, 119, 242, 0.35); transform: translateY(-2px); }
+        .mx-pg:disabled { opacity: 0.35; cursor: not-allowed; }
+        .mx-pg-active { background: #1877f2; color: #fff; border-color: #1877f2; }
+
+        .mx-viewall {
+          display: flex;
+          width: 100%;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          border-radius: 14px;
+          padding: 13px;
+          font-size: 13px;
+          font-weight: 800;
+          color: #fff;
+          background: linear-gradient(90deg, rgba(24, 119, 242, 0.12), rgba(34, 197, 94, 0.14), rgba(24, 119, 242, 0.12));
+          border: 1px solid rgba(96, 165, 250, 0.3);
+          transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+        }
+
+        .mx-viewall:hover {
+          transform: translateY(-2px);
+          border-color: #22c55e;
+          box-shadow: 0 10px 30px rgba(34, 197, 94, 0.25);
+        }
+
+        .mx-viewall span.arrow { transition: transform 0.25s; }
+        .mx-viewall:hover span.arrow { transform: translateX(5px); }
+
+        /* Navbar clearance and stadium visibility (layout-only fix). */
+        .match-root .mx-page-content {
+          padding-top: calc(var(--fcl-navbar-height, 56px) + 16px);
+        }
+        .match-root .mx-stage-img {
+          opacity: .88;
+          background-position: center 42%;
+        }
+        .match-root .mx-stage-shade {
+          background: linear-gradient(180deg, rgba(2,6,23,.25), rgba(2,6,23,.48) 35%, var(--match-bg) 100%);
+        }
+        @media (max-width: 640px) {
+          .match-root .mx-page-content {
+            padding-top: calc(var(--fcl-navbar-height, 56px) + 12px);
+          }
+        }
+
+        .mx-root-skeleton-fix .match-skeleton { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.08); }
+
       `}</style>
 
       {/* ============================================================
-          PREMIUM HERO SECTION
+          STADIUM BACKGROUND
       ============================================================ */}
 
-      <section className="match-hero relative overflow-hidden border-b">
-        {/* Grid */}
+      <div className="mx-stage" aria-hidden="true">
+        <div
+          className="mx-stage-img"
+          style={{ backgroundImage: `url("${MATCH_BG}")` }}
+        />
+        <div className="mx-stage-shade" />
+        <div className="mx-flood mx-flood-l" />
+        <div className="mx-flood mx-flood-r" />
+      </div>
 
-        <div className="match-grid pointer-events-none absolute inset-0" />
+      <main className="mx-page-content relative z-10 mx-auto max-w-[1400px] px-4 pb-4 sm:px-6 lg:px-10">
+        {/* ============================================================
+            HEADER + STAT TILES
+        ============================================================ */}
 
-        {/* Background Glow */}
-
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(24,119,242,0.12),transparent_45%)]" />
-
-        {/* Animated Orbs */}
-
-        <div className="match-orb pointer-events-none absolute -right-32 -top-32 h-[420px] w-[420px] rounded-full bg-[#1877F2]/15 blur-[120px]" />
-
-        <div className="match-orb match-orb-delay pointer-events-none absolute -bottom-40 -left-28 h-[360px] w-[360px] rounded-full bg-purple-500/10 blur-[120px]" />
-
-        <div className="relative mx-auto max-w-[1400px] px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-6 lg:px-10">
-          {/* Breadcrumb */}
-
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <Link
-              href="/"
-              className="match-blue group inline-flex items-center gap-1.5 text-[11px] font-bold transition hover:opacity-70"
-            >
-              <span className="transition-transform group-hover:-translate-x-1">
-                ←
-              </span>
-
-              Home
-            </Link>
-
-            <span className="match-muted text-xs">
-              /
-            </span>
-
-            <span className="match-muted text-[11px] font-semibold">
-              Match Archive
-            </span>
-          </div>
-
-          {/* Hero Main */}
-
-          <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-[850px]">
-              {/* Eyebrow */}
-
-              <div className="match-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border px-4 py-2 backdrop-blur-xl">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.8)]" />
-
-                <span className="text-[9px] font-black uppercase tracking-[0.23em] sm:text-[10px]">
-                  FCL OFFICIAL MATCH ARCHIVE
-                </span>
-              </div>
-
-              {/* Title */}
-
-              <h1 className="match-heading text-[30px] font-black leading-[1.05] tracking-[-0.045em] sm:text-5xl lg:text-[44px]">
-                Match{" "}
-                <span className="match-gradient-text">
-                  Directory.
-                </span>
-              </h1>
-
-              {/* Description */}
-
-              <p className="match-text mt-2 max-w-[760px] text-xs leading-7 sm:text-sm lg:text-base lg:leading-8">
-                FCL-এর সব ম্যাচের ডিজিটাল আর্কাইভ।
-                এখানে পাবেন টুর্নামেন্ট হোম, সিরিজ,
-                ফ্রেন্ডলি ও টেস্ট ম্যাচের বিস্তারিত সামারি।
-                ক্যাটাগরি, বছর ও মাস অনুযায়ী ম্যাচ খুঁজুন
-                এবং প্রতিটি ম্যাচের অফিসিয়াল ফেসবুক
-                পোস্ট দেখুন।
-              </p>
-
-              {/* Feature Tags */}
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-[9px] font-bold text-blue-600 sm:text-[10px]">
-                  🏏 Match Records
-                </span>
-
-                <span className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-[9px] font-bold text-amber-600 sm:text-[10px]">
-                  🏆 Tournament History
-                </span>
-
-                <span className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-[9px] font-bold text-emerald-600 sm:text-[10px]">
-                  ✓ Official Archive
-                </span>
-              </div>
+        <header className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="mx-emblem" aria-hidden="true">
+              🏏
             </div>
 
-            {/* Latest Match */}
+            <div className="hidden h-14 w-px bg-white/15 sm:block" />
 
-            {latestLabel && (
-              <div className="match-latest relative flex shrink-0 items-center gap-4 self-start rounded-[20px] border px-5 py-4 lg:self-end">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#1877F2]/20 bg-[#1877F2]/10 text-2xl">
-                  📅
-                </div>
+            <div>
+              <h1 className="text-[30px] font-black leading-none tracking-tight text-white sm:text-[40px]">
+                Match <span className="mx-title-grad">Directory</span>
+              </h1>
 
-                <div>
-                  <p className="match-muted text-[10px] font-black uppercase tracking-wider">
-                    Latest Match
-                  </p>
+              <p className="mt-1.5 text-xs font-semibold text-slate-300 sm:text-sm">
+                Explore FCL Match Records &amp; Statistics
+              </p>
 
-                  <p className="match-heading mt-1 text-sm font-black sm:text-base">
-                    {latestLabel}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ============================================================
-          MAIN CONTENT
-      ============================================================ */}
-
-      <main className="relative mx-auto max-w-[1400px] px-4 pt-4 sm:px-6 sm:pt-5 lg:px-10">
-        {/* ============================================================
-            SECTION HEADING
-        ============================================================ */}
-
-        <div className="mb-6">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="h-1.5 w-6 rounded-full bg-[#1877F2]" />
-
-            <span className="match-blue text-[9px] font-black uppercase tracking-[0.25em]">
-              MATCH STATISTICS
-            </span>
+              {latestLabel && (
+                <p className="mt-1 text-[10px] font-bold text-emerald-300/90">
+                  ● Latest match: {latestLabel}
+                </p>
+              )}
+            </div>
           </div>
 
-          <h2 className="match-heading text-[23px] font-black tracking-tight sm:text-[30px]">
-            Explore Match Categories
-          </h2>
-
-          <p className="match-muted mt-1.5 text-[11px] sm:text-xs">
-            ক্যাটাগরি নির্বাচন করে আপনার পছন্দের ম্যাচ
-            খুঁজে নিন।
-          </p>
-        </div>
-
-        {/* ============================================================
-            CATEGORY STATISTICS
-        ============================================================ */}
-
-        <div className="match-sticky-stats sticky top-0 z-30 -mx-4 mb-7 border-b px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:mb-9 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
-          <div className="grid grid-cols-5 gap-1.5 sm:gap-3 lg:gap-4">
+          <div className="mx-noscroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 xl:mx-0 xl:grid xl:w-[760px] xl:grid-cols-5 xl:gap-3 xl:overflow-visible xl:px-0 xl:pb-0">
             {CATEGORIES.map((category) => (
               <StatTile
                 key={category.key}
                 category={category}
-                count={
-                  loading
-                    ? 0
-                    : counts[category.key] ?? 0
-                }
-                active={
-                  selectedCategory === category.key
-                }
-                onClick={() =>
-                  setSelectedCategory(category.key)
-                }
+                count={loading ? 0 : counts[category.key] ?? 0}
+                active={selectedCategory === category.key}
+                onClick={() => setSelectedCategory(category.key)}
               />
             ))}
           </div>
-        </div>
+        </header>
 
         {/* ============================================================
-            SEARCH & FILTERS
+            DASHBOARD
         ============================================================ */}
 
-        <div className="match-filter-panel mb-4 rounded-[18px] border p-3 sm:p-4">
-          {/* Panel Header */}
+        <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+          {/* ---------------- SIDEBAR ---------------- */}
 
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <h3 className="match-heading text-sm font-black sm:text-base">
-                🔎 Find Your Match
-              </h3>
+          <aside className="mx-glass rounded-[22px] p-4 lg:sticky lg:top-20">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-lg">
+                  ▦
+                </span>
 
-              <p className="match-muted mt-1 text-[10px]">
-                Search and filter the FCL archive
-              </p>
-            </div>
+                <h2 className="text-lg font-black text-white">
+                  Categories
+                </h2>
+              </div>
 
-            {hasFilters && (
               <button
                 type="button"
-                onClick={resetAll}
-                className="match-blue rounded-lg bg-[#1877F2]/10 px-3 py-2 text-[10px] font-black transition hover:bg-[#1877F2]/20"
+                onClick={() => setFiltersOpen((open) => !open)}
+                aria-expanded={filtersOpen}
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-bold text-slate-200 lg:hidden"
               >
-                Reset All
+                Filters {filtersOpen ? "▲" : "▼"}
               </button>
-            )}
-          </div>
-
-          {/* Filter Controls */}
-
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            {/* Search */}
-
-            <div className="w-full lg:max-w-[520px]">
-              <label className="match-muted mb-2 block text-[10px] font-black uppercase tracking-wider">
-                Search Matches
-              </label>
-
-              {SearchBox}
             </div>
 
-            {/* Year & Month */}
-
-            <div className="grid grid-cols-2 gap-3 lg:flex lg:items-end">
-              {/* Year */}
-
-              <div className="min-w-0 lg:w-[165px]">
-                <label
-                  htmlFor="match-year"
-                  className="match-muted mb-2 block text-[10px] font-black uppercase tracking-wider"
+            <nav className="mx-noscroll flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-1.5 lg:overflow-visible lg:pb-0">
+              {CATEGORIES.map((category) => (
+                <button
+                  key={category.key}
+                  type="button"
+                  onClick={() => setSelectedCategory(category.key)}
+                  aria-pressed={selectedCategory === category.key}
+                  className={`mx-cat ${
+                    selectedCategory === category.key
+                      ? "mx-cat-active"
+                      : ""
+                  }`}
                 >
-                  Year
-                </label>
+                  <span className="text-lg leading-none">
+                    {category.icon}
+                  </span>
 
-                <select
-                  id="match-year"
-                  value={selectedYear}
-                  onChange={(event) =>
-                    setSelectedYear(event.target.value)
-                  }
-                  className="match-select w-full rounded-xl border px-3 py-3.5 text-xs font-bold"
+                  <span>{SIDE_LABEL[category.key]}</span>
+
+                  <span className="mx-cat-count">
+                    {loading ? 0 : counts[category.key] ?? 0}
+                  </span>
+                </button>
+              ))}
+            </nav>
+
+            <div
+              className={`${filtersOpen ? "block" : "hidden"} lg:block`}
+            >
+              <div className="my-4 h-px bg-white/10" />
+
+              <p className="mb-2.5 flex items-center gap-2 text-xs font-black text-slate-200">
+                <span className="text-sky-400">⛉</span> Quick Filters
+              </p>
+
+              <div className="space-y-2.5">
+                {SearchBox}
+
+                <div className="grid grid-cols-2 gap-2.5">
+                  <select
+                    id="match-year"
+                    aria-label="Year"
+                    value={selectedYear}
+                    onChange={(event) =>
+                      setSelectedYear(event.target.value)
+                    }
+                    className="mx-select w-full rounded-xl px-3 py-2.5 text-xs font-bold outline-none"
+                  >
+                    {years.map((year) => (
+                      <option key={year} value={year}>
+                        {year === "All" ? "All Years" : year}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    id="match-month"
+                    aria-label="Month"
+                    value={selectedMonth}
+                    onChange={(event) =>
+                      setSelectedMonth(event.target.value)
+                    }
+                    className="mx-select w-full rounded-xl px-3 py-2.5 text-xs font-bold outline-none"
+                  >
+                    {months.map((month) => (
+                      <option key={month} value={month}>
+                        {month === "All" ? "All Months" : month}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={resetAll}
+                  disabled={!hasFilters}
+                  className="mx-green-btn disabled:cursor-default disabled:opacity-60"
                 >
-                  {years.map((year) => (
-                    <option
-                      key={year}
-                      value={year}
-                    >
-                      {year === "All"
-                        ? "All Years"
-                        : year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Month */}
-
-              <div className="min-w-0 lg:w-[175px]">
-                <label
-                  htmlFor="match-month"
-                  className="match-muted mb-2 block text-[10px] font-black uppercase tracking-wider"
-                >
-                  Month
-                </label>
-
-                <select
-                  id="match-month"
-                  value={selectedMonth}
-                  onChange={(event) =>
-                    setSelectedMonth(event.target.value)
-                  }
-                  className="match-select w-full rounded-xl border px-3 py-3.5 text-xs font-bold"
-                >
-                  {months.map((month) => (
-                    <option
-                      key={month}
-                      value={month}
-                    >
-                      {month === "All"
-                        ? "All Months"
-                        : month}
-                    </option>
-                  ))}
-                </select>
+                  ✕ Reset Filters
+                </button>
               </div>
             </div>
-          </div>
+          </aside>
 
-          {/* Active Filters */}
+          {/* ---------------- RECORDS PANEL ---------------- */}
 
-          {!loading && hasFilters && (
-            <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-[#1877F2]/10 pt-4">
-              <span className="match-muted mr-1 text-[10px] font-bold">
-                Active:
-              </span>
+          <section className="mx-glass min-w-0 rounded-[22px] p-4 sm:p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500/15 text-xl">
+                  📅
+                </span>
 
-              {activeFilters.map(
-                (filter, index) => (
+                <h2 className="text-lg font-black text-white sm:text-xl">
+                  Match Records{" "}
+                  <span className="text-sm font-bold text-slate-300">
+                    ({periodLabel})
+                  </span>
+                </h2>
+              </div>
+
+              <div className="mx-seg" role="group" aria-label="View mode">
+                <button
+                  type="button"
+                  aria-pressed={viewMode === "grid"}
+                  onClick={() => setViewMode("grid")}
+                >
+                  ▦ Grid
+                </button>
+
+                <button
+                  type="button"
+                  aria-pressed={viewMode === "list"}
+                  onClick={() => setViewMode("list")}
+                >
+                  ☰ List
+                </button>
+              </div>
+            </div>
+
+            {!loading && hasFilters && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                {activeFilters.map((filter, index) => (
                   <button
                     key={`${filter.label}-${index}`}
                     type="button"
                     onClick={filter.clear}
-                    className="match-blue inline-flex items-center gap-2 rounded-full border border-[#1877F2]/25 bg-[#1877F2]/10 px-3 py-1.5 text-[10px] font-black transition hover:bg-[#1877F2]/20"
+                    className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-[10px] font-black text-sky-200 transition hover:bg-sky-400/20"
                   >
-                    <span>{filter.label}</span>
-
-                    <span>✕</span>
+                    {filter.label} <span>✕</span>
                   </button>
-                )
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ============================================================
-            RESULTS HEADER
-        ============================================================ */}
-
-        {!loading && !error && (
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="mb-1 flex items-center gap-2">
-                <span className="h-1.5 w-6 rounded-full bg-[#1877F2]" />
-
-                <span className="match-blue text-[9px] font-black uppercase tracking-[0.2em]">
-                  FCL MATCH COLLECTION
-                </span>
+                ))}
               </div>
+            )}
 
-              <h2 className="match-heading text-[21px] font-black tracking-tight sm:text-[27px]">
-                Match Records
-              </h2>
-            </div>
+            {loading ? (
+              <div className="mx-root-skeleton-fix">
+                <MatchSkeleton isDesktop={isDesktop} />
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/5 px-5 py-12 text-center">
+                <div className="mb-4 text-4xl">⚠️</div>
 
-            {/* Count */}
+                <h3 className="text-lg font-black text-white">
+                  Match Archive Unavailable
+                </h3>
 
-            <div className="match-filter-panel inline-flex items-center gap-2 rounded-xl border px-4 py-2.5">
-              <span className="text-sm">🏏</span>
+                <p className="mt-2 max-w-md text-xs leading-6 text-slate-300">
+                  এই মুহূর্তে ম্যাচের তথ্য লোড করা যাচ্ছে না।
+                  অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।
+                </p>
 
-              <span className="match-muted text-[11px] font-bold">
-                Showing
-              </span>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="mx-green-btn mt-5 !w-auto px-6"
+                >
+                  🔄 Try Again
+                </button>
+              </div>
+            ) : filteredMatches.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-2xl border border-sky-400/20 bg-sky-400/5 px-5 py-12 text-center">
+                <div className="mb-4 text-4xl">📭</div>
 
-              <span className="match-blue text-xs font-black">
-                {visibleMatches.length}
-              </span>
+                <h3 className="text-lg font-black text-white">
+                  No Match Records Found
+                </h3>
 
-              <span className="match-muted text-[11px]">
-                /
-              </span>
+                <p className="mt-2 max-w-md text-xs leading-6 text-slate-300">
+                  আপনার নির্বাচিত ফিল্টার অথবা সার্চ অনুযায়ী
+                  কোনো ম্যাচ রেকর্ড পাওয়া যায়নি। অন্য
+                  ক্যাটাগরি, বছর বা মাস নির্বাচন করে আবার
+                  চেষ্টা করুন।
+                </p>
 
-              <span className="match-heading text-xs font-black">
-                {filteredMatches.length}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================
-            DECORATIVE DIVIDER
-        ============================================================ */}
-
-        {!loading && !error && (
-          <div className="mb-7 h-px w-full bg-gradient-to-r from-[#1877F2]/40 via-[#1877F2]/10 to-transparent" />
-        )}
-
-        {/* ============================================================
-            LOADING
-        ============================================================ */}
-
-        {loading ? (
-          <MatchSkeleton
-            isDesktop={isDesktop}
-          />
-        ) : error ? (
-          /* ==========================================================
-             ERROR STATE
-          ========================================================== */
-
-          <div className="match-empty flex flex-col items-center justify-center rounded-[28px] border px-5 py-16 text-center sm:py-20">
-            <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-3xl border border-rose-500/20 bg-rose-500/10 text-4xl">
-              ⚠️
-            </div>
-
-            <h3 className="match-heading text-xl font-black">
-              Match Archive Unavailable
-            </h3>
-
-            <p className="match-muted mt-3 max-w-md text-xs leading-6 sm:text-sm">
-              এই মুহূর্তে ম্যাচের তথ্য লোড করা যাচ্ছে না।
-              অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।
-            </p>
-
-            <button
-              type="button"
-              onClick={() =>
-                window.location.reload()
-              }
-              className="match-primary-btn mt-6 rounded-xl px-6 py-3 text-xs font-black transition-all"
-            >
-              🔄 Try Again
-            </button>
-          </div>
-        ) : filteredMatches.length === 0 ? (
-          /* ==========================================================
-             EMPTY STATE
-          ========================================================== */
-
-          <div className="match-empty flex flex-col items-center justify-center rounded-[28px] border px-5 py-16 text-center sm:py-20">
-            <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-3xl border border-blue-500/20 bg-blue-500/10 text-4xl">
-              📭
-            </div>
-
-            <h3 className="match-heading text-lg font-black sm:text-xl">
-              No Match Records Found
-            </h3>
-
-            <p className="match-muted mt-3 max-w-md text-xs leading-6 sm:text-sm">
-              আপনার নির্বাচিত ফিল্টার অথবা সার্চ অনুযায়ী
-              কোনো ম্যাচ রেকর্ড পাওয়া যায়নি।
-              অন্য ক্যাটাগরি, বছর বা মাস নির্বাচন করে
-              আবার চেষ্টা করুন।
-            </p>
-
-            <button
-              type="button"
-              onClick={resetAll}
-              className="match-primary-btn mt-6 rounded-xl px-6 py-3 text-xs font-black transition-all"
-            >
-              ✕ Clear All Filters
-            </button>
-          </div>
-        ) : (
-          /* ==========================================================
-             MATCH GROUPS
-          ========================================================== */
-
-          <div className="space-y-5">
-            {groups.map(([label, items]) => (
-              <section key={label}>
-                {/* Group Header */}
-
-                <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#1877F2]/20 bg-[#1877F2]/10 text-base">
-                    📅
+                <button
+                  type="button"
+                  onClick={resetAll}
+                  className="mx-green-btn mt-5 !w-auto px-6"
+                >
+                  ✕ Clear All Filters
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className={showAll ? "mx-scroll" : ""}>
+                  <div
+                    className={`grid gap-3 ${
+                      viewMode === "grid" ? "md:grid-cols-2" : ""
+                    }`}
+                  >
+                    {visibleMatches.map((match, index) => (
+                      <MatchCard
+                        key={match.id}
+                        match={match}
+                        index={index}
+                        onOpen={setSelectedMatch}
+                      />
+                    ))}
                   </div>
-
-                  <h2 className="match-heading whitespace-nowrap text-[14px] font-black tracking-tight sm:text-base">
-                    {label}
-                  </h2>
-
-                  <span className="match-blue rounded-full bg-[#1877F2]/10 px-2.5 py-1 text-[10px] font-black">
-                    {items.length}
-                  </span>
-
-                  <span className="match-group-line h-px flex-1" />
                 </div>
 
-                {/* Desktop Cards */}
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-[11px] font-semibold text-slate-300">
+                    Showing{" "}
+                    <span className="font-black text-white">
+                      {rangeStart}–{rangeEnd}
+                    </span>{" "}
+                    of{" "}
+                    <span className="font-black text-white">
+                      {filteredMatches.length}
+                    </span>{" "}
+                    matches
+                  </p>
 
-                {isDesktop ? (
-                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
-                    {items.map((match) => (
-                      <DesktopMatchCard
-                        key={match.id}
-                        match={match}
-                        onOpen={setSelectedMatch}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  /* Mobile Rows */
+                  {!showAll && totalPages > 1 && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        className="mx-pg"
+                        disabled={safePage === 1}
+                        onClick={() => setPage(safePage - 1)}
+                        aria-label="Previous page"
+                      >
+                        ‹
+                      </button>
 
-                  <div className="space-y-2">
-                    {items.map((match) => (
-                      <MobileMatchRow
-                        key={match.id}
-                        match={match}
-                        onOpen={setSelectedMatch}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
-            ))}
-          </div>
-        )}
+                      {pageList(safePage, totalPages).map(
+                        (item, index) =>
+                          item === "…" ? (
+                            <span
+                              key={`gap-${index}`}
+                              className="px-1 text-slate-400"
+                            >
+                              …
+                            </span>
+                          ) : (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => setPage(item)}
+                              aria-current={
+                                item === safePage ? "page" : undefined
+                              }
+                              className={`mx-pg ${
+                                item === safePage ? "mx-pg-active" : ""
+                              }`}
+                            >
+                              {item}
+                            </button>
+                          )
+                      )}
 
-        {/* ============================================================
-            LOAD MORE
-        ============================================================ */}
-
-        {!loading && !error && remaining > 0 && (
-          <div className="mt-12 flex flex-col items-center gap-5">
-            {/* Progress */}
-
-            <div className="w-full max-w-[280px]">
-              <div className="match-muted mb-2 flex items-center justify-between text-[10px] font-bold">
-                <span>Archive Progress</span>
-
-                <span>
-                  {Math.round(
-                    (visibleMatches.length /
-                      filteredMatches.length) *
-                      100
+                      <button
+                        type="button"
+                        className="mx-pg"
+                        disabled={safePage === totalPages}
+                        onClick={() => setPage(safePage + 1)}
+                        aria-label="Next page"
+                      >
+                        ›
+                      </button>
+                    </div>
                   )}
-                  %
-                </span>
-              </div>
+                </div>
 
-              <div className="h-1.5 overflow-hidden rounded-full bg-[#1877F2]/10">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#1877F2] via-cyan-400 to-purple-500 transition-all duration-500"
-                  style={{
-                    width: `${
-                      (visibleMatches.length /
-                        filteredMatches.length) *
-                      100
-                    }%`,
-                  }}
-                />
-              </div>
-            </div>
+                {totalPages > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAll((value) => !value)}
+                    className="mx-viewall mt-3"
+                  >
+                    <span>🏆</span>
 
-            {/* Buttons */}
+                    {showAll
+                      ? "Show Less"
+                      : `View All Matches (${filteredMatches.length})`}
 
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() =>
-                  setPages((page) => page + 1)
-                }
-                className="match-primary-btn rounded-xl px-6 py-3.5 text-xs font-black transition-all sm:text-sm"
-              >
-                Show{" "}
-                {Math.min(pageSize, remaining)}{" "}
-                More ↓
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setPages(
-                    Math.ceil(
-                      filteredMatches.length /
-                        pageSize
-                    )
-                  )
-                }
-                className="match-secondary-btn rounded-xl border px-6 py-3.5 text-xs font-black transition-all sm:text-sm"
-              >
-                Show All ({remaining} left)
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================
-            BOTTOM INFO
-        ============================================================ */}
-
-        {!loading &&
-          !error &&
-          filteredMatches.length > 0 && (
-            <div className="mt-14 flex flex-col items-center justify-center gap-3 text-center">
-              <div className="flex items-center gap-3">
-                <div className="h-px w-14 bg-gradient-to-r from-transparent to-[#1877F2]/40" />
-
-                <span className="text-lg">
-                  🏏
-                </span>
-
-                <div className="h-px w-14 bg-gradient-to-l from-transparent to-[#1877F2]/40" />
-              </div>
-
-              <p className="match-muted text-[10px] font-black uppercase tracking-[0.2em]">
-                Facebook Cricket League
-              </p>
-
-              <p className="match-muted text-[10px]">
-                Showing{" "}
-                {visibleMatches.length} of{" "}
-                {filteredMatches.length} match
-                records
-              </p>
-            </div>
-          )}
+                    <span className="arrow">
+                      {showAll ? "↑" : "→"}
+                    </span>
+                  </button>
+                )}
+              </>
+            )}
+          </section>
+        </div>
       </main>
+
 
       {/* ============================================================
           MATCH DETAILS MODAL
