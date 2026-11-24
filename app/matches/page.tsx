@@ -314,9 +314,9 @@ function getDateParts(
   }
 
   return {
-    day: d.getDate(),
-    month: d.getMonth(),
-    year: d.getFullYear(),
+    day: d.getUTCDate(),
+    month: d.getUTCMonth(),
+    year: d.getUTCFullYear(),
   };
 }
 
@@ -670,6 +670,47 @@ function StatTile({
    DESKTOP MATCH CARD
 ================================================================ */
 
+// Shared replay eligibility: cards and modal use exactly the same result.
+const replayCache = new WeakMap<MatchItem, ReplayMatch | null>();
+function getReplay(match: MatchItem): ReplayMatch | null {
+  if (replayCache.has(match)) return replayCache.get(match) ?? null;
+  let replay: ReplayMatch | null = null;
+  const clean = (match.summary || "").normalize("NFKC").replace(/\r\n?/g, "\n");
+  const normalized = clean.split("\n").map(line => {
+    const heading = line.replace(/[^\p{L}\p{N}\s]/gu, " ").trim().replace(/\s+/g, " ");
+    if (/^(?:1ST|FIRST|INNINGS 1)\s*(?:INNINGS)?$/i.test(heading)) return "1ST INNINGS";
+    if (/^(?:2ND|SECOND|INNINGS 2)\s*(?:INNINGS)?$/i.test(heading)) return "2ND INNINGS";
+    if (/^MATCH (?:INFO|SUMMARY|INFORMATION)$/i.test(heading)) return "MATCH INFO";
+    if (/^(?:TEAM )?SQUADS?$/i.test(heading)) return "SQUAD";
+    return line;
+  }).join("\n");
+  for (const candidate of [match, {...match, summary: normalized}]) {
+    try { replay = summaryToReplay(candidate) ?? null; } catch { replay = null; }
+    if (replay) break;
+  }
+  replayCache.set(match, replay);
+  return replay;
+}
+function matchMeta(match: MatchItem) {
+  const summary = match.summary || "";
+  const format = summary.match(/(?:match\s+)?format\s*[:：]\s*([^\r\n]+)/i)?.[1]?.trim();
+  const duration = summary.match(/(?:match\s+)?duration\s*[:：]\s*([^\r\n]+)/i)?.[1]?.trim();
+  const result = summary.match(/\bresults?\s*(?:[:：]|[~=>-]+)\s*([^\r\n]+)/i)?.[1]?.trim();
+  return {format, duration, result};
+}
+function MatchMeta({match}: {match: MatchItem}) {
+  const {format, duration, result} = matchMeta(match);
+  const replay = getReplay(match);
+  return <div className="mt-2 min-w-0">
+    <div className="flex flex-wrap items-center gap-1.5">
+      {format && <span className="match-meta-chip">🏏 {format}</span>}
+      {duration && <span className="match-meta-chip">◷ {duration}</span>}
+      {replay && <span className="match-replay-chip" title="Virtual replay available">▶ Highlights</span>}
+    </div>
+    {result && <p className="match-result mt-2 truncate text-[11px] font-bold" title={result}>{result}</p>}
+  </div>;
+}
+
 function DesktopMatchCard({
   match,
   onOpen,
@@ -683,7 +724,7 @@ function DesktopMatchCard({
     <button
       type="button"
       onClick={() => onOpen(match)}
-      className="match-card group relative flex h-full min-h-[230px] flex-col justify-between overflow-hidden rounded-[26px] border p-5 text-left transition-all duration-500 hover:-translate-y-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1877F2]"
+      className="match-card group relative flex h-full min-h-[170px] flex-col justify-between overflow-hidden rounded-[20px] border p-4 text-left transition-all duration-500 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1877F2]"
       style={
         {
           "--accent": style.color,
@@ -723,14 +764,15 @@ function DesktopMatchCard({
           </div>
         </div>
 
-        <h3 className="match-heading mt-5 line-clamp-3 break-words text-[17px] font-black leading-snug tracking-tight transition-colors duration-300 group-hover:text-[#1877F2]">
+        <h3 className="match-heading mt-3 line-clamp-2 break-words text-[17px] font-black leading-snug tracking-tight transition-colors duration-300 group-hover:text-[#1877F2]">
           {match.title}
         </h3>
+        <MatchMeta match={match} />
       </div>
 
       {/* Footer */}
 
-      <div className="match-card-footer relative z-10 mt-6 flex items-center justify-between border-t pt-4">
+      <div className="match-card-footer relative z-10 mt-3 flex items-center justify-between border-t pt-2">
         <span className="match-blue text-[11px] font-black">
           View Match Details
         </span>
@@ -795,6 +837,7 @@ function MobileMatchRow({
         <p className="match-muted mt-1 text-[9px] font-semibold">
           {formatExcelDate(match.date)}
         </p>
+        <MatchMeta match={match} />
       </div>
 
       {/* Arrow */}
@@ -822,7 +865,7 @@ function MatchModal({
   const style = getCategoryStyle(match.category);
 
   // Parse only THIS match summary; never show a canned demo for other matches.
-  const replay = useMemo(() => summaryToReplay(match), [match]);
+  const replay = useMemo(() => getReplay(match), [match]);
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -954,21 +997,6 @@ function MatchModal({
           {/* Header Buttons */}
 
           <div className="flex shrink-0 items-center gap-2">
-            {/* Mobile Facebook Button */}
-
-            {match.link && (
-              <a
-                href={match.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="match-facebook-btn inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-black text-white shadow-lg sm:hidden"
-              >
-                <span>Facebook Post</span>
-
-                <span>↗</span>
-              </a>
-            )}
-
             {/* Close */}
 
             <button
@@ -983,18 +1011,16 @@ function MatchModal({
           </div>
         </div>
 
-        {/* Scrollable Body */}
-
+        <div className="shrink-0 px-5 pb-3 sm:px-8">
+          <h2 id="match-modal-title" className="match-heading text-xl font-black leading-tight sm:text-2xl">{match.title}</h2>
+          <MatchMeta match={match} />
+          {(match.link || replay) && <div className="mt-3 grid grid-cols-2 gap-2">
+            {match.link && <a href={match.link} target="_blank" rel="noopener noreferrer" className="match-action match-facebook-btn">↗ Facebook Post</a>}
+            {replay && <button type="button" onClick={() => onOpenHighlights(replay)} className="match-action match-replay-action">▶ Match Highlights</button>}
+          </div>}
+          {replay && <p className="match-muted mt-2 text-[10px]">Virtual replay from match summary · Not actual footage</p>}
+        </div>
         <div className="match-modal-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5 sm:px-8 sm:pb-7">
-          {/* Match Heading */}
-
-          <h2
-            id="match-modal-title"
-            className="match-heading break-words text-[22px] font-black leading-tight tracking-tight sm:text-[28px]"
-          >
-            {match.title}
-          </h2>
-
           {/* Decorative Divider */}
 
           <div className="my-5 flex items-center gap-3">
@@ -1021,23 +1047,6 @@ function MatchModal({
             )}
           </div>
 
-          {/* Highlights: only show when this match's summary has a readable scorecard */}
-          {replay && (
-            <div className="mt-5 rounded-[20px] border border-emerald-500/25 bg-emerald-500/5 p-4 sm:p-5">
-              <p className="mb-2 text-xs font-black text-emerald-500">📺 FCL VIRTUAL MATCH HIGHLIGHTS</p>
-              <p className="match-muted mb-4 text-xs leading-6">
-                এই ম্যাচের সামারি থেকে তৈরি কাল্পনিক রিপ্লে। এটি আসল ম্যাচ ফুটেজ নয়।
-              </p>
-              <button
-                type="button"
-                onClick={() => onOpenHighlights(replay)}
-                className="inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-500 sm:w-auto"
-              >
-                ▶ Play Highlights
-              </button>
-            </div>
-          )}
-
           {/* Mobile Bottom Info */}
 
           <div className="mt-5 flex items-center justify-center gap-2 sm:hidden">
@@ -1049,36 +1058,6 @@ function MatchModal({
           </div>
         </div>
 
-        {/* Desktop Footer */}
-
-        <div className="match-modal-footer hidden shrink-0 items-center justify-between gap-3 border-t px-8 py-5 sm:flex">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-[#22c55e]" />
-
-            <span className="match-muted text-xs font-bold">
-              FCL Official Match Record
-            </span>
-          </div>
-
-          {match.link ? (
-            <a
-              href={match.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="match-facebook-btn group inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-xs font-black text-white transition-all duration-300 hover:-translate-y-0.5"
-            >
-              View Official Facebook Post
-
-              <span className="transition-transform group-hover:translate-x-1">
-                ↗
-              </span>
-            </a>
-          ) : (
-            <span className="match-muted text-xs font-semibold">
-              Link Unavailable
-            </span>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -1097,7 +1076,7 @@ function MatchSkeleton({
     <div
       className={`grid gap-3 ${
         isDesktop
-          ? "grid-cols-2 gap-5 xl:grid-cols-3"
+          ? "grid-cols-2 gap-3 xl:grid-cols-3"
           : "grid-cols-1"
       }`}
     >
@@ -1171,7 +1150,7 @@ export default function MatchesPage() {
 
   const [activeReplay, setActiveReplay] = useState<ReplayMatch | null>(null);
 
-  const pageSize = isDesktop ? 18 : 15;
+  const pageSize = isDesktop ? 12 : 8;
 
   /* ================================================================
      FETCH MATCHES
@@ -2214,6 +2193,18 @@ export default function MatchesPage() {
           border-color: var(--match-border);
         }
 
+        .match-meta-chip, .match-replay-chip { display:inline-flex; align-items:center; border:1px solid var(--match-border); border-radius:6px; padding:3px 6px; font-size:10px; font-weight:800; color:var(--match-heading); background:var(--match-card-alt); }
+        .match-replay-chip { color:#047857; background:#10b98115; border-color:#10b98155; }
+        .match-dark .match-replay-chip { color:#6ee7b7; }
+        .match-result { color:#047857; }
+        .match-dark .match-result { color:#6ee7b7; }
+        .match-action { display:flex; align-items:center; justify-content:center; min-height:42px; padding:8px; border-radius:12px; color:white; font-size:12px; font-weight:800; text-align:center; transition:transform .2s, filter .2s; }
+        .match-action:hover { transform:translateY(-2px); filter:brightness(1.08); }
+        .match-action:focus-visible { outline:2px solid var(--match-blue); outline-offset:3px; }
+        .match-replay-action { background:#047857; }
+        .match-card, .match-mobile-card { animation:matchCardEnter .32s ease-out; }
+        @keyframes matchCardEnter { from {opacity:0; transform:translateY(6px);} to {opacity:1; transform:translateY(0);} }
+        .match-card:hover .match-replay-chip { box-shadow:0 0 12px #10b98133; }
         /* ============================================================
            REDUCED MOTION
         ============================================================ */
@@ -2250,10 +2241,10 @@ export default function MatchesPage() {
 
         <div className="match-orb match-orb-delay pointer-events-none absolute -bottom-40 -left-28 h-[360px] w-[360px] rounded-full bg-purple-500/10 blur-[120px]" />
 
-        <div className="relative mx-auto max-w-[1400px] px-4 pb-9 pt-8 sm:px-6 sm:pb-12 sm:pt-12 lg:px-10 lg:pb-16 lg:pt-14">
+        <div className="relative mx-auto max-w-[1400px] px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-6 lg:px-10">
           {/* Breadcrumb */}
 
-          <div className="mb-6 flex flex-wrap items-center gap-3">
+          <div className="mb-3 flex flex-wrap items-center gap-3">
             <Link
               href="/"
               className="match-blue group inline-flex items-center gap-1.5 text-[11px] font-bold transition hover:opacity-70"
@@ -2280,7 +2271,7 @@ export default function MatchesPage() {
             <div className="max-w-[850px]">
               {/* Eyebrow */}
 
-              <div className="match-hero-badge mb-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 backdrop-blur-xl">
+              <div className="match-hero-badge mb-2 inline-flex items-center gap-2 rounded-full border px-4 py-2 backdrop-blur-xl">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-[#22c55e] shadow-[0_0_12px_rgba(34,197,94,0.8)]" />
 
                 <span className="text-[9px] font-black uppercase tracking-[0.23em] sm:text-[10px]">
@@ -2290,7 +2281,7 @@ export default function MatchesPage() {
 
               {/* Title */}
 
-              <h1 className="match-heading text-[36px] font-black leading-[1.05] tracking-[-0.045em] sm:text-5xl lg:text-[64px]">
+              <h1 className="match-heading text-[30px] font-black leading-[1.05] tracking-[-0.045em] sm:text-5xl lg:text-[44px]">
                 Match{" "}
                 <span className="match-gradient-text">
                   Directory.
@@ -2299,7 +2290,7 @@ export default function MatchesPage() {
 
               {/* Description */}
 
-              <p className="match-text mt-5 max-w-[760px] text-xs leading-7 sm:text-sm lg:text-base lg:leading-8">
+              <p className="match-text mt-2 max-w-[760px] text-xs leading-7 sm:text-sm lg:text-base lg:leading-8">
                 FCL-এর সব ম্যাচের ডিজিটাল আর্কাইভ।
                 এখানে পাবেন টুর্নামেন্ট হোম, সিরিজ,
                 ফ্রেন্ডলি ও টেস্ট ম্যাচের বিস্তারিত সামারি।
@@ -2310,7 +2301,7 @@ export default function MatchesPage() {
 
               {/* Feature Tags */}
 
-              <div className="mt-6 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <span className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-1.5 text-[9px] font-bold text-blue-600 sm:text-[10px]">
                   🏏 Match Records
                 </span>
@@ -2352,7 +2343,7 @@ export default function MatchesPage() {
           MAIN CONTENT
       ============================================================ */}
 
-      <main className="relative mx-auto max-w-[1400px] px-4 pt-7 sm:px-6 sm:pt-10 lg:px-10">
+      <main className="relative mx-auto max-w-[1400px] px-4 pt-4 sm:px-6 sm:pt-5 lg:px-10">
         {/* ============================================================
             SECTION HEADING
         ============================================================ */}
@@ -2406,7 +2397,7 @@ export default function MatchesPage() {
             SEARCH & FILTERS
         ============================================================ */}
 
-        <div className="match-filter-panel mb-7 rounded-[24px] border p-4 sm:p-6 lg:mb-9">
+        <div className="match-filter-panel mb-4 rounded-[18px] border p-3 sm:p-4">
           {/* Panel Header */}
 
           <div className="mb-5 flex items-center justify-between gap-3">
@@ -2660,7 +2651,7 @@ export default function MatchesPage() {
              MATCH GROUPS
           ========================================================== */
 
-          <div className="space-y-9">
+          <div className="space-y-5">
             {groups.map(([label, items]) => (
               <section key={label}>
                 {/* Group Header */}
@@ -2684,7 +2675,7 @@ export default function MatchesPage() {
                 {/* Desktop Cards */}
 
                 {isDesktop ? (
-                  <div className="grid grid-cols-2 gap-5 xl:grid-cols-3">
+                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
                     {items.map((match) => (
                       <DesktopMatchCard
                         key={match.id}
@@ -2696,7 +2687,7 @@ export default function MatchesPage() {
                 ) : (
                   /* Mobile Rows */
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {items.map((match) => (
                       <MobileMatchRow
                         key={match.id}

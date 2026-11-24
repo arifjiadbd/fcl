@@ -333,3 +333,104 @@
 .light .stadium .broadcastMiddle b { color: #ffe28c; }
 .light .heroCenter span { color: #171309; }
 .light .stadium .endGrid p { text-shadow: 0 1px 2px #000; }
+
+/* V2.2: mobile broadcast cockpit. Desktop keeps its original grid. */
+.desktopStage { display: contents; }
+.mobileStage, .mobileNav, .mobileDisclaimer { display: none; }
+@media (max-width: 700px) {
+  .overlay { padding: 0; align-items: stretch; justify-content: stretch; }
+  .modal, .modal:fullscreen {
+    display: flex; flex-direction: column; width: 100%; height: 100dvh;
+    max-height: 100dvh; min-height: 0; overflow: hidden; border: 0; border-radius: 0;
+    box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px);
+  }
+  .head, .scoreHero, .infoBar, .mobileStage, .mobileNav, .controls { flex: 0 0 auto; }
+  .head { grid-template-columns: auto minmax(0,1fr) auto; gap: 5px; padding: 4px 7px; min-height: 34px; }
+  .brand { font-size: 12px; gap: 3px; }
+  .brand img { width: 24px; height: 24px; }
+  .matchHeading { grid-column: auto; grid-row: auto; min-width: 0; }
+  .matchHeading .ribbon { display: none; }
+  .matchHeading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+  .headActions { gap: 4px; }
+  .headActions .live { display: none; }
+  .headActions .iconBtn { padding: 5px 7px; font-size: 11px; min-height: 28px; }
+  .scoreHero { gap: 4px; padding: 4px 6px; }
+  .heroTeam { gap: 4px; padding: 3px 5px; }
+  .teamIcon { font-size: 15px; padding: 3px; }
+  .heroTeam div > span { font-size: 10px; }
+  .heroTeam strong { font-size: 17px; line-height: 1.15; }
+  .heroTeam small { font-size: 8px; }
+  .heroCenter { flex-direction: row; align-items: center; justify-content: center; gap: 4px; min-width: 0; }
+  .heroCenter strong { flex: 1; min-width: 0; font-size: 10px; padding: 3px 4px; border-width: 1px; overflow-wrap: anywhere; }
+  .heroCenter span { flex: 0 1 auto; font-size: 9px; padding: 4px 6px; max-width: 48%; }
+  .infoBar { justify-content: flex-start; flex-wrap: nowrap; gap: 10px; padding: 4px 7px; font-size: 9px; overflow-x: auto; scrollbar-width: none; }
+  .infoBar::-webkit-scrollbar { display: none; }
+  .desktopStage { display: none; }
+  .mobileStage { display: block; padding: 4px 5px 0; height: clamp(125px, 25dvh, 225px); box-sizing: border-box; }
+  .mobileStage .stadium { height: 100%; width: 100%; box-sizing: border-box; aspect-ratio: auto; min-height: 0; max-height: none; border-radius: 10px; }
+  .mobileStage .replayLabel { top: 5px; left: 5px; font-size: 8px; padding: 3px 5px; }
+  .mobileStage .stageScore { top: 18%; padding: 3px 7px; }
+  .mobileStage .stageScore strong { font-size: 16px; }
+  .mobileStage .introCard { top: 40%; padding: 5px; }
+  .mobileStage .introCard > span { font-size: 8px; }
+  .mobileStage .introCard strong { font-size: 12px; margin: 3px 0; }
+  .mobileStage .introCard small { font-size: 8px; }
+  .mobileStage .eventFlash { left: 12%; right: 12%; bottom: 29%; padding: 4px; }
+  .mobileStage .eventFlash strong { font-size: 25px; }
+  .mobileStage .eventMeta { font-size: 8px; }
+  .mobileStage .broadcastLower { padding: 2px; }
+  .mobileStage .broadcastLower > div { padding: 3px 4px; }
+  .mobileStage .broadcastLower b { margin: 2px 0; font-size: 10px; }
+  .mobileStage .broadcastMiddle b { font-size: 16px; }
+  .mobileStage .breakCard, .mobileStage .endOverlay { inset: 22% 5% 29%; gap: 3px; padding: 4px; border-radius: 8px; }
+  .mobileStage .breakCard b, .mobileStage .breakCard strong, .mobileStage .endOverlay > b, .mobileStage .endOverlay > strong { font-size: 12px; }
+  .mobileStage .breakCard span, .mobileStage .endOverlay small { font-size: 8px; }
+  .mobileStage .endGrid { display: none; } /* full figures remain in the scrollable final summary */
+  .mobileNav { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; padding: 4px 5px; }
+  .mobileNav button { background: #123554; color: #e9f8ff; border: 1px solid #4e7c9d; border-radius: 6px; padding: 6px 2px; font-size: 11px; font-weight: 800; cursor: pointer; min-height: 30px; }
+  .light .mobileNav button { background: #fff; color: #075e50; border-color: #b8d8d2; }
+  .mainGrid { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 4px 5px 8px; gap: 5px; scroll-padding-top: 4px; }
+  .mainGrid > .center, .mainGrid > .right { display: contents; }
+  .mainGrid .panel, .mainGrid .overTracker, .mainGrid .fieldInfo, .mainGrid .ticker, .mainGrid .squads { flex: 0 0 auto; min-width: 0; margin: 0; }
+  .mainGrid .overTracker { order: 0; padding: 4px 7px; min-height: 27px; }
+  .mainGrid .overTracker .chip { min-width: 20px; height: 20px; font-size: 10px; }
+  .mainGrid .feedPanel { order: 1; }
+  .mainGrid .scorecard { order: 2; }
+  .mainGrid .fieldInfo { order: 3; }
+  .mainGrid .ticker { order: 4; }
+  .mainGrid .right > .panel:not(.feedPanel), .mainGrid .center > .panel:not(.scorecard) { order: 5; }
+  .mainGrid .squads { order: 6; }
+  .mainGrid .feed { max-height: none; overflow: visible; }
+  .mainGrid .panel h3 { padding: 7px 8px; }
+  .mainGrid .ballRow { padding: 7px 4px; }
+  .desktopDisclaimer { display: none; }
+  .mobileDisclaimer { display: block; order: 7; padding: 4px 6px; }
+  .controls { position: relative; bottom: auto; z-index: 20; margin: 0; border-radius: 9px 9px 0 0; padding: 4px 5px calc(5px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -4px 15px #00122538; }
+  .timeLine { gap: 5px; margin-bottom: 3px; font-size: 9px; }
+  .sliderWrap { height: 20px; }
+  .controlButtons { gap: 4px; }
+  .controlButtons button { font-size: 10px; padding: 5px 6px; min-height: 29px; border-radius: 6px; white-space: nowrap; }
+  .controlButtons > button:nth-child(-n+6) { flex: 1 1 calc((100% - 25px)/6); min-width: 0; padding-inline: 1px; }
+  .controlButtons .primary { min-width: 0; }
+  .speed { margin-left: 0; gap: 3px; }
+  .speed span { font-size: 9px; margin-right: 0; }
+  .speed button { padding: 5px 6px !important; }
+  .volume { gap: 2px; }
+  .volume input { width: 40px; }
+  .controlButtons > .speed:nth-child(9) { flex: 0 0 auto; }
+}
+@media (max-width: 700px) and (max-height: 590px) {
+  .mobileStage { height: clamp(90px, 21dvh, 135px); }
+  .mobileStage .introCard { top: 32%; }
+  .mobileStage .stageScore { top: 15%; }
+  .mobileStage .introCard > span, .mobileStage .introCard small { display: none; }
+  .heroCenter span { font-size: 8px; }
+  .controlButtons button { min-height: 25px; padding-block: 3px; }
+  .speed button { padding-block: 3px !important; }
+}
+/* On very short landscape screens, preserve access to the controls and details. */
+@media (max-width: 700px) and (max-height: 390px) {
+  .modal, .modal:fullscreen { overflow-y: auto; }
+  .mainGrid { flex: 1 0 100px; }
+  .controls { position: sticky; bottom: 0; }
+}

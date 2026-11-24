@@ -132,6 +132,10 @@ export default function MatchHighlightsModal({ match, open, onClose }: Props) {
   const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
 
   const boxRef = useRef<HTMLElement>(null);
+  const commentaryRef = useRef<HTMLElement>(null);
+  const scorecardRef = useRef<HTMLElement>(null);
+  const squadsRef = useRef<HTMLElement>(null);
+  const jumpToPanel = (panel: HTMLElement | null) => panel?.scrollIntoView({ block: "start", behavior: "auto" });
   const audioRef = useRef<AudioContext | null>(null);
   const manualRef = useRef(false);
   const fxPos = useRef(0);
@@ -340,49 +344,8 @@ export default function MatchHighlightsModal({ match, open, onClose }: Props) {
   const eventClass = !cur ? '' : tag === 'wicket' ? styles.wicket : tag === 'six' ? styles.six : tag === 'four' ? styles.four : styles.other;
   const burstClass = tag === 'six' ? styles.burstSix : tag === 'four' ? styles.burstFour : tag === 'wicket' ? styles.burstWicket : '';
 
-  return <div className={styles.overlay} onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-    <section ref={boxRef} className={`${styles.modal} ${theme === 'light' ? styles.light : ''}`} role="dialog" aria-modal="true" aria-label={`${match.title || 'Cricket'} Virtual TV`}>
-      <header className={styles.head}>
-        <div className={styles.brand}><img src="/fcl-logo.png" alt="FCL official logo" /><span>FCL <em>LIVE TV</em></span></div>
-        <div className={styles.matchHeading}><span className={styles.ribbon}>SPECIAL CRICKET MATCH</span><strong>{match.title || `${match.innings[0].team} vs ${match.innings[1].team}`}</strong></div>
-        <div className={styles.headActions}><button type="button" className={styles.iconBtn} onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>{theme === 'light' ? '☾ Dark' : '☀ Light'}</button><span className={styles.live}><span className={styles.dot} /> VIRTUAL LIVE</span><button type="button" className={styles.iconBtn} onClick={onClose} aria-label="Close TV">✕</button></div>
-      </header>
-
-      <div className={styles.scoreHero}>
-        <div className={`${styles.heroTeam} ${idx === 0 && !ended && !atBreak ? styles.heroOn : ''}`}>
-          <span className={styles.teamIcon}>🏏</span>
-          <div><span>{match.innings[0].team}</span><strong>{s0.text} <small>({s0.overs} Ov)</small></strong></div>
-        </div>
-        <div className={styles.heroCenter}>
-          <strong>{heroTitle}</strong>
-          <span>{heroSub}</span>
-        </div>
-        <div className={`${styles.heroTeam} ${idx === 1 && chasing && !ended ? styles.heroOn : ''}`}>
-          <span className={styles.teamIcon}>🏏</span>
-          <div><span>{match.innings[1].team}</span><strong>{s1.text} <small>({s1.overs} Ov)</small></strong></div>
-        </div>
-      </div>
-
-      <div className={styles.infoBar}>
-        <span>🏆 {match.format || 'CRICKET'}</span><span>🏟️ {match.venue || 'FCL National Cricket Ground'}</span><span>📅 {dateText(match.date)}</span>
-        {match.startTime && <span>⏰ {match.startTime}</span>}
-        <span>🎬 {simulated ? 'SIMULATED REPLAY' : 'OFFICIAL BALL-BY-BALL'}</span>
-      </div>
-
-      <div className={styles.mainGrid}>
-        <aside className={styles.squads}>
-          {match.innings.map((inn, i) => <section className={styles.panel} key={inn.team}>
-            <h3>🏏 {inn.team} SQUAD</h3>
-            <ol>{squadOf(inn.team, i).map((name, j) => {
-              const isStriker = i === idx && !ended && !!striker && sameName(name, striker.name);
-              const isBowler = i !== idx && !ended && position > 0 && sameName(name, live.bowlerName);
-              return <li key={`${name}-${j}`} className={isStriker || isBowler ? styles.squadActive : ''}>{name}{isStriker && <em>🏏 BATTING</em>}{isBowler && <em>🎯 BOWLING</em>}</li>;
-            })}</ol>
-          </section>)}
-        </aside>
-
-        <main className={styles.center}>
-          <div className={`${styles.stadium} ${tag === 'six' ? styles.stadiumSix : ''}`}>
+  const stadiumView = (
+    <div className={`${styles.stadium} ${tag === 'six' ? styles.stadiumSix : ''}`}>
             <div className={styles.stadiumPhoto} role="img" aria-label="Photographic night cricket stadium background" />
             <div className={styles.stadiumShade} />
             <div className={styles.stadiumScan} />
@@ -441,6 +404,57 @@ export default function MatchHighlightsModal({ match, open, onClose }: Props) {
               </div>
             </div>
           </div>
+  );
+
+  return <div className={styles.overlay} onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <section ref={boxRef} className={`${styles.modal} ${theme === 'light' ? styles.light : ''}`} role="dialog" aria-modal="true" aria-label={`${match.title || 'Cricket'} Virtual TV`}>
+      <header className={styles.head}>
+        <div className={styles.brand}><img src="/fcl-logo.png" alt="FCL official logo" /><span>FCL <em>LIVE TV</em></span></div>
+        <div className={styles.matchHeading}><span className={styles.ribbon}>SPECIAL CRICKET MATCH</span><strong>{match.title || `${match.innings[0].team} vs ${match.innings[1].team}`}</strong></div>
+        <div className={styles.headActions}><button type="button" className={styles.iconBtn} onClick={() => setTheme(t => t === 'light' ? 'dark' : 'light')}>{theme === 'light' ? '☾ Dark' : '☀ Light'}</button><span className={styles.live}><span className={styles.dot} /> VIRTUAL LIVE</span><button type="button" className={styles.iconBtn} onClick={onClose} aria-label="Close TV">✕</button></div>
+      </header>
+
+      <div className={styles.scoreHero}>
+        <div className={`${styles.heroTeam} ${idx === 0 && !ended && !atBreak ? styles.heroOn : ''}`}>
+          <span className={styles.teamIcon}>🏏</span>
+          <div><span>{match.innings[0].team}</span><strong>{s0.text} <small>({s0.overs} Ov)</small></strong></div>
+        </div>
+        <div className={styles.heroCenter}>
+          <strong>{heroTitle}</strong>
+          <span>{heroSub}</span>
+        </div>
+        <div className={`${styles.heroTeam} ${idx === 1 && chasing && !ended ? styles.heroOn : ''}`}>
+          <span className={styles.teamIcon}>🏏</span>
+          <div><span>{match.innings[1].team}</span><strong>{s1.text} <small>({s1.overs} Ov)</small></strong></div>
+        </div>
+      </div>
+
+      <div className={styles.infoBar}>
+        <span>🏆 {match.format || 'CRICKET'}</span><span>🏟️ {match.venue || 'FCL National Cricket Ground'}</span><span>📅 {dateText(match.date)}</span>
+        {match.startTime && <span>⏰ {match.startTime}</span>}
+        <span>🎬 {simulated ? 'SIMULATED REPLAY' : 'OFFICIAL BALL-BY-BALL'}</span>
+      </div>
+
+      <div className={styles.mobileStage}>{stadiumView}</div>
+      <nav className={styles.mobileNav} aria-label="Replay details">
+        <button type="button" onClick={() => jumpToPanel(commentaryRef.current)}>🎙 Commentary</button>
+        <button type="button" onClick={() => jumpToPanel(scorecardRef.current)}>▤ Scorecard</button>
+        <button type="button" onClick={() => jumpToPanel(squadsRef.current)}>🏏 Squads</button>
+      </nav>
+      <div className={styles.mainGrid}>
+        <aside ref={squadsRef} className={styles.squads}>
+          {match.innings.map((inn, i) => <section className={styles.panel} key={inn.team}>
+            <h3>🏏 {inn.team} SQUAD</h3>
+            <ol>{squadOf(inn.team, i).map((name, j) => {
+              const isStriker = i === idx && !ended && !!striker && sameName(name, striker.name);
+              const isBowler = i !== idx && !ended && position > 0 && sameName(name, live.bowlerName);
+              return <li key={`${name}-${j}`} className={isStriker || isBowler ? styles.squadActive : ''}>{name}{isStriker && <em>🏏 BATTING</em>}{isBowler && <em>🎯 BOWLING</em>}</li>;
+            })}</ol>
+          </section>)}
+        </aside>
+
+        <main className={styles.center}>
+          <div className={styles.desktopStage}>{stadiumView}</div>
 
           <div className={styles.overTracker}>
             <span className={styles.overLabel}>THIS OVER{thisOver ? ` · ${thisOver.index + 1}` : ''}</span>
@@ -460,7 +474,7 @@ export default function MatchHighlightsModal({ match, open, onClose }: Props) {
             : position === 0 ? 'Welcome to FCL LIVE TV — press Play to start the replay'
             : `${striker?.name.replace(/\*$/, '') || ''} • ${cm?.big} • ${innings.team} ${live.score}/${live.wickets}${chasing ? ` • NEED ${live.need} FROM ${live.ballsLeft}` : ''}`}</div>
 
-          <section className={`${styles.panel} ${styles.scorecard}`}>
+          <section ref={scorecardRef} className={`${styles.panel} ${styles.scorecard}`}>
             <h3>📋 LIVE SCORECARD
               <span className={styles.viewSwitch}>
                 {(['live', 0, 1] as ViewInnings[]).map(v => <button type="button" key={String(v)} className={viewInnings === v ? styles.tabOn : ''} onClick={() => setViewInnings(v)}>{v === 'live' ? 'LIVE' : v === 0 ? 'INN 1' : 'INN 2'}</button>)}
@@ -503,7 +517,7 @@ export default function MatchHighlightsModal({ match, open, onClose }: Props) {
         </main>
 
         <aside className={styles.right}>
-          <section className={`${styles.panel} ${styles.feedPanel}`}>
+          <section ref={commentaryRef} className={`${styles.panel} ${styles.feedPanel}`}>
             <h3>
               <span>🎙️ BALL-BY-BALL COMMENTARY</span>
               <span className={styles.langSwitch}>
@@ -572,6 +586,7 @@ export default function MatchHighlightsModal({ match, open, onClose }: Props) {
             <p>⭐ CPOM: <strong>{match.cpom?.name || 'Not provided in summary'}</strong> {match.cpom?.impact && <small>{match.cpom.impact}</small>}</p>
           </section>}
         </aside>
+        <p className={`${styles.disclaimer} ${styles.mobileDisclaimer}`}>ⓘ Virtual reconstruction, not real footage. Delivery order, bowling allocation and shot descriptions may differ from recorded figures. Crowd sound is synthesised.</p>
       </div>
 
       <footer className={styles.controls}>
@@ -608,7 +623,7 @@ export default function MatchHighlightsModal({ match, open, onClose }: Props) {
           <button type="button" onClick={toggleFullScreen} title="Fullscreen (F)">{fullScreen ? '⤢ Exit' : '⛶ Full'}</button>
         </div>
       </footer>
-      <p className={styles.disclaimer}>ⓘ Virtual reconstruction using the match summary: delivery order, bowling allocation and shot descriptions are generated and may differ from recorded figures. Crowd sound is synthesised, background is illustrative photography, no real player footage. Shortcuts: Space play/pause · ←/→ ball · Shift+←/→ over · F fullscreen · M mute.</p>
+      <p className={`${styles.disclaimer} ${styles.desktopDisclaimer}`}>ⓘ Virtual reconstruction using the match summary: delivery order, bowling allocation and shot descriptions are generated and may differ from recorded figures. Crowd sound is synthesised, background is illustrative photography, no real player footage. Shortcuts: Space play/pause · ←/→ ball · Shift+←/→ over · F fullscreen · M mute.</p>
     </section>
   </div>;
 }

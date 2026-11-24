@@ -52,6 +52,8 @@ export type ReplayMatch = {
   startTime?: string;
   endTime?: string;
   duration?: string;
+  /** Missing balls faced reconstructed from innings totals, not verified. */
+  inferredBalls?: boolean;
 };
 
 export type ReplayBall = ReplayDelivery & {
