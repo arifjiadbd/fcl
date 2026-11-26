@@ -942,7 +942,7 @@ function MatchSkeleton({
 }) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      {Array.from({ length: isDesktop ? 6 : 4 }).map((_, index) => (
+      {Array.from({ length: 8 }).map((_, index) => (
         <div
           key={index}
           className="match-skeleton flex h-[104px] items-center gap-3 overflow-hidden rounded-2xl border p-3"
@@ -995,14 +995,12 @@ export default function MatchesPage() {
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  const [filtersOpen, setFiltersOpen] = useState(false);
-
   const [selectedMatch, setSelectedMatch] =
     useState<MatchItem | null>(null);
 
   const [activeReplay, setActiveReplay] = useState<ReplayMatch | null>(null);
 
-  const pageSize = isDesktop ? 6 : 5;
+  const pageSize = 8; // 8 matches per page; remaining records continue on the next page.
 
   /* ================================================================
      FETCH MATCHES
@@ -2496,6 +2494,171 @@ export default function MatchesPage() {
         @media (max-width: 640px) {
           .match-root .mx-page-content {
             padding-top: calc(var(--fcl-navbar-height, 56px) + 12px);
+            padding-left: 12px;
+            padding-right: 12px;
+          }
+
+          /* Keep every dashboard tile inside the phone viewport. */
+          .mx-stat-grid {
+            min-width: 0;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .mx-stat-grid > button:last-child {
+            grid-column: 1 / -1;
+            width: calc(50% - 4px);
+            justify-self: center;
+          }
+          .mx-stat-grid .mx-tile {
+            min-width: 0;
+            gap: 8px;
+            padding: 9px 8px;
+            border-radius: 13px;
+          }
+          .mx-stat-grid .mx-tile-ico {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            font-size: 18px;
+          }
+          .mx-stat-grid .mx-tile > span:last-child {
+            min-width: 0;
+          }
+          .mx-stat-grid .mx-tile > span:last-child > span:first-child {
+            font-size: 22px;
+          }
+          .mx-stat-grid .mx-tile > span:last-child > span:last-child {
+            font-size: 9px;
+          }
+
+          /* Two-column category layout: no sideways scrolling. */
+          .mx-category-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            min-width: 0;
+          }
+          .mx-category-grid .mx-cat {
+            width: 100%;
+            min-width: 0;
+            gap: 6px;
+            padding: 9px 7px;
+            font-size: 10px;
+          }
+          .mx-category-grid .mx-cat > span:nth-child(2) {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .mx-category-grid .mx-cat-count {
+            min-width: 21px;
+            padding: 2px 5px;
+            font-size: 10px;
+          }
+
+          /* Mobile: category choices stay in the stat tiles above. */
+          .match-root aside.mx-glass {
+            padding: 12px;
+          }
+          .match-root aside.mx-glass > .mb-3 {
+            margin-bottom: 10px;
+          }
+          .match-root aside.mx-glass .my-4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+          }
+
+          .match-root .mx-glass {
+            min-width: 0;
+          }
+          /* Grid mode becomes compact two-column match tiles on phones.
+             List mode deliberately keeps the original full-width horizontal row. */
+          .match-root .mx-records-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 9px;
+          }
+          .match-root .mx-records-grid .mx-card {
+            min-width: 0;
+            min-height: 166px;
+            height: 100%;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: flex-start;
+            gap: 8px;
+            padding: 10px;
+            border-radius: 14px;
+          }
+          .match-root .mx-records-grid .mx-card .match-date-box {
+            width: 40px;
+            height: 42px;
+            border-radius: 11px;
+          }
+          .match-root .mx-records-grid .mx-card .match-date-box span:first-child {
+            font-size: 18px;
+          }
+          .match-root .mx-records-grid .mx-card .match-date-box span:last-child {
+            margin-top: 3px;
+            font-size: 8px;
+          }
+          .match-root .mx-records-grid .mx-card > div:nth-child(2) {
+            width: 100%;
+          }
+          .match-root .mx-records-grid .mx-card > div:last-child {
+            position: absolute;
+            top: 9px;
+            right: 9px;
+            height: auto;
+            align-self: auto;
+          }
+          .match-root .mx-records-grid .mx-card .mx-go {
+            width: 23px;
+            height: 23px;
+            border-radius: 8px;
+            font-size: 16px;
+          }
+          .match-root .mx-records-grid .mx-card h3 {
+            display: -webkit-box;
+            overflow: hidden;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            padding-right: 2px;
+            font-size: 11px;
+            line-height: 1.3;
+          }
+          .match-root .mx-records-grid .mx-card .match-meta-chip,
+          .match-root .mx-records-grid .mx-card .match-replay-chip {
+            font-size: 8px;
+            padding: 2px 4px;
+          }
+          .match-root .mx-records-grid .mx-card .match-result {
+            margin-top: 5px;
+            font-size: 9px;
+          }
+
+          /* List mode: full-width, horizontal, readable rows. */
+          .match-root .mx-records-list {
+            grid-template-columns: minmax(0, 1fr);
+          }
+          .match-root .mx-records-list .mx-card {
+            width: 100%;
+            min-width: 0;
+            flex-direction: row;
+            align-items: center;
+            gap: 9px;
+            padding: 10px;
+          }
+          .match-root .mx-records-list .mx-card .match-date-box {
+            width: 50px;
+            height: 54px;
+          }
+          .match-root .mx-records-list .mx-card h3 {
+            font-size: 13px;
+          }
+          .match-root .mx-records-list .mx-card .match-meta-chip,
+          .match-root .mx-records-list .mx-card .match-replay-chip {
+            font-size: 9px;
+            padding: 3px 5px;
+          }
+          .match-root .mx-go {
+            width: 28px;
+            height: 28px;
           }
         }
 
@@ -2547,7 +2710,7 @@ export default function MatchesPage() {
             </div>
           </div>
 
-          <div className="mx-noscroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 xl:mx-0 xl:grid xl:w-[760px] xl:grid-cols-5 xl:gap-3 xl:overflow-visible xl:px-0 xl:pb-0">
+          <div className="mx-stat-grid grid w-full grid-cols-2 gap-2 pb-1 sm:grid-cols-3 xl:w-[760px] xl:grid-cols-5 xl:gap-3 xl:pb-0">
             {CATEGORIES.map((category) => (
               <StatTile
                 key={category.key}
@@ -2568,28 +2731,18 @@ export default function MatchesPage() {
           {/* ---------------- SIDEBAR ---------------- */}
 
           <aside className="mx-glass rounded-[22px] p-4 lg:sticky lg:top-20">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-lg">
-                  ▦
-                </span>
+            <div className="mb-3 flex items-center gap-2.5">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/15 text-lg">
+                ⛉
+              </span>
 
-                <h2 className="text-lg font-black text-white">
-                  Categories
-                </h2>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setFiltersOpen((open) => !open)}
-                aria-expanded={filtersOpen}
-                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-bold text-slate-200 lg:hidden"
-              >
-                Filters {filtersOpen ? "▲" : "▼"}
-              </button>
+              <h2 className="text-lg font-black text-white">
+                <span className="lg:hidden">Quick Filters</span>
+                <span className="hidden lg:inline">Categories</span>
+              </h2>
             </div>
 
-            <nav className="mx-noscroll flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-1.5 lg:overflow-visible lg:pb-0">
+            <nav className="mx-category-grid hidden grid-cols-2 gap-2 pb-1 lg:flex lg:flex-col lg:gap-1.5 lg:overflow-visible lg:pb-0">
               {CATEGORIES.map((category) => (
                 <button
                   key={category.key}
@@ -2615,12 +2768,10 @@ export default function MatchesPage() {
               ))}
             </nav>
 
-            <div
-              className={`${filtersOpen ? "block" : "hidden"} lg:block`}
-            >
+            <div className="block">
               <div className="my-4 h-px bg-white/10" />
 
-              <p className="mb-2.5 flex items-center gap-2 text-xs font-black text-slate-200">
+              <p className="mb-2.5 hidden items-center gap-2 text-xs font-black text-slate-200 lg:flex">
                 <span className="text-sky-400">⛉</span> Quick Filters
               </p>
 
@@ -2776,8 +2927,8 @@ export default function MatchesPage() {
               <>
                 <div className={showAll ? "mx-scroll" : ""}>
                   <div
-                    className={`grid gap-3 ${
-                      viewMode === "grid" ? "md:grid-cols-2" : ""
+                    className={`mx-records-layout grid gap-3 ${
+                      viewMode === "grid" ? "mx-records-grid md:grid-cols-2" : "mx-records-list"
                     }`}
                   >
                     {visibleMatches.map((match, index) => (

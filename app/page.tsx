@@ -192,7 +192,7 @@ function Preloader({
   return (
     <div
       role="status"
-      aria-label="FCL লোড হচ্ছে"
+      aria-label="Loading FCL"
       onClick={skip}
       className={`pl-root ${isDark ? "pl-dark" : "pl-light"} ${fadeOut ? "is-out" : ""}`}
     >
@@ -281,57 +281,57 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     id: "legends",
     icon: "🏆",
-    title: "তারকাদের মঞ্চ",
-    short: "স্ট্যাটস",
+    title: "Stats & Legends",
+    short: "Stats",
     english: "STATS & LEGENDS",
     color: "#f59e0b",
-    description: "র্যাঙ্কিং, রেকর্ড আর আপনার প্রিয় ক্রিকেটারের পরিসংখ্যান।",
+    description: "Rankings, records and statistics for your favorite cricketers.",
     items: [
-      { href: "/rankings", icon: "👑", title: "র্যাঙ্কিং ও MVP", english: "Rankings & MVP", description: "সেরা খেলোয়াড়, MVP রেটিং ও লিডারবোর্ড।" },
-      { href: "/records", icon: "🏆", title: "রেকর্ডবুক", english: "Hall of Fame & Records", description: "সেঞ্চুরি, হ্যাটট্রিক আর ইতিহাস গড়া সব অর্জন।" },
-      { href: "/players", icon: "🏏", title: "প্লেয়ার প্রোফাইল", english: "Players & Stat Cards", description: "খেলোয়াড়দের পরিচিতি ও অফিসিয়াল স্ট্যাট কার্ড।" },
+      { href: "/rankings", icon: "👑", title: "Rankings & MVP", english: "Rankings & MVP", description: "Top players, MVP ratings and leaderboards." },
+      { href: "/records", icon: "🏆", title: "Record Book", english: "Hall of Fame & Records", description: "Centuries, hat-tricks and historic achievements." },
+      { href: "/players", icon: "🏏", title: "Player Profiles", english: "Players & Stat Cards", description: "Player profiles and official stat cards." },
     ],
   },
   {
     id: "arena",
     icon: "⚡",
-    title: "ম্যাচের দুনিয়া",
-    short: "ম্যাচ",
+    title: "Match Arena",
+    short: "Matches",
     english: "MATCH ARENA",
     color: "#a78bfa",
-    description: "পুরোনো ম্যাচ থেকে শেষ বলের রোমাঞ্চ—সব এক জায়গায়।",
+    description: "From historic matches to last-ball thrillers, all in one place.",
     items: [
-      { href: "/matches", icon: "🏟️", title: "ম্যাচ আর্কাইভ", english: "Match Directory & History", description: "টুর্নামেন্ট, সিরিজ ও ঐতিহাসিক ম্যাচের সংগ্রহ।" },
-      { href: "/thrillers", icon: "⚡", title: "হাই ভোল্টেজ", english: "High Voltage Matches", description: "শেষ মুহূর্তের উত্তেজনা আর অবিশ্বাস্য সব ফিনিশ।" },
-      { href: "/extraordinary", icon: "💎", title: "অসাধারণ নৈপুণ্য", english: "Extraordinary Performance", description: "ম্যাচজয়ী ইনিংস ও অবিস্মরণীয় ব্যক্তিগত পারফরম্যান্স।" },
+      { href: "/matches", icon: "🏟️", title: "Match Archive", english: "Match Directory & History", description: "Explore tournaments, series and historic matches." },
+      { href: "/thrillers", icon: "⚡", title: "High Voltage", english: "High Voltage Matches", description: "Last-minute drama and incredible finishes." },
+      { href: "/extraordinary", icon: "💎", title: "Extraordinary Feats", english: "Extraordinary Performance", description: "Match-winning innings and unforgettable individual performances." },
     ],
   },
   {
     id: "community",
     icon: "💙",
-    title: "আমাদের FCL",
-    short: "কমিউনিটি",
+    title: "Our FCL",
+    short: "Community",
     english: "THE COMMUNITY",
     color: "#f472b6",
-    description: "খবর, জন্মদিন আর একসঙ্গে কাটানো প্রিয় মুহূর্তগুলো।",
+    description: "News, birthdays and cherished community moments.",
     items: [
-      { href: "/news", icon: "📰", title: "FCL সংবাদ", english: "FCL News Portal", description: "টুর্নামেন্ট আপডেট, কমিউনিটি সংবাদ ও বিশেষ প্রতিবেদন।" },
-      { href: "/memories", icon: "🎞️", title: "স্মৃতি ও আড্ডা", english: "FCL Memories & Adda", description: "পুরোনো দিনের গল্প, হাসি আর জমে থাকা স্মৃতি।" },
-      { href: "/birthday", icon: "🎂", title: "জন্মদিনের উৎসব", english: "Birthday Celebration", description: "FCL তারকাদের জন্মদিন ও শুভেচ্ছা কার্ড।" },
+      { href: "/news", icon: "📰", title: "FCL News", english: "FCL News Portal", description: "Tournament updates, community news and special reports." },
+      { href: "/memories", icon: "🎞️", title: "Memories & Stories", english: "FCL Memories & Adda", description: "Stories, laughter and memories from the past." },
+      { href: "/birthday", icon: "🎂", title: "Birthdays", english: "Birthday Celebration", description: "Celebrate FCL stars with birthday greetings." },
     ],
   },
   {
     id: "play",
     icon: "🎮",
-    title: "প্লে ও এক্সপ্লোর",
-    short: "এক্সপ্লোর",
+    title: "Play & Explore",
+    short: "Explore",
     english: "PLAY & EXPLORE",
     color: "#22d3ee",
-    description: "মাঠে নামুন, নিয়ম জানুন অথবা ঘুরে দেখুন ফটো গ্যালারি।",
+    description: "Play the game, learn the rules or explore the photo gallery.",
     items: [
-      { href: "/play", icon: "🎮", title: "খেলা শুরু করুন", english: "Play FCL Online", description: "মূল Facebook Cricket League গেমে প্রবেশ করুন।" },
-      { href: "/gallery", icon: "📸", title: "ফটো গ্যালারি", english: "Player Photo Gallery", description: "খেলোয়াড়দের ছবি দেখুন ও ডাউনলোড করুন।" },
-      { href: "/rules", icon: "📜", title: "খেলার নিয়ম", english: "Rules & Match Formats", description: "অফিসিয়াল গাইডলাইন ও বিভিন্ন ম্যাচ ফরম্যাট।" },
+      { href: "/play", icon: "🎮", title: "Play Now", english: "Play FCL Online", description: "Enter the original Facebook Cricket League game." },
+      { href: "/gallery", icon: "📸", title: "Photo Gallery", english: "Player Photo Gallery", description: "View and download player photos." },
+      { href: "/rules", icon: "📜", title: "Match Rules", english: "Rules & Match Formats", description: "Official guidelines and match formats." },
     ],
   },
 ];
@@ -422,7 +422,7 @@ function MobileHome({
           event.preventDefault();
           setActiveGroupId(null);
           setPreviewId(null);
-          setAnnouncement("মূল মেনুতে ফিরে এসেছেন।");
+          setAnnouncement("Returned to the main menu.");
           centerRef.current?.focus({ preventScroll: true });
         }
       }
@@ -435,14 +435,14 @@ function MobileHome({
   function openGroup(group: MenuGroup) {
     setActiveGroupId(group.id);
     setPreviewId(null);
-    setAnnouncement(`${group.title}: তিনটি অপশন খোলা হয়েছে।`);
+    setAnnouncement(`${group.title}: Three options are open.`);
     centerRef.current?.focus({ preventScroll: true });
   }
 
   function goHome() {
     setActiveGroupId(null);
     setPreviewId(null);
-    setAnnouncement("মূল মেনুতে ফিরে এসেছেন।");
+    setAnnouncement("Returned to the main menu.");
     centerRef.current?.focus({ preventScroll: true });
   }
 
@@ -585,6 +585,9 @@ function MobileHome({
                 <span className="fh-live" />
                 🎮 Play
               </Link>
+              <Link href="/bn" prefetch={false} className="fh-btn-language" data-accent="#3b82f6" lang="bn">
+                🌐 বাংলা ভার্সন
+              </Link>
             </div>
           </section>
 
@@ -597,7 +600,7 @@ function MobileHome({
                     FCL
                   </button>
                   <span>/</span>
-                  <strong>{activeGroup?.title ?? "মূল মেনু"}</strong>
+                  <strong>{activeGroup?.title ?? "Main Menu"}</strong>
                 </div>
 
                 <span className="fu-mode-label">ORBIT MENU</span>
@@ -629,7 +632,7 @@ function MobileHome({
                     onClick={goHome}
                     data-accent={accent}
                     aria-label={
-                      activeGroup ? "মূল FCL মেনুতে ফিরে এসেছেন।" : "FCL মূল মেনু"
+                      activeGroup ? "Return to the FCL main menu" : "FCL main menu"
                     }
                   >
                     <span className="fu-core-halo" aria-hidden="true" />
@@ -654,7 +657,7 @@ function MobileHome({
                     key={activeGroup?.id ?? "root"}
                     className="fu-petals"
                     aria-label={
-                      activeGroup ? `${activeGroup.title} সাবমেনু` : "FCL ক্যাটেগরি"
+                      activeGroup ? `${activeGroup.title} submenu` : "FCL categories"
                     }
                   >
                     {activeGroup
@@ -680,7 +683,7 @@ function MobileHome({
                                 {item.icon}
                               </span>
                               <strong>{item.title}</strong>
-                              <small>প্রবেশ করুন ↗</small>
+                              <small>Open ↗</small>
                             </Link>
                           </div>
                         ))
@@ -709,7 +712,7 @@ function MobileHome({
                                 {group.icon}
                               </span>
                               <strong>{group.title}</strong>
-                              <small>{group.items.length}টি অপশন · খুলুন</small>
+                              <small>{group.items.length} options · Open</small>
                             </button>
                           </div>
                         ))}
@@ -733,8 +736,8 @@ function MobileHome({
                           <span className="fu-petal-icon" aria-hidden="true">
                             <ArrowIcon back />
                           </span>
-                          <strong>ফিরে যান</strong>
-                          <small>মূল মেনু</small>
+                          <strong>Go Back</strong>
+                          <small>Main Menu</small>
                         </button>
                       </div>
                     )}
@@ -746,15 +749,15 @@ function MobileHome({
                 <span className="fu-instruction">
                   <span aria-hidden="true">{activeGroup ? "↗" : "✦"}</span>
                   {activeGroup
-                    ? "অপশন বেছে নিন · মাঝখানে ট্যাপ করলে Home"
-                    : "পাপড়িতে ট্যাপ করুন · খুলবে নতুন অপশন"}
+                    ? "Choose an option · Tap the center to go home"
+                    : "Tap a petal to explore its options"}
                 </span>
                 <span className="fu-step">{activeGroup ? "02 / 02" : "01 / 02"}</span>
               </div>
             </div>
 
             {/* 📱 মোবাইল ডক */}
-            <nav className="fu-dock" aria-label="দ্রুত ক্যাটেগরি নেভিগেশন">
+            <nav className="fu-dock" aria-label="Quick category navigation">
               {MENU_GROUPS.map((group) => {
                 const isActive = activeGroupId === group.id;
 
@@ -775,12 +778,6 @@ function MobileHome({
               })}
             </nav>
           </section>
-
-          <footer className="fu-footer">
-            <span>
-              ONE GAME. ONE COMMUNITY. <b>FCL.</b> © 2026 Facebook Cricket League | আরিফ জিয়াদ | All rights reserved.
-            </span>
-          </footer>
         </div>
 
         <div className="fu-sr-only" role="status" aria-live="polite">
@@ -1588,7 +1585,7 @@ function DesktopHome({ isDark, ready }: { isDark: boolean; ready: boolean }) {
           <div className="sq sq-3" />
 
           <div className="relative mx-auto flex max-w-[1500px] items-center px-6 lg:min-h-[640px]">
-            <div className="grid w-full items-center gap-10 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12">
+            <div className="grid w-full items-center gap-10 pt-20 pb-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12">
               <div className="relative z-30 text-center lg:text-left">
                 <div
                   className="fcl-wd mb-6 inline-flex items-center gap-2 rounded-full border border-[#1877F2]/30 bg-[#1877F2]/10 px-4 py-2 backdrop-blur-xl"
@@ -2080,7 +2077,21 @@ const MOBILE_STYLES = `
   color: var(--fu-text);
   transition: transform .2s;
 }
-.fh-btn-primary:active, .fh-btn-play:active { transform: scale(.96); }
+.fh-btn-language {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(59, 130, 246, .4);
+  background: rgba(59, 130, 246, .08);
+  color: var(--fu-text);
+  font-size: 12px;
+  font-weight: 800;
+  transition: transform .2s;
+}
+.fh-btn-primary:active, .fh-btn-play:active, .fh-btn-language:active { transform: scale(.96); }
 
 .fu-dashboard { display: block; scroll-margin-top: calc(64px + 4px); }
 
@@ -2263,12 +2274,6 @@ const MOBILE_STYLES = `
 }
 .fu-dock button.is-active > span:first-child { transform: scale(1.15); }
 
-.fu-footer {
-  display: flex; align-items: center; justify-content: center; text-align: center;
-  margin-top: 11px; padding-top: 10px;
-  color: var(--fu-muted); font-size: 7px; letter-spacing: .08em;
-}
-.fu-footer b { color: #3b82f6; }
 
 .fu-spark-layer { position: fixed; inset: 0; z-index: 80; pointer-events: none; overflow: hidden; }
 .fu-burst { position: absolute; width: 0; height: 0; }
