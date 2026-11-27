@@ -111,3 +111,52 @@
  .lead .articleButton:has(> .portraitCover) { display: block; }
  .lead .articleButton:has(> .portraitCover) .kicker { margin-top: 10px; }
 }
+
+
+/* Category-specific fallback artwork: use the image's natural ratio, never crop it. */
+.cover.fallbackCover {
+  position: relative; display: block; width: 100%; height: auto; min-height: 0;
+  aspect-ratio: auto; overflow: hidden; background: #101827; border: 0;
+}
+.cover.fallbackCover .fallbackArtwork {
+  display: block; width: 100%; height: auto; max-width: 100%; object-fit: contain;
+}
+.fallbackOverlay {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  padding: 13% 12%; pointer-events: none;
+}
+.fallbackLogo {
+  position: absolute; top: 3.5%; left: 3.5%; width: clamp(24px, 5%, 48px); height: auto;
+  max-height: 11%; object-fit: contain; filter: drop-shadow(0 2px 5px #0009);
+}
+.fallbackTitle {
+  display: -webkit-box; max-width: 82%; max-height: 4.2em; overflow: hidden;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 3; text-align: center;
+  color: #fff; font-size: clamp(13px, 1.55vw, 23px); font-weight: 900;
+  line-height: 1.4; overflow-wrap: anywhere;
+  text-shadow: 0 2px 3px #000, 0 0 10px #000, 0 0 18px #000b;
+}
+.dialogBody .cover.fallbackCover { width: 100%; max-width: 620px; margin: 18px auto; }
+.dialogBody .cover.fallbackCover .fallbackArtwork { width: 100%; height: auto; max-height: 65dvh; object-fit: contain; }
+@media (max-width: 600px) {
+  .fallbackOverlay { padding: 14% 10%; }
+  .fallbackTitle { font-size: clamp(12px, 3.1vw, 17px); line-height: 1.35; max-width: 84%; }
+  .fallbackLogo { width: 8%; max-height: 10%; }
+}
+
+/* Balanced front page: equal-feeling side columns, no dead gaps. */
+.front { align-items: start; }
+.sidebar .article:last-child { border-bottom: 0; }
+
+/* Fallback artwork: small logo in the top-left corner, only the category centred inside the frame. */
+.cover.fallbackCover { container-type: inline-size; }
+.cover.fallbackCover .fallbackOverlay { padding: 0; align-items: center; justify-content: center; }
+.cover.fallbackCover .fallbackLogo {
+  position: absolute; top: 3%; left: 3%; width: 15%; min-width: 28px; max-width: 76px;
+  height: auto; max-height: none; object-fit: contain; margin: 0; border-radius: 0;
+}
+.cover.fallbackCover .fallbackTitle {
+  max-width: 56%; max-height: none; font-size: clamp(10px, 6.2cqw, 30px); line-height: 1.35;
+  -webkit-line-clamp: 4; word-break: break-word;
+}
+.dialogBody .cover.fallbackCover .fallbackLogo { height: auto; width: 15%; max-height: none; }

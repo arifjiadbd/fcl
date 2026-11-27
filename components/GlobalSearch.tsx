@@ -21,6 +21,7 @@ type Kind =
   | "story"
   | "thriller"
   | "extra"
+  | "news"
   | "tour"
   | "page";
 
@@ -70,6 +71,7 @@ const KIND_PAGE: Record<Kind, { href: string; label: string }> = {
   story: { href: "/memories", label: "🎞️ স্মৃতি ও সাহিত্য সংগ্রহ" },
   thriller: { href: "/thrillers", label: "⚡ সব হাই ভোল্টেজ ম্যাচ" },
   extra: { href: "/extraordinary", label: "💎 সব অসাধারণ নৈপুণ্য" },
+  news: { href: "/news", label: "📰 সব সংবাদ" },
   tour: { href: "/records", label: "🏆 রেকর্ডবুক" },
   page: { href: "/", label: "হোম" },
 };
@@ -80,6 +82,7 @@ const KIND_LABEL: Record<Kind, string> = {
   story: "গল্প",
   thriller: "হাই ভোল্টেজ",
   extra: "অসাধারণ",
+  news: "সংবাদ",
   tour: "টুর্নামেন্ট",
   page: "পেইজ",
 };
@@ -136,6 +139,10 @@ const GENERIC: Record<string, Kind> = {
   টুর্নামেন্ট: "tour",
   tournament: "tour",
   পারফরম্যান্স: "extra",
+  সংবাদ: "news",
+  নিউজ: "news",
+  news: "news",
+  newspaper: "news",
 };
 
 const MONTHS = [
@@ -167,6 +174,21 @@ function photoPath(raw?: string): string {
   if (!raw || raw.trim() === "" || raw === "—") return PLACEHOLDER;
   if (/^(\/|https?:|data:)/.test(raw)) return raw;
   return `/players/${raw}`;
+}
+
+function newspaperPhotoPath(raw?: string): string | undefined {
+  if (!raw || !raw.trim()) return undefined;
+  const value = photoPath(raw);
+  try {
+    const url = new URL(value, "https://fcl.invalid");
+    if (url.hostname === "drive.google.com") {
+      const id = url.searchParams.get("id") || url.pathname.match(/\/d\/([-\w]+)/)?.[1];
+      return id ? `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w240` : value;
+    }
+  } catch {
+    // Keep the original image path if it is not a parseable URL.
+  }
+  return value;
 }
 
 const URL_RE = /(https?:\/\/[^\s<>"')\]]+)/g;
@@ -351,15 +373,16 @@ function loadIndex(): Promise<Entry[]> {
   if (indexPromise) return indexPromise;
 
   indexPromise = (async () => {
-    const [fcl, matches, memories, series, thr] = await Promise.all([
+    const [fcl, matches, memories, series, thr, newspaper] = await Promise.all([
       getJson("/api/fcl-data"),
       getJson("/api/matches"),
       getJson("/api/fcl-memories"),
       getJson("/api/fcl-series"),
       getJson("/api/thrillers-data"),
+      getJson("/api/newspaper"),
     ]);
 
-    if (!fcl && !matches && !memories && !series && !thr) {
+    if (!fcl && !matches && !memories && !series && !thr && !newspaper) {
       indexPromise = null;
     }
 
@@ -382,6 +405,34 @@ function loadIndex(): Promise<Entry[]> {
         })
       )
     );
+
+    // Newspaper posts: keep the same row-based ID used by /news so the
+    // destination page can open the exact article directly.
+    toArray(newspaper, "news").forEach((n: any, i: number) => {
+      const title = String(n?.title ?? n?.Title ?? "").trim();
+      if (!title) return;
+      const rowId = n?.rowIndex || i;
+      const category = String(n?.category ?? n?.Category ?? "").trim();
+      const author = String(n?.author ?? n?.Author ?? "").trim();
+      const content = String(n?.content ?? n?.Content ?? "").trim();
+      const image = String(n?.imageUrl ?? n?.ImageUrl ?? "").trim();
+      out.push(
+        mk({
+          key: `newspaper-${rowId}`,
+          kind: "news",
+          title,
+          sub: [category || "FCL Newspaper", author].filter(Boolean).join(" • "),
+          icon: "📰",
+          photo: newspaperPhotoPath(image),
+          href: `/news?article=${encodeURIComponent(`news-${rowId}`)}`,
+          titleText: `${title} ${category} ${author} FCL Newspaper News`,
+          bodyText: content,
+          boost: 9,
+          raw: n,
+          category: category || undefined,
+        })
+      );
+    });
 
     cachedAllPlayers.forEach((p: any, i: number) => {
       if (!p || typeof p.name !== "string" || !p.name.trim()) return;
@@ -773,6 +824,7 @@ export default function GlobalSearch({
       const showDetailPopup =
         entry.kind !== "page" &&
         entry.kind !== "player" &&
+        entry.kind !== "news" &&
         !DIRECT_OPEN_KINDS.includes(entry.kind);
 
       if (showDetailPopup) {
