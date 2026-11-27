@@ -1,349 +1,38 @@
-"use client";
+'use client';
+import {useEffect,useMemo,useRef,useState} from 'react';
+import Link from 'next/link';
+import {CATEGORIES} from './categories';
+import styles from './newspaper.module.css';
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-
-interface NewsItem {
-  id: string;
-  category: string;
-  title: string;
-  subtitle: string;
-  date: string;
-  sourcePage: string;
-  sourceUrl: string;
-  summary: string;
+type Story={id:string;category:string;title:string;author:string;date:string;content:string;imageUrl:string;sourceUrl:string;source:string;newsType:string;portal?:string};
+type Row=Record<string,unknown>;
+const text=(v:unknown)=>String(v??'').trim();
+const read=(r:Row,...keys:string[])=>keys.map(k=>text(r[k])).find(Boolean)||'';
+const rows=(v:unknown):Row[]=>Array.isArray(v)?v.filter(x=>x&&typeof x==='object'):[];
+function stamp(s:string){if(!s)return 0;if(/^\d{4}$/.test(s))return Date.parse(`${s}-01-01`);if(/^\d{5}(\.\d+)?$/.test(s))return (Number(s)-25569)*86400000;const m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);return (m?Date.parse(`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`):Date.parse(s))||0;}
+function dateLabel(s:string){const n=stamp(s);if(!n)return s||'তারিখ পাওয়া যায়নি';if(/^\d{4}$/.test(s))return s;return new Intl.DateTimeFormat('bn-BD',{dateStyle:'medium',timeZone:'Asia/Dhaka'}).format(n);}
+function safeLink(s:string){return /^https?:\/\//i.test(s)||(/^\/(?!\/)/.test(s)&&!s.includes('\\'))?s:'';}
+function imageLink(s:string){const v=safeLink(s);if(!v)return '';try{const u=new URL(v,'https://example.invalid');if(u.hostname==='drive.google.com'){const id=u.searchParams.get('id')||u.pathname.match(/\/d\/([-\w]+)/)?.[1];return id?`https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w1200`:'';}}catch{return '';}return v;}
+const preview=(s:string)=>s.replace(/\*+/g,'').replace(/\s+/g,' ').trim();
+const ordered=(s:Story[])=>[...s].sort((a,b)=>stamp(b.date)-stamp(a.date)||b.id.localeCompare(a.id,undefined,{numeric:true}));
+const unique=(s:Story[])=>{const seen=new Set<string>();return s.filter(x=>{const k=x.title.trim().toLowerCase().replace(/\s+/g,' ');if(!k||seen.has(k))return false;seen.add(k);return true;});};
+function manual(r:Row,i:number):Story{return {id:`news-${read(r,'rowIndex')||i}`,category:read(r,'category','Category'),title:read(r,'title','Title'),author:read(r,'author','Author')||'FCL News Desk',date:read(r,'date','Date'),content:read(r,'content','Content'),imageUrl:read(r,'imageUrl','ImageUrl'),sourceUrl:read(r,'fbPostUrl','FbPostUrl'),source:'FCL News Desk',newsType:read(r,'newsType','NewsType')||'Normal'};}
+function portal(r:Row,i:number,p:string):Story{
+ const base={id:`${p}-${read(r,'id','rowIndex')||i}`,author:read(r,'author'),date:read(r,'date','Date','matchYear','Match Year'),imageUrl:read(r,'thumbnail','photo','Photo','Thumbnail / Photo','imageUrl'),newsType:'Normal',portal:p};
+ if(p==='matches')return {...base,category:CATEGORIES[0],title:read(r,'matchTitle','title','Match Title'),content:read(r,'summary','Summary'),sourceUrl:'/matches'+(read(r,'id')?`?match=${encodeURIComponent(read(r,'id'))}`:''),source:'Match Directory'};
+ if(p==='highVoltage')return {...base,category:CATEGORIES[0],title:read(r,'matchTitle','Match Title'),content:read(r,'description','Description'),sourceUrl:'/thrillers',source:'High Voltage Matches'};
+ if(p==='extraordinary')return {...base,category:CATEGORIES[4],title:read(r,'performanceTitle','Performance Title'),content:read(r,'description','Description'),author:read(r,'playerName','Player Name'),sourceUrl:'/extraordinary',source:'Extraordinary Performances'};
+ return {...base,category:CATEGORIES[9],title:read(r,'title','Title'),content:read(r,'content','Content'),sourceUrl:'/memories',source:'Memories & Adda'};
 }
-
-export default function FCLPaperNewsPortal() {
-  const [newsFeed, setNewsFeed] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState("সব খবর");
-
-  // আপনার কথামতো এফসিএল স্পেশাল ক্যাটেগরিগুলো
-  const categories = [
-    "সব খবর",
-    "Tournament Special",
-    "Player Spotlight",
-    "Auction & Team",
-    "Nostalgia",
-    "Match Review",
-    "FCL Humor",
-    "League Notices"
-  ];
-
-  useEffect(() => {
-    async function fetchAllPortalContent() {
-      try {
-        setLoading(true);
-        const combinedNews: NewsItem[] = [];
-
-        // ১. Thrillers / High Voltage Matches ফেচ করা
-        try {
-          const res = await fetch("/api/thrillers-data");
-          const contentType = res.headers.get("content-type");
-          if (res.ok && contentType && contentType.includes("application/json")) {
-            const data = await res.json();
-            if (data.highVoltage && Array.isArray(data.highVoltage)) {
-              data.highVoltage.forEach((m: any, idx: number) => {
-                combinedNews.push({
-                  id: `hvm-${idx}`,
-                  category: "Match Review",
-                  title: m.matchTitle || "High Voltage Thriller",
-                  subtitle: `🏟️ ${m.tournament || "FCL Tournament"}`,
-                  date: m.date || "সাম্প্রতিক",
-                  sourcePage: "High Voltage Matches",
-                  sourceUrl: "/thrillers",
-                  summary: m.description || "",
-                });
-              });
-            }
-            if (data.extraordinary && Array.isArray(data.extraordinary)) {
-              data.extraordinary.forEach((e: any, idx: number) => {
-                combinedNews.push({
-                  id: `extra-${idx}`,
-                  category: "Player Spotlight",
-                  title: e.performanceTitle || "Extraordinary Performance",
-                  subtitle: `⭐ পারফর্মার: ${e.playerName || "Unknown"}`,
-                  date: e.matchYear || "রেকর্ড",
-                  sourcePage: "Extraordinary Performances",
-                  sourceUrl: "/extraordinary-performances",
-                  summary: e.description || "",
-                });
-              });
-            }
-          }
-        } catch (e) {
-          console.error("Error fetching thrillers:", e);
-        }
-
-        // ২. FCL Matches Archive ফেচ করা
-        try {
-          const res = await fetch("/api/fcl-data");
-          const contentType = res.headers.get("content-type");
-          if (res.ok && contentType && contentType.includes("application/json")) {
-            const data = await res.json();
-            if (data.matches && Array.isArray(data.matches)) {
-              data.matches.forEach((match: any, idx: number) => {
-                combinedNews.push({
-                  id: `match-${idx}`,
-                  category: "Tournament Special",
-                  title: match.matchTitle || match.title || "FCL Match Record",
-                  subtitle: `📅 ${match.date} | ${match.year || ""}`,
-                  date: match.date || "",
-                  sourcePage: "Match Directory",
-                  sourceUrl: match.link || "/matches",
-                  summary: match.summary || "",
-                });
-              });
-            }
-          }
-        } catch (e) {
-          console.error("Error fetching matches:", e);
-        }
-
-        // ৩. Memories ফেচ করা
-        try {
-          const res = await fetch("/api/memories-data");
-          const contentType = res.headers.get("content-type");
-          if (res.ok && contentType && contentType.includes("application/json")) {
-            const data = await res.json();
-            const mems = data.memories || data.data || [];
-            if (Array.isArray(mems)) {
-              mems.forEach((mem: any, idx: number) => {
-                combinedNews.push({
-                  id: `mem-${idx}`,
-                  category: "Nostalgia",
-                  title: mem.title || "FCL Memory & Nostalgia",
-                  subtitle: `✍️ লেখক: ${mem.author || "Community"}`,
-                  date: mem.date || "",
-                  sourcePage: "Memories Archive",
-                  sourceUrl: mem.fbPostUrl || "/memories",
-                  summary: mem.content || "",
-                });
-              });
-            }
-          }
-        } catch (e) {
-          console.error("Error fetching memories:", e);
-        }
-
-        // ডেমো বা ফলব্যাক ডাটা যদি কিছু না থাকে
-        if (combinedNews.length === 0) {
-          combinedNews.push({
-            id: "demo-1",
-            category: "Tournament Special",
-            title: "ফেসবুক ক্রিকেট লিগের নতুন মৌসুমের জমজমাট প্রস্তুতি শুরু",
-            subtitle: "আসন্ন টুর্নামেন্টের ফিকচার ও রুলস প্রকাশ",
-            date: "আজ",
-            sourcePage: "FCL Portal",
-            sourceUrl: "/",
-            summary: "এফসিএল-এর নতুন সিজন নিয়ে জল্পনা তুঙ্গে। দলগুলোর নিলাম ও স্কোয়াড ঘোষণা নিয়ে চলছে শেষ মুহূর্তের প্রস্তুতি..."
-          });
-        }
-
-        setNewsFeed(combinedNews);
-      } catch (err) {
-        console.error("Portal aggregate error:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchAllPortalContent();
-  }, []);
-
-  const filteredNews = activeCategory === "সব খবর"
-    ? newsFeed
-    : newsFeed.filter((item) => item.category === activeCategory);
-
-  return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 dark:bg-[#060a14] dark:text-slate-100 pb-16 font-sans">
-      
-      {/* 📰 পেপার হেডার সেকশন */}
-      <header className="border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-[#0b1220] shadow-sm">
-        
-        {/* টপ ইনফো বার */}
-        <div className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#080e1a] text-xs py-1.5 px-4">
-          <div className="mx-auto max-w-7xl flex items-center justify-between">
-            <span className="font-semibold text-slate-600 dark:text-slate-400">
-              ঢাকা, বৃহস্পতিবার, ৫ নভেম্বর ২০২৬ • এফসিএল পেপার এডিশন
-            </span>
-            <div className="flex items-center gap-3 font-bold text-slate-700 dark:text-slate-300">
-              <Link href="/" className="hover:text-sky-500">হোম পেজ</Link>
-              <span>•</span>
-              <span className="text-red-600">LIVE FCL</span>
-            </div>
-          </div>
-        </div>
-
-        {/* লোগো: একদম মাঝখানে বড় আকারে */}
-        <div className="mx-auto max-w-7xl px-4 py-6 flex flex-col items-center justify-center text-center">
-          <img 
-            src="/fcl-paper-logo.jpeg" 
-            alt="FCL Paper Logo" 
-            className="h-20 sm:h-28 w-auto object-contain mb-2 shadow-sm rounded-lg"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-          <p className="text-[11px] font-black tracking-[0.2em] text-slate-500 uppercase">
-            Facebook Cricket League • Daily Sports Newspaper
-          </p>
-        </div>
-
-        {/* ক্যাটাগরি মেনু নেভবার */}
-        <nav className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0b1220] sticky top-0 z-30 shadow-sm">
-          <div className="mx-auto max-w-7xl px-4 flex items-center justify-start sm:justify-center gap-4 sm:gap-6 overflow-x-auto py-3 text-xs font-black uppercase tracking-wider scrollbar-none">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`whitespace-nowrap transition cursor-pointer px-3 py-1 rounded-md ${
-                  activeCategory === cat 
-                    ? "bg-red-600 text-white shadow" 
-                    : "text-slate-700 dark:text-slate-300 hover:text-sky-500"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </nav>
-      </header>
-
-      {/* 🌐 মূল পেপার লেআউট (থ্রি-কলাম নিউজ গ্রিড) */}
-      <main className="mx-auto max-w-7xl px-4 mt-6">
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 bg-slate-200 dark:bg-slate-800 animate-pulse rounded-2xl" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-            {/* ১. বাম কলাম: সর্বশেষ ছোট খবর ও নোটিশ */}
-            <div className="lg:col-span-3 space-y-4 border-b lg:border-b-0 lg:border-r border-slate-300 dark:border-slate-800 pb-6 lg:pb-0 lg:pr-6">
-              <div className="border-b-2 border-red-600 pb-1 mb-3 text-sm font-black uppercase flex items-center justify-between">
-                <span>সর্বশেষ আপডেট</span>
-                <span className="w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
-              </div>
-              
-              {filteredNews.slice(0, 4).map((item) => (
-                <div key={item.id} className="group cursor-pointer pb-3 border-b border-slate-200 dark:border-slate-800/60 last:border-0">
-                  <span className="text-[10px] font-black text-red-500 uppercase">{item.category}</span>
-                  <Link href={item.sourceUrl} className="text-xs font-bold leading-snug group-hover:text-sky-500 transition mt-1 block">
-                    {item.title}
-                  </Link>
-                  <span className="text-[10px] text-slate-400 mt-1 block">{item.subtitle}</span>
-                </div>
-              ))}
-
-              <div className="mt-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                <h5 className="text-xs font-black text-amber-600 dark:text-amber-400 uppercase mb-1">
-                  📢 League Notices
-                </h5>
-                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
-                  ম্যানেজমেন্ট কমিটি ও অ্যাডমিন প্যানেলের নির্দেশিকা মেনে চলুন। নিয়মশৃঙ্খলা ভঙ্গকারীদের বিরুদ্ধে শাস্তিমূলক ব্যবস্থা নেওয়া হবে।
-                </p>
-              </div>
-            </div>
-
-            {/* ২. মাঝের কলাম: প্রধান লিড নিউজ ও সাব-হেডলাইন (বড় আকারে) */}
-            <div className="lg:col-span-6 space-y-6 lg:border-r lg:border-slate-300 lg:dark:border-slate-800 lg:pr-6">
-              
-              {/* প্রধান লিড নিউজ */}
-              {filteredNews.slice(0, 1).map((lead) => (
-                <div key={lead.id} className="group cursor-pointer space-y-3">
-                  <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center">
-                    <span className="text-xs font-bold text-slate-400">[ FCL Match & Performance Spotlight Banner ]</span>
-                  </div>
-                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase bg-red-600 text-white">
-                    লিড নিউজ • {lead.category}
-                  </span>
-                  <h2 className="text-xl sm:text-2xl font-black leading-tight group-hover:text-sky-500 transition">
-                    {lead.title}
-                  </h2>
-                  <p className="text-xs font-bold text-sky-600 dark:text-sky-400">
-                    {lead.subtitle}
-                  </p>
-                  <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">
-                    {cleanPreview(lead.summary)}
-                  </p>
-                  <div className="pt-2">
-                    <Link 
-                      href={lead.sourceUrl}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1877F2] text-white text-xs font-black shadow hover:bg-blue-600 transition"
-                    >
-                      <span>বিস্তারিত পড়ুন ({lead.sourcePage})</span>
-                      <span>↗</span>
-                    </Link>
-                  </div>
-                </div>
-              ))}
-
-              <hr className="border-slate-200 dark:border-slate-800 my-6" />
-
-              {/* সাব-লিড নিউজ গ্রিড */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {filteredNews.slice(1, 5).map((news) => (
-                  <div key={news.id} className="group cursor-pointer bg-white dark:bg-[#0b1220] p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
-                    <div>
-                      <span className="text-[10px] font-black uppercase text-purple-600 dark:text-purple-400">{news.category}</span>
-                      <h3 className="text-xs font-black leading-snug group-hover:text-sky-500 transition mt-1 line-clamp-2">
-                        {news.title}
-                      </h3>
-                    </div>
-                    <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
-                      <span className="text-slate-400">{news.subtitle}</span>
-                      <Link href={news.sourceUrl} className="font-bold text-sky-600 hover:underline">পড়ুন →</Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-            </div>
-
-            {/* ৩. ডান কলাম: কলামিস্ট, স্মৃতিচারণ ও ট্রল/ফানি মোমেন্টস */}
-            <div className="lg:col-span-3 space-y-4">
-              <div className="border-b-2 border-sky-600 pb-1 mb-3 text-sm font-black uppercase">
-                নস্টালজিয়া ও কলাম
-              </div>
-
-              <div className="bg-white dark:bg-[#0b1220] p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
-                <span className="text-[9px] font-black uppercase text-amber-500">স্মৃতিচারণ (Nostalgia)</span>
-                <h4 className="text-xs font-black leading-snug hover:text-sky-500 cursor-pointer">
-                  এফসিএল-এর পুরোনো স্মরণীয় ম্যাচ ও ঐতিহাসিক মুহূর্তগুলোর সোনালী দিন...
-                </h4>
-                <p className="text-[10px] text-slate-400">লিগ ইতিহাস থেকে সংগৃহীত</p>
-              </div>
-
-              <div className="bg-white dark:bg-[#0b1220] p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 shadow-sm">
-                <span className="text-[9px] font-black uppercase text-pink-500">FCL Humor / Memes</span>
-                <h4 className="text-xs font-black leading-snug hover:text-sky-500 cursor-pointer">
-                  ডাগআউটের হাসিখুশি মুহূর্ত ও আম্পায়ারিং বিতর্ক নিয়ে হালকা বিনোদনমূলক কলাম...
-                </h4>
-                <p className="text-[10px] text-slate-400">ডেসক রিপোর্ট</p>
-              </div>
-
-              {/* ডিরেক্টরি শর্টকাট */}
-              <div className="pt-4 space-y-2">
-                <Link 
-                  href="/" 
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-800 text-white text-xs font-extrabold flex items-center justify-center gap-2 hover:bg-slate-900 transition shadow"
-                >
-                  <span>← মূল হোম পেজে ফিরে যান</span>
-                </Link>
-              </div>
-
-            </div>
-
-          </div>
-        )}
-      </main>
-
-    </div>
-  );
-}
-
-function cleanPreview(text: string): string {
-  return text.replace(/\*\*/g, "").replace(/\*/g, "").replace(/\s+/g, " ").trim();
+function randomSix(pool:Story[],excluded:Story[],previous:Story[]=[]){const forbidden=new Set(excluded.map(x=>x.title.trim().toLowerCase().replace(/\s+/g,' ')));const list=unique(ordered(pool)).filter(x=>!forbidden.has(x.title.trim().toLowerCase().replace(/\s+/g,' ')));const prev=new Set(previous.map(x=>x.id));const now=Date.now();const age=(x:Story)=>stamp(x.date)?(now-stamp(x.date))/86400000:Infinity;const groups=[list.filter(x=>age(x)>=0&&age(x)<=7),list.filter(x=>age(x)>7&&age(x)<=30),list.filter(x=>age(x)>30)];const picked:Story[]=[];const shuffle=(a:Story[])=>a.map(x=>({x,k:Math.random()})).sort((a,b)=>a.k-b.k).map(z=>z.x);const take=(a:Story[],n:number)=>{const shuffled=shuffle(a);const sorted=[...shuffled.filter(x=>!prev.has(x.id)),...shuffled.filter(x=>prev.has(x.id))];for(const x of sorted){if(n<=0||picked.length>=6)break;if(!picked.some(y=>y.id===x.id)){picked.push(x);n--;}}};groups.forEach((g,i)=>take(g,[3,2,1][i]));take(list.filter(x=>age(x)<=30&&age(x)>=0),6-picked.length);take(list.filter(x=>age(x)>=0),6-picked.length);return picked;}
+function Cover({story}:{story:Story}){const src=imageLink(story.imageUrl);const [failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[src]);return <div className={styles.cover}>{src&&!failed?<img src={src} alt={story.title} loading="lazy" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>:<div className={styles.fallback}><span>FCL</span><small>{story.source.toUpperCase()}</small></div>}</div>;}
+function Article({story,onOpen,lead=false,compact=false}:{story:Story;onOpen:(s:Story)=>void;lead?:boolean;compact?:boolean}){return <article className={`${styles.article} ${lead?styles.lead:''} ${compact?styles.compact:''}`}><button type="button" onClick={()=>onOpen(story)} className={styles.articleButton}>{!compact&&<Cover story={story}/>}<div className={styles.kicker}>{story.category} {story.newsType==='Breaking'?' · BREAKING':''}</div>{lead?<h2>{story.title}</h2>:<h3>{story.title}</h3>}<div className={styles.meta}>{dateLabel(story.date)}{story.author&&` · ${story.author}`}</div>{!compact&&<p className={styles.excerpt}>{preview(story.content)}</p>}<span className={styles.read}>বিস্তারিত পড়ুন →</span></button></article>;}
+async function get(path:string,signal:AbortSignal){const r=await fetch(path,{cache:'no-store',signal});if(!r.ok)throw Error(path);return r.json();}
+export default function FCLPaperNewsPortal(){
+ const [news,setNews]=useState<Story[]>([]),[pool,setPool]=useState<Story[]>([]),[random,setRandom]=useState<Story[]>([]),[category,setCategory]=useState('সব খবর'),[query,setQuery]=useState(''),[page,setPage]=useState(1),[open,setOpen]=useState<Story|null>(null),[loading,setLoading]=useState(true),[errors,setErrors]=useState<string[]>([]),[updated,setUpdated]=useState(''),[edition,setEdition]=useState(''),[logoError,setLogoError]=useState(false);const dataRef=useRef({news:[] as Story[],pool:[] as Story[],signature:''});const closeRef=useRef<HTMLButtonElement>(null);
+ const fixed=useMemo(()=>{const p=ordered(pool);return unique(['matches','highVoltage','extraordinary','memories'].flatMap(k=>p.find(x=>x.portal===k)?[p.find(x=>x.portal===k)!]:[]));},[pool]);
+ useEffect(()=>{const controller=new AbortController();let busy=false;setEdition(new Intl.DateTimeFormat('bn-BD',{dateStyle:'full',timeZone:'Asia/Dhaka'}).format(new Date()));async function load(){if(busy)return;busy=true;const paths=['/api/newspaper','/api/matches','/api/thrillers-data','/api/fcl-memories'];const result=await Promise.allSettled(paths.map(p=>get(p,controller.signal)));if(controller.signal.aborted)return;const old=dataRef.current;let nextNews=old.news;let nextPool=old.pool;const failures:string[]=[];result.forEach((r,i)=>{if(r.status==='rejected'){failures.push(paths[i]);return;}const d=r.value;if(i===0){if(!Array.isArray(d.news)){failures.push(paths[i]);return;}nextNews=ordered(rows(d.news).map(manual).filter(x=>x.title&&x.content));return;}const keys=i===1?['matches']:i===2?['highVoltage','extraordinary']:['memories'];const incoming=keys.flatMap(k=>rows(k==='memories'?d.memories??d.data:k==='matches'?(d.matches??d):d[k]).map((r,j)=>portal(r,j,k))).filter(x=>x.title&&x.content);nextPool=[...nextPool.filter(x=>!keys.includes(x.portal||'')),...incoming];});nextPool=ordered(nextPool);const sig=JSON.stringify([nextNews,nextPool]);if(sig!==old.signature){dataRef.current={news:nextNews,pool:nextPool,signature:sig};setNews(nextNews);setPool(nextPool);const f=unique(['matches','highVoltage','extraordinary','memories'].flatMap(k=>nextPool.find(x=>x.portal===k)?[nextPool.find(x=>x.portal===k)!]:[]));setRandom(prev=>randomSix(nextPool,[...f,...nextNews],prev));}setErrors(failures);setUpdated(new Intl.DateTimeFormat('bn-BD',{timeStyle:'short',timeZone:'Asia/Dhaka'}).format(new Date()));setLoading(false);busy=false;}void load();const timer=setInterval(()=>void load(),300000);return()=>{controller.abort();clearInterval(timer);};},[]);
+ useEffect(()=>{if(!open)return;const before=document.body.style.overflow;document.body.style.overflow='hidden';const prev=document.activeElement as HTMLElement|null;closeRef.current?.focus();const key=(e:KeyboardEvent)=>{if(e.key==='Escape')setOpen(null);};window.addEventListener('keydown',key);return()=>{document.body.style.overflow=before;window.removeEventListener('keydown',key);prev?.focus();};},[open]);
+ const featured= news.find(x=>x.newsType==='Featured')||news.find(x=>x.newsType==='Breaking')||news[0];const breaking=news.filter(x=>x.newsType==='Breaking');const filtered=useMemo(()=>news.filter(x=>(category==='সব খবর'||x.category===category)&&`${x.title} ${x.content} ${x.author}`.toLowerCase().includes(query.trim().toLowerCase())),[news,category,query]);const active=category!=='সব খবর'||!!query.trim();const remaining=filtered;const total=Math.max(1,Math.ceil(remaining.length/8));const current=Math.min(page,total);
+ return <div className={styles.paper}><main className={styles.shell}><header className={styles.header}><div className={styles.top}><Link href="/">← FCL Home</Link><span>{edition||'FCL Digital Edition'}</span><span>APP • FACEBOOK</span></div><div className={styles.masthead}>{!logoError&&<img src="/fcl-paper-logo.jpeg" alt="FCL Newspaper logo" onError={()=>setLogoError(true)}/>}<div><div className={styles.eyebrow}>THE VOICE OF FACEBOOK CRICKET LEAGUE</div><h1>FCL <span>NEWSPAPER</span></h1><p>Every Match. Every Moment. Every Story.</p></div></div><div className={styles.edition}><span>ডিজিটাল সংস্করণ</span><span>NEWS • CRICKET • COMMUNITY</span><span>{updated?`আপডেট ${updated}`:'FCL News Desk'}</span></div></header><nav className={styles.nav} aria-label="News categories">{['সব খবর',...CATEGORIES,...Array.from(new Set(news.map(x=>x.category))).filter(x=>x&&!CATEGORIES.includes(x))].map(c=><button type="button" key={c} aria-pressed={category===c} onClick={()=>{setCategory(c);setPage(1);}}>{c}</button>)}</nav><div className={styles.search}><input type="search" aria-label="Search newspaper" placeholder="সংবাদ খুঁজুন…" value={query} onChange={e=>{setQuery(e.target.value);setPage(1);}}/>{active&&<button onClick={()=>{setQuery('');setCategory('সব খবর');setPage(1);}}>সব দেখুন</button>}</div>{errors.length>0&&<p className={styles.notice}>কিছু সংবাদ উৎস এখন পাওয়া যাচ্ছে না। আগের পাওয়া তথ্য থাকলে সেটি দেখানো হচ্ছে।</p>}{loading?<div className={styles.notice}>সংবাদ লোড হচ্ছে…</div>:<>{!active&&<>{breaking.length>0&&<div className={styles.breaking}><strong>BREAKING</strong><div>{breaking.map(x=><button key={x.id} onClick={()=>setOpen(x)}>{x.title}</button>)}</div></div>}<div className={styles.front}><aside className={styles.sidebar}><h2 className={styles.sectionTitle}>সর্বশেষ সংবাদ</h2>{news.filter(x=>x.id!==featured?.id).slice(0,4).map(x=><Article key={x.id} story={x} onOpen={setOpen} compact/>)}{news.filter(x=>x.id!==featured?.id).length===0&&<p className={styles.meta}>{news.length?'আরও সংবাদ প্রকাশিত হলে এখানে দেখা যাবে।':'এখনো কোনো নিজস্ব সংবাদ প্রকাশ হয়নি।'}</p>}</aside><section className={styles.center}><div className={styles.sectionTitle}>প্রধান সংবাদ <span>EDITOR'S DESK</span></div>{featured?<Article story={featured} onOpen={setOpen} lead/>:<div className={styles.empty}>নতুন সংবাদ প্রকাশের পর এখানে প্রধান শিরোনাম দেখা যাবে।</div>}</section><aside className={styles.sidebar}><h2 className={styles.sectionTitle}>FCL আপডেট</h2>{fixed.map(x=><Article key={x.id} story={x} onOpen={setOpen} compact/>)}{!fixed.length&&<p className={styles.meta}>পোর্টালের তথ্য পাওয়া যায়নি।</p>}</aside></div><section className={styles.universe}><div className={styles.sectionHead}><div><div className={styles.eyebrow}>DISCOVER FCL</div><h2>From the FCL Universe</h2><p>নতুন ও পুরোনো গল্পের সমন্বয় · স্বয়ংক্রিয় নির্বাচন</p></div><button onClick={()=>setRandom(prev=>randomSix(pool,[...fixed,...news],prev))}>↻ নতুন গল্প</button></div><div className={styles.grid}>{random.map(x=><Article key={x.id} story={x} onOpen={setOpen}/>)}</div>{!random.length&&<p className={styles.meta}>পর্যাপ্ত আলাদা পোর্টাল সংবাদ পাওয়া যায়নি।</p>}</section></>}<section><div className={styles.sectionHead}><h2>{active?'খোঁজার ফলাফল':'সব প্রকাশিত সংবাদ'}</h2><span>{remaining.length} সংবাদ</span></div><div className={styles.archive}>{remaining.slice((current-1)*8,current*8).map(x=><Article key={x.id} story={x} onOpen={setOpen}/>)}</div>{!remaining.length&&<div className={styles.empty}>কোনো সংবাদ পাওয়া যায়নি।</div>}{total>1&&<div className={styles.pagination}><button disabled={current===1} onClick={()=>setPage(current-1)}>← পূর্ববর্তী</button><span>{current} / {total}</span><button disabled={current===total} onClick={()=>setPage(current+1)}>পরবর্তী →</button></div>}</section></>}<footer className={styles.footer}><strong>FCL NEWSPAPER</strong><p>FCL-এর প্রতিটি গল্প, এক মলাটে।</p><small>Facebook Cricket League · Digital Gaming Community</small></footer></main>{open&&<div className={styles.overlay} onClick={()=>setOpen(null)}><section role="dialog" aria-modal="true" aria-labelledby="paper-article-title" className={styles.dialog} onClick={e=>e.stopPropagation()}><div className={styles.dialogTop}><span>FCL NEWSPAPER</span><button ref={closeRef} onClick={()=>setOpen(null)} aria-label="Close article">✕</button></div><div className={styles.dialogBody}><div className={styles.kicker}>{open.category}</div><h2 id="paper-article-title">{open.title}</h2><div className={styles.meta}>{dateLabel(open.date)} · {open.author||open.source}</div>{open.imageUrl&&<Cover story={open}/>}<div className={styles.fullText}>{open.content.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g).map((s,i)=>s.startsWith('*')&&s.endsWith('*')?<strong key={i}>{s.replace(/^\*+|\*+$/g,'')}</strong>:<span key={i}>{s}</span>)}</div>{safeLink(open.sourceUrl)&&<a className={styles.source} href={safeLink(open.sourceUrl)} target="_blank" rel="noopener noreferrer">{open.portal?`মূল পোর্টাল: ${open.source}`:'মূল Facebook পোস্ট'} ↗</a>}</div></section></div>}</div>;
 }

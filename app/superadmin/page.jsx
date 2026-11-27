@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import NewspaperForm from './NewspaperForm';
 
 export default function SuperAdminHub() {
-  const ADMIN_PIN = "423597";
+
   const [enteredPin, setEnteredPin] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [status, setStatus] = useState('idle'); // idle | success | error
@@ -12,33 +13,22 @@ export default function SuperAdminHub() {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    setMounted(true); // ✅ ক্লায়েন্টে মাউন্ট হওয়ার পরই true হবে
-    const authStatus = localStorage.getItem('fcl_admin_auth');
-    if (authStatus === 'true') {
-      setIsAuthenticated(true);
-    }
+    let alive = true;
+    localStorage.removeItem('fcl_admin_auth');
+    fetch('/api/newspaper', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'session'})})
+      .then(r => r.json()).then(d => { if(alive) setIsAuthenticated(d.authenticated === true); })
+      .catch(() => {}).finally(() => { if(alive) setMounted(true); });
+    return () => { alive = false; };
   }, []);
 
-  // পিন ৬ ডিজিট হলে অটো-ভেরিফাই
   useEffect(() => {
-    if (enteredPin.length === 6) {
-      if (enteredPin === ADMIN_PIN) {
-        setStatus('success');
-        const t = setTimeout(() => {
-          localStorage.setItem('fcl_admin_auth', 'true');
-          setIsAuthenticated(true);
-        }, 1100);
-        return () => clearTimeout(t);
-      } else {
-        setStatus('error');
-        const t = setTimeout(() => {
-          setStatus('idle');
-          setEnteredPin('');
-          setRotation((prev) => shortestRotation(prev, 0));
-        }, 900);
-        return () => clearTimeout(t);
-      }
-    }
+    if (enteredPin.length !== 6) return;
+    let alive = true;
+    setStatus('checking');
+    fetch('/api/newspaper', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'login',pin:enteredPin})})
+      .then(async r => { const d = await r.json(); if(!r.ok) throw Error(d.message); if(alive){setStatus('success');setIsAuthenticated(true);setEnteredPin('');} })
+      .catch(err => { if(alive){setStatus('error');setEnteredPin('');setRotation(0);alert(err.message || 'Login failed');setStatus('idle');} });
+    return () => {alive=false;};
   }, [enteredPin]);
 
   // মোবাইলে কীবোর্ড খোলা রাখার জন্য অটো-ফোকাস
@@ -171,7 +161,7 @@ export default function SuperAdminHub() {
   const matchCategoriesList = ["Friendly Match", "Tournament", "Series", "Test Match", "Special Match"];
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && selectedForm !== 'newspaper') {
       let url = MEMORIES_SCRIPT_URL;
       if (selectedForm === 'extraordinary' || selectedForm === 'hvm') {
         url = THRILLERS_SCRIPT_URL;
@@ -444,7 +434,8 @@ export default function SuperAdminHub() {
   if (status === 'error') { statusText = '❌ ভুল পিন! আবার চেষ্টা করুন'; statusColor = '#dc2626'; }
   // ============================================
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { const r = await fetch('/api/newspaper',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})}); if(!r.ok) throw Error('Logout failed'); } catch(e) { alert(e.message); return; }
     localStorage.removeItem('fcl_admin_auth');
     setIsAuthenticated(false);
     setStatus('idle');
@@ -622,6 +613,7 @@ export default function SuperAdminHub() {
             onChange={(e) => { setSelectedForm(e.target.value); setMode('add'); setSelectedRowIndex(null); setSearchQuery(''); resetForms(); setMessage(''); }}
             style={{ padding: '8px 12px', background: '#f8fafc', color: '#0f172a', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', fontWeight: 'bold', cursor: 'pointer' }}
           >
+            <option value="newspaper">📰 FCL Newspaper</option>
             <option value="memories">📝 Memories & Literary Archive</option>
             <option value="extraordinary">🔥 Extraordinary Performance Form</option>
             <option value="hvm">⚡ High Voltage Match Form</option>
@@ -633,6 +625,8 @@ export default function SuperAdminHub() {
         </div>
       </div>
 
+      {selectedForm === 'newspaper' && <NewspaperForm />}
+      {selectedForm !== 'newspaper' && <>
       {/* 🌟 সার্চ বক্স এবং ড্রপডাউন সেকশন */}
       <div style={{ marginBottom: '20px', background: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         <div>
@@ -902,6 +896,7 @@ export default function SuperAdminHub() {
         </form>
       )}
 
+      </>}
     </div>
   );
 }
