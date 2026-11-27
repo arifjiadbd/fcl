@@ -63,3 +63,51 @@
   .dialogBody h2 { font-size: 22px; }
   .dialogBody .cover, .dialogBody .cover img { max-height: 55dvh; }
 }
+
+/* Adaptive editorial image layout: actual image dimensions determine placement. */
+.article { container-type: inline-size; }
+.articleButton { min-width: 0; }
+.storyCopy { min-width: 0; }
+.cover.realCover,
+.lead .cover.realCover,
+.universe .cover.realCover,
+.archive .cover.realCover,
+.dialogBody .cover.realCover {
+  display: block; width: 100%; height: auto; aspect-ratio: auto;
+  min-height: 0; max-height: none; border: 0; background: transparent;
+  overflow: visible;
+}
+.cover.realCover img,
+.lead .cover.realCover img,
+.dialogBody .cover.realCover img {
+  display: block; width: 100%; height: auto; max-height: none;
+  object-fit: contain; border-radius: 3px;
+}
+.cover.placeholderCover { aspect-ratio: 16 / 9; min-height: 0; }
+.lead .cover.placeholderCover { aspect-ratio: 16 / 10; max-height: none; }
+.lead .cover.placeholderCover .fallback { min-height: 0; }
+.lead h2 { font-size: clamp(18px, 1.65vw, 24px); line-height: 1.45; color: var(--ink); }
+.articleButton:hover h2,.articleButton:hover h3 { color: var(--accent); }
+.lead .excerpt { -webkit-line-clamp: 5; }
+/* Portrait and square photos use the adjacent column when there is enough room. */
+@container (min-width: 360px) {
+ .articleButton:has(> .portraitCover) { display: grid; grid-template-columns: minmax(0, 42fr) minmax(0, 58fr); gap: 13px; align-items: start; }
+ .articleButton:has(> .portraitCover) .kicker { margin-top: 0; }
+ .articleButton:has(> .portraitCover) .excerpt { -webkit-line-clamp: 6; }
+ .lead .articleButton:has(> .portraitCover) { gap: 18px; }
+}
+/* Keep small cards readable; preserve complete images instead of cropping. */
+.grid,.archive { align-items: start; }
+.dialogBody .cover.realCover { width: fit-content; max-width: 100%; margin: 18px auto; }
+.dialogBody .cover.realCover img { width: auto; max-width: 100%; max-height: 65dvh; }
+@media (max-width: 600px) {
+ .lead h2 { font-size: 19px; line-height: 1.45; }
+ .lead .articleButton:has(> .portraitCover) { display: grid; grid-template-columns: minmax(0, 42fr) minmax(0, 58fr); gap: 10px; align-items: start; }
+ .lead .articleButton:has(> .portraitCover) .kicker { margin-top: 0; }
+ .lead .articleButton:has(> .portraitCover) .excerpt { -webkit-line-clamp: 4; }
+ .dialogBody .cover.realCover img { max-height: 60dvh; }
+}
+@media (max-width: 340px) {
+ .lead .articleButton:has(> .portraitCover) { display: block; }
+ .lead .articleButton:has(> .portraitCover) .kicker { margin-top: 10px; }
+}

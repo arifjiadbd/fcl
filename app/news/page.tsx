@@ -25,8 +25,32 @@ function portal(r:Row,i:number,p:string):Story{
  return {...base,category:CATEGORIES[9],title:read(r,'title','Title'),content:read(r,'content','Content'),sourceUrl:'/memories',source:'Memories & Adda'};
 }
 function randomSix(pool:Story[],excluded:Story[],previous:Story[]=[]){const forbidden=new Set(excluded.map(x=>x.title.trim().toLowerCase().replace(/\s+/g,' ')));const list=unique(ordered(pool)).filter(x=>!forbidden.has(x.title.trim().toLowerCase().replace(/\s+/g,' ')));const prev=new Set(previous.map(x=>x.id));const now=Date.now();const age=(x:Story)=>stamp(x.date)?(now-stamp(x.date))/86400000:Infinity;const groups=[list.filter(x=>age(x)>=0&&age(x)<=7),list.filter(x=>age(x)>7&&age(x)<=30),list.filter(x=>age(x)>30)];const picked:Story[]=[];const shuffle=(a:Story[])=>a.map(x=>({x,k:Math.random()})).sort((a,b)=>a.k-b.k).map(z=>z.x);const take=(a:Story[],n:number)=>{const shuffled=shuffle(a);const sorted=[...shuffled.filter(x=>!prev.has(x.id)),...shuffled.filter(x=>prev.has(x.id))];for(const x of sorted){if(n<=0||picked.length>=6)break;if(!picked.some(y=>y.id===x.id)){picked.push(x);n--;}}};groups.forEach((g,i)=>take(g,[3,2,1][i]));take(list.filter(x=>age(x)<=30&&age(x)>=0),6-picked.length);take(list.filter(x=>age(x)>=0),6-picked.length);return picked;}
-function Cover({story}:{story:Story}){const src=imageLink(story.imageUrl);const [failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[src]);return <div className={styles.cover}>{src&&!failed?<img src={src} alt={story.title} loading="lazy" referrerPolicy="no-referrer" onError={()=>setFailed(true)}/>:<div className={styles.fallback}><span>FCL</span><small>{story.source.toUpperCase()}</small></div>}</div>;}
-function Article({story,onOpen,lead=false,compact=false}:{story:Story;onOpen:(s:Story)=>void;lead?:boolean;compact?:boolean}){return <article className={`${styles.article} ${lead?styles.lead:''} ${compact?styles.compact:''}`}><button type="button" onClick={()=>onOpen(story)} className={styles.articleButton}>{!compact&&<Cover story={story}/>}<div className={styles.kicker}>{story.category} {story.newsType==='Breaking'?' · BREAKING':''}</div>{lead?<h2>{story.title}</h2>:<h3>{story.title}</h3>}<div className={styles.meta}>{dateLabel(story.date)}{story.author&&` · ${story.author}`}</div>{!compact&&<p className={styles.excerpt}>{preview(story.content)}</p>}<span className={styles.read}>বিস্তারিত পড়ুন →</span></button></article>;}
+function Cover({story}:{story:Story}){
+ const src=imageLink(story.imageUrl);
+ return <StoryImage key={src||story.id} src={src} story={story}/>;
+}
+function StoryImage({src,story}:{src:string;story:Story}){
+ const [failed,setFailed]=useState(false);
+ const [ratio,setRatio]=useState(0);
+ const portrait=ratio>0&&ratio<=1;
+ return <div className={`${styles.cover} ${portrait?styles.portraitCover:''} ${src&&!failed?styles.realCover:styles.placeholderCover}`}>
+  {src&&!failed?<img src={src} alt={story.title} loading="lazy" referrerPolicy="no-referrer" onLoad={e=>{const im=e.currentTarget;if(im.naturalWidth&&im.naturalHeight)setRatio(im.naturalWidth/im.naturalHeight);}} onError={()=>{setFailed(true);setRatio(0);}}/>:<div className={styles.fallback}><span>FCL</span><small>{story.source.toUpperCase()}</small></div>}
+ </div>;
+}
+function Article({story,onOpen,lead=false,compact=false}:{story:Story;onOpen:(s:Story)=>void;lead?:boolean;compact?:boolean}){
+ return <article className={`${styles.article} ${lead?styles.lead:''} ${compact?styles.compact:''}`}>
+  <button type="button" onClick={()=>onOpen(story)} className={styles.articleButton}>
+   {!compact&&<Cover story={story}/>}
+   <div className={styles.storyCopy}>
+    <div className={styles.kicker}>{story.category} {story.newsType==='Breaking'?' · BREAKING':''}</div>
+    {lead?<h2>{story.title}</h2>:<h3>{story.title}</h3>}
+    <div className={styles.meta}>{dateLabel(story.date)}{story.author&&` · ${story.author}`}</div>
+    {!compact&&<p className={styles.excerpt}>{preview(story.content)}</p>}
+    <span className={styles.read}>বিস্তারিত পড়ুন →</span>
+   </div>
+  </button>
+ </article>;
+}
 async function get(path:string,signal:AbortSignal){const r=await fetch(path,{cache:'no-store',signal});if(!r.ok)throw Error(path);return r.json();}
 export default function FCLPaperNewsPortal(){
  const [news,setNews]=useState<Story[]>([]),[pool,setPool]=useState<Story[]>([]),[random,setRandom]=useState<Story[]>([]),[category,setCategory]=useState('সব খবর'),[query,setQuery]=useState(''),[page,setPage]=useState(1),[open,setOpen]=useState<Story|null>(null),[loading,setLoading]=useState(true),[errors,setErrors]=useState<string[]>([]),[updated,setUpdated]=useState(''),[edition,setEdition]=useState(''),[logoError,setLogoError]=useState(false);const dataRef=useRef({news:[] as Story[],pool:[] as Story[],signature:''});const closeRef=useRef<HTMLButtonElement>(null);
